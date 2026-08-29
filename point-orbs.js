@@ -21,7 +21,8 @@ function buildOrb({card,kind,label,valueEl,minusBtn,plusBtn}){
 function installPointOrbs(){
   const ipCard=document.querySelector('.resource-card[data-resource="ip"]');
   if(ipCard){
-    ipCard.querySelectorAll('.resource-head,.formula,.bar,.max-label,.resource-current-control,.resource-slider,input[type="range"]').forEach(el=>el.classList.add('point-orb-legacy-hidden'));
+    // Hide every legacy IP display/control; only the orb remains visible.
+    ipCard.querySelectorAll('.resource-head,.formula,.bar,.max-label,.direct-resource,.resource-current-control,.resource-slider,input[type="range"]').forEach(el=>el.classList.add('point-orb-legacy-hidden'));
     const adjust=ipCard.querySelector('.adjust-row'); if(adjust)adjust.classList.add('point-orb-legacy-row');
     buildOrb({card:ipCard,kind:'bag',label:'IP',valueEl:document.getElementById('ipNow'),minusBtn:ipCard.querySelector('button[data-delta="-1"]'),plusBtn:ipCard.querySelector('button[data-delta="1"]')});
   }
@@ -30,27 +31,30 @@ function installPointOrbs(){
     fpCard.classList.add('fabula-point-orb-card'); fpCard.querySelector('.section-title')?.classList.add('point-orb-legacy-hidden'); fpCard.querySelector('.adjust-row')?.classList.add('point-orb-legacy-row');
     buildOrb({card:fpCard,kind:'crystal',label:'Fabula',valueEl:fpText,minusBtn:document.getElementById('fpMinus'),plusBtn:document.getElementById('fpPlus')});
   }
-  // Put both counters together on one dedicated row after HP/MP.
   if(ipCard&&fpCard){
     let row=document.getElementById('pointOrbPair');
-    if(!row){row=document.createElement('section');row.id='pointOrbPair';row.className='point-orb-pair';ipCard.parentElement?.insertAdjacentElement('afterend',row)}
-    row.append(ipCard,fpCard);
+    if(!row){
+      row=document.createElement('section'); row.id='pointOrbPair'; row.className='point-orb-pair';
+      const resourceGrid=document.querySelector('#sheetView .resource-grid'); resourceGrid?.insertAdjacentElement('afterend',row);
+    }
+    // Always enforce order and ownership so old grid styles cannot separate the pair.
+    row.replaceChildren(ipCard,fpCard);
   }
 }
 function installPointOrbStyles(){
   if(document.getElementById('pointOrbStyles'))return; const s=document.createElement('style'); s.id='pointOrbStyles';
   s.textContent=`
-  .point-orb-pair{display:flex;justify-content:center;align-items:center;gap:30px;margin:14px 0 22px;flex-wrap:nowrap}
-  .point-orb-card,.details-grid>.fabula-point-orb-card{width:158px!important;height:158px!important;min-width:158px!important;min-height:158px!important;padding:0!important;margin:0!important;border:0!important;background:transparent!important;box-shadow:none!important;overflow:visible!important}
-  .point-orb-card:before,.point-orb-card:after{display:none!important}.point-orb-legacy-hidden,.point-orb-card>.compact-ip-controls{display:none!important}.point-orb-legacy-row{display:contents!important}
+  #pointOrbPair.point-orb-pair{display:grid!important;grid-template-columns:repeat(2,158px)!important;justify-content:center!important;align-items:start!important;column-gap:24px!important;row-gap:0!important;width:100%!important;min-height:172px!important;margin:12px 0 18px!important;padding:0!important;position:relative!important;overflow:visible!important}
+  #pointOrbPair>.point-orb-card{position:relative!important;inset:auto!important;transform:none!important;float:none!important;grid-column:auto!important;grid-row:auto!important;align-self:start!important;justify-self:center!important;flex:none!important;width:158px!important;height:158px!important;min-width:158px!important;min-height:158px!important;max-width:158px!important;padding:0!important;margin:0!important;border:0!important;background:transparent!important;box-shadow:none!important;overflow:visible!important}
+  .point-orb-card:before,.point-orb-card:after{display:none!important}.point-orb-legacy-hidden,.point-orb-card>.compact-ip-controls{display:none!important}.point-orb-legacy-row{display:contents!important;margin:0!important;padding:0!important;max-height:none!important;opacity:1!important}
   .point-orb-control{width:142px;height:142px;position:relative;margin:6px auto;display:grid;place-items:center;border-radius:50%;background:radial-gradient(circle at 48% 34%,rgba(255,255,255,.07),transparent 35%),radial-gradient(circle,rgba(15,17,24,.96) 54%,rgba(7,9,13,.98) 72%);border:2px solid rgba(213,181,104,.58);box-shadow:inset 0 0 0 5px rgba(255,255,255,.018),inset 0 0 28px rgba(70,100,130,.12),0 6px 20px rgba(0,0,0,.38)}
   .point-orb-art-wrap{position:absolute;inset:18px 26px 34px;display:grid;place-items:center;pointer-events:none}.point-orb-art{width:72px;height:72px;filter:drop-shadow(0 0 8px rgba(138,203,255,.26))}.orb-art-shadow{fill:rgba(0,0,0,.3)}.orb-art-main{fill:#b8d7e7;stroke:#e8d291;stroke-width:1}.orb-art-glint{fill:rgba(255,255,255,.58)}.point-orb-bag .orb-art-main{fill:#bca474;stroke:#e0c77d}.point-orb-crystal .orb-art-main{fill:#8ecbf3;stroke:#ddc87d}
   .point-orb-label{position:absolute;top:9px;left:0;right:0;text-align:center;font-family:Georgia,serif;font-size:.68rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#e2c77f;z-index:3}
   .point-orb-buttons{position:absolute;left:20px;right:20px;bottom:12px;display:flex;justify-content:space-between;z-index:4;pointer-events:none}.point-orb-buttons button{pointer-events:auto!important;width:38px!important;height:38px!important;min-width:38px!important;min-height:38px!important;padding:0!important;display:grid!important;place-items:center!important;border-radius:50%!important;font-size:1.42rem!important;color:#f2dfad!important;background:rgba(25,27,34,.96)!important;border:1px solid rgba(220,188,105,.65)!important}
   .point-orb-count{position:absolute;right:-7px;top:18px;width:46px;height:46px;border-radius:50%;display:grid;place-items:center;z-index:6;background:rgba(18,20,28,.98);border:2px solid rgba(220,187,99,.72);font-family:Georgia,serif;font-weight:800;color:#fff0bd;font-size:1rem}.point-orb-crystal .point-orb-count{border-color:rgba(118,194,246,.82);box-shadow:0 0 14px rgba(83,173,239,.24)}
-  /* Once IP is moved out, HP and MP fill the resource row evenly. */
   .resource-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important}
-  @media(max-width:520px){.point-orb-pair{gap:10px}.point-orb-card,.details-grid>.fabula-point-orb-card{width:145px!important;height:145px!important;min-width:145px!important;min-height:145px!important}.point-orb-control{width:132px;height:132px}.point-orb-buttons{left:16px;right:16px}.point-orb-count{width:42px;height:42px}}
+  @media(max-width:520px){#pointOrbPair.point-orb-pair{grid-template-columns:repeat(2,145px)!important;column-gap:8px!important;min-height:160px!important}#pointOrbPair>.point-orb-card{width:145px!important;height:145px!important;min-width:145px!important;min-height:145px!important;max-width:145px!important}.point-orb-control{width:132px;height:132px}.point-orb-buttons{left:16px;right:16px}.point-orb-count{width:42px;height:42px}}
+  @media(max-width:340px){#pointOrbPair.point-orb-pair{grid-template-columns:repeat(2,136px)!important;column-gap:4px!important}#pointOrbPair>.point-orb-card{width:136px!important;min-width:136px!important;max-width:136px!important}.point-orb-control{width:124px;height:124px}.point-orb-art{width:62px;height:62px}}
   `; document.head.appendChild(s);
 }
 installPointOrbStyles();installPointOrbs();
