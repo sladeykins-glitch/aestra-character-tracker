@@ -28,6 +28,30 @@ function normSkill(v){return String(v||'').trim().toLowerCase()}
 function skillRows(){return [...document.querySelectorAll('#skillsEditor .entry-row')]}
 function skillCards(){return [...document.querySelectorAll('#buildMenuBody .build-entry-skills')]}
 function rowValues(row){return [...row.querySelectorAll('input,textarea,select')].map(x=>String(x.value||'').trim())}
+function classRows(){return [...document.querySelectorAll('#classesEditor .entry-row')]}
+function findClassRow(source){
+  const wanted=normSkill(source);
+  if(!wanted)return null;
+  return classRows().find(row=>normSkill(rowValues(row)[0])===wanted)||null;
+}
+function classLevelInfo(source){
+  const row=findClassRow(source);
+  if(!row)return null;
+  const inputs=row.querySelectorAll('input,textarea,select');
+  const input=inputs[1];
+  if(!input)return null;
+  return {row,input,level:Math.max(1,Number(input.value)||1)};
+}
+function changeClassLevel(source,delta){
+  const info=classLevelInfo(source);
+  if(!info)return {ok:false,reason:'missing'};
+  const next=Math.max(1,Math.min(10,info.level+delta));
+  if(next===info.level)return {ok:false,reason:delta>0?'max':'min',level:info.level};
+  info.input.value=String(next);
+  info.input.dispatchEvent(new Event('input',{bubbles:true}));
+  info.input.dispatchEvent(new Event('change',{bubbles:true}));
+  return {ok:true,level:next};
+}
 
 async function getMaxRank(name,source){
   try{
@@ -59,7 +83,7 @@ function levelBurst(pip,down=false){
   setTimeout(()=>pip.classList.remove('skill-pip-up','skill-pip-down'),480);
 }
 
-function drawControl(row,maxRank){
+function drawControl(row,maxRank,source){
   const modal=document.getElementById('buildDetailModal');
   const content=modal?.querySelector('.build-detail-content');
   if(!content)return;
@@ -77,7 +101,7 @@ function drawControl(row,maxRank){
   section.innerHTML=`
     <div class="skill-level-top">
       <div><small>SKILL LEVEL</small><strong class="skill-level-readout">SL ${rank} / ${maxRank}</strong></div>
-      <span class="skill-level-note">Increase this skill instead of adding it again</span>
+      <span class="skill-level-note">Changing SL also changes ${source||'its class'} level</span>
     </div>
     <div class="skill-level-stepper">
       <button type="button" class="skill-level-minus" aria-label="Decrease skill level">−</button>
@@ -103,9 +127,11 @@ function drawControl(row,maxRank){
 
   function sync(direction=0){
     rank=Math.max(1,Math.min(maxRank,Number(rankInput.value)||1));
+    const cls=classLevelInfo(source);
     readout.textContent=`SL ${rank} / ${maxRank}`;
-    minus.disabled=rank<=1;
-    plus.disabled=rank>=maxRank;
+    minus.disabled=rank<=1||Boolean(cls&&cls.level<=1);
+    plus.disabled=rank>=maxRank||Boolean(cls&&cls.level>=10);
+    plus.title=cls&&cls.level>=10?'This class is already level 10':'';
     [...pipWrap.children].forEach((p,i)=>p.classList.toggle('filled',i<rank));
     pipWrap.setAttribute('aria-label',`${rank} of ${maxRank} skill levels`);
     updateSkillLevelField(rank);
@@ -115,8 +141,15 @@ function drawControl(row,maxRank){
 
   function setRank(next,direction){
     const old=rank;
-    rank=Math.max(1,Math.min(maxRank,next));
-    if(rank===old)return;
+    const wanted=Math.max(1,Math.min(maxRank,next));
+    if(wanted===old)return;
+    const delta=wanted-old;
+    const cls=classLevelInfo(source);
+    if(cls){
+      const changed=changeClassLevel(source,delta);
+      if(!changed.ok)return;
+    }
+    rank=wanted;
     rankInput.value=String(rank);
     rankInput.dispatchEvent(new Event('input',{bubbles:true}));
     rankInput.dispatchEvent(new Event('change',{bubbles:true}));
@@ -140,7 +173,7 @@ async function enhanceOpenedSkill(card){
   const modal=document.getElementById('buildDetailModal');
   if(!modal||modal.classList.contains('hidden'))return;
   if(normSkill(modal.querySelector('.build-detail-title')?.textContent)!==normSkill(name))return;
-  drawControl(row,maxRank);
+  drawControl(row,maxRank,source);
 }
 
 document.addEventListener('click',e=>{
