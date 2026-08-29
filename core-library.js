@@ -1,5 +1,6 @@
 const CONFIG=window.AESTRA_CONFIG||{};
-let libClient=null, libraryLoaded=false, coreClasses=[], coreSkills=[];
+let libClient=null, libraryLoaded=false;
+let coreClasses=[], coreSkills=[], coreSpells=[], coreArcana=[], coreEquipment=[], coreHeroics=[];
 
 async function getLibClient(){
   if(libClient)return libClient;
@@ -7,99 +8,59 @@ async function getLibClient(){
   libClient=mod.createClient(CONFIG.supabaseUrl,CONFIG.supabaseAnonKey);
   return libClient;
 }
-
 async function loadCoreLibrary(){
   if(libraryLoaded)return;
   const sb=await getLibClient();
-  const {data:classes,error:ce}=await sb.from('rule_classes').select('*').eq('source_id','core-1.02').order('sort_order');
-  if(ce)throw ce;
-  const {data:skills,error:se}=await sb.from('rule_class_skills').select('*,rule_classes!inner(name,slug,source_id)').eq('rule_classes.source_id','core-1.02').order('sort_order');
-  if(se)throw se;
-  coreClasses=classes||[]; coreSkills=skills||[]; libraryLoaded=true;
+  const requests=await Promise.all([
+    sb.from('rule_classes').select('*').eq('source_id','core-1.02').order('sort_order'),
+    sb.from('rule_class_skills').select('*,rule_classes!inner(name,slug,source_id)').eq('rule_classes.source_id','core-1.02').order('sort_order'),
+    sb.from('rule_spells').select('*').eq('source_id','core-1.02').order('class_name').order('sort_order'),
+    sb.from('rule_arcana').select('*').eq('source_id','core-1.02').order('sort_order'),
+    sb.from('rule_equipment').select('*').eq('source_id','core-1.02').order('sort_order'),
+    sb.from('rule_heroic_skills').select('*').eq('source_id','core-1.02').order('sort_order')
+  ]);
+  const err=requests.find(r=>r.error)?.error;if(err)throw err;
+  [coreClasses,coreSkills,coreSpells,coreArcana,coreEquipment,coreHeroics]=requests.map(r=>r.data||[]);
+  libraryLoaded=true;
 }
-
-function fire(el,type='input'){
-  el.dispatchEvent(new Event(type,{bubbles:true}));
-}
-function latestRow(containerId){
-  const rows=document.querySelectorAll(`#${containerId} .entry-row`);
-  return rows[rows.length-1]||null;
-}
-function fillClass(c){
-  document.getElementById('addClassBtn')?.click();
-  requestAnimationFrame(()=>{
-    const row=latestRow('classesEditor'); if(!row)return;
-    const inputs=row.querySelectorAll('input,textarea');
-    if(inputs[0]){inputs[0].value=c.name;fire(inputs[0])}
-    if(inputs[1]){inputs[1].value='1';fire(inputs[1])}
-    if(inputs[2]){inputs[2].value=(c.free_benefits||[]).join(' · ');fire(inputs[2])}
-  });
-}
-function fillSkill(s){
-  document.getElementById('addSkillBtn')?.click();
-  requestAnimationFrame(()=>{
-    const row=latestRow('skillsEditor'); if(!row)return;
-    const inputs=row.querySelectorAll('input,textarea');
-    if(inputs[0]){inputs[0].value=s.name;fire(inputs[0])}
-    if(inputs[1]){inputs[1].value='1';inputs[1].max=String(s.max_rank||1);fire(inputs[1])}
-    if(inputs[2]){inputs[2].value=s.rule_classes?.name||'Core Rulebook';fire(inputs[2])}
-    if(inputs[3]){inputs[3].value=s.effect||'';fire(inputs[3])}
-  });
-}
-
+const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+const fire=(el,type='input')=>el.dispatchEvent(new Event(type,{bubbles:true}));
+function latestRow(id){const rows=document.querySelectorAll(`#${id} .entry-row`);return rows[rows.length-1]||null}
+function fillInputs(row,vals){const inputs=row?.querySelectorAll('input,textarea');if(!inputs)return;vals.forEach((v,i)=>{if(inputs[i]){inputs[i].value=v??'';fire(inputs[i])}})}
+function fillClass(c){document.getElementById('addClassBtn')?.click();requestAnimationFrame(()=>fillInputs(latestRow('classesEditor'),[c.name,1,(c.free_benefits||[]).join(' · ')]))}
+function fillSkill(s){document.getElementById('addSkillBtn')?.click();requestAnimationFrame(()=>{const row=latestRow('skillsEditor');fillInputs(row,[s.name,1,s.rule_classes?.name||'Core Rulebook',s.effect]);const rank=row?.querySelectorAll('input,textarea')?.[1];if(rank)rank.max=String(s.max_rank||1)})}
+function fillHeroic(h){document.getElementById('addSkillBtn')?.click();requestAnimationFrame(()=>fillInputs(latestRow('skillsEditor'),[h.name,1,'Heroic Skill',`${h.requirements&&h.requirements!=='None'?`Requirements: ${h.requirements}. `:''}${h.effect}`]))}
+function fillSpell(s){document.getElementById('addSpellBtn')?.click();requestAnimationFrame(()=>fillInputs(latestRow('spellsEditor'),[s.name,s.mp,s.target,s.duration,`${s.class_name}${s.offensive?' · Offensive':''}. ${s.effect}`]))}
+function fillArcanum(a){document.getElementById('addSpellBtn')?.click();requestAnimationFrame(()=>fillInputs(latestRow('spellsEditor'),[a.name,'',`Domains: ${(a.domains||[]).join(', ')}`,'Scene',`Merge: ${a.merge_effect} Dismiss: ${a.dismiss_effect}`]))}
+function parseBonus(v){const m=String(v||'').match(/^([+-]?\d+)$/);return m?Number(m[1]):0}
+function fillEquipment(e){document.getElementById('addEquipmentBtn')?.click();requestAnimationFrame(()=>{
+  let slot=e.category==='weapon'?(e.hands==='Two-handed'?'Two hands':'Main hand'):e.category==='armor'?'Armor':'Shield';
+  let notes=[e.martial?'Martial':'Basic',e.subtype,e.cost!=null?`${e.cost}z`:'',e.accuracy?`Accuracy ${e.accuracy}`:'',e.damage?`Damage ${e.damage}`:'',e.defence?`DEF ${e.defence}`:'',e.magic_defence?`MDEF ${e.magic_defence}`:'',e.initiative?`INIT ${e.initiative}`:'',e.hands,e.range,e.notes].filter(Boolean).join(' · ');
+  fillInputs(latestRow('equipmentEditor'),[slot,e.name,parseBonus(e.defence),parseBonus(e.magic_defence),parseBonus(e.initiative),notes]);
+})}
 function closeLibrary(){document.getElementById('coreLibraryModal')?.classList.add('hidden')}
-function renderLibrary(mode='classes',query=''){
-  const body=document.getElementById('coreLibraryBody'); if(!body)return;
-  const q=query.trim().toLowerCase();
-  const items=mode==='classes'?coreClasses:coreSkills;
-  const filtered=items.filter(x=>{
-    const hay=mode==='classes'?`${x.name} ${(x.aliases||[]).join(' ')} ${x.summary}`:`${x.name} ${x.rule_classes?.name||''} ${x.effect}`;
-    return !q||hay.toLowerCase().includes(q);
+function dataset(mode){return mode==='classes'?coreClasses:mode==='skills'?coreSkills:mode==='heroics'?coreHeroics:mode==='spells'?coreSpells:mode==='arcana'?coreArcana:coreEquipment}
+function hay(x,mode){if(mode==='classes')return `${x.name} ${(x.aliases||[]).join(' ')} ${x.summary}`;if(mode==='skills')return `${x.name} ${x.rule_classes?.name||''} ${x.effect}`;if(mode==='heroics')return `${x.name} ${x.requirements} ${x.effect}`;if(mode==='spells')return `${x.name} ${x.class_name} ${x.effect}`;if(mode==='arcana')return `${x.name} ${(x.domains||[]).join(' ')} ${x.merge_effect} ${x.dismiss_effect}`;return `${x.name} ${x.category} ${x.subtype} ${x.accuracy} ${x.damage} ${x.notes}`}
+function renderLibrary(mode,query=''){
+  const body=document.getElementById('coreLibraryBody');if(!body)return;const q=query.trim().toLowerCase();const filtered=dataset(mode).filter(x=>!q||hay(x,mode).toLowerCase().includes(q));body.innerHTML='';
+  filtered.forEach(x=>{const card=document.createElement('article');card.className='core-lib-card';let meta='',text='',button='Add';
+    if(mode==='classes'){meta=`Core p. ${x.page}`;text=`${x.summary||''}${(x.free_benefits||[]).length?`\nFree benefits: ${(x.free_benefits||[]).join(' · ')}`:''}`;button='Add class'}
+    if(mode==='skills'){meta=`${x.rule_classes?.name||''} · ${(x.max_rank||1)>1?`SL 1–${x.max_rank}`:'Single rank'} · Core p. ${x.page}`;text=x.effect;button='Add skill'}
+    if(mode==='heroics'){meta=`${x.requirements||'None'} · Core p. ${x.page}`;text=x.effect;button='Add Heroic Skill'}
+    if(mode==='spells'){meta=`${x.class_name} · ${x.mp} MP · ${x.target} · ${x.duration} · Core p. ${x.page}`;text=x.effect;button='Add spell'}
+    if(mode==='arcana'){meta=`${(x.domains||[]).join(' · ')} · Core p. ${x.page}`;text=`Merge: ${x.merge_effect}\nDismiss: ${x.dismiss_effect}`;button='Add Arcanum'}
+    if(mode==='equipment'){meta=`${x.category}${x.subtype?` · ${x.subtype}`:''}${x.martial?' · Martial':''}${x.cost!=null?` · ${x.cost}z`:''} · Core p. ${x.page}`;text=[x.accuracy&&`Accuracy ${x.accuracy}`,x.damage&&`Damage ${x.damage}`,x.defence&&`DEF ${x.defence}`,x.magic_defence&&`MDEF ${x.magic_defence}`,x.initiative&&`INIT ${x.initiative}`,x.hands,x.range,x.notes].filter(Boolean).join(' · ');button='Add item'}
+    card.innerHTML=`<div class="core-lib-head"><div><strong>${esc(x.name)}</strong><small>${esc(meta)}</small></div><button class="primary" type="button">${button}</button></div><p>${esc(text).replace(/\n/g,'<br>')}</p>`;
+    card.querySelector('button').onclick=()=>{({classes:fillClass,skills:fillSkill,heroics:fillHeroic,spells:fillSpell,arcana:fillArcanum,equipment:fillEquipment}[mode])(x);closeLibrary()};body.appendChild(card)
   });
-  body.innerHTML='';
-  filtered.forEach(x=>{
-    const card=document.createElement('article'); card.className='core-lib-card';
-    if(mode==='classes'){
-      card.innerHTML=`<div class="core-lib-head"><div><strong>${escapeHtml(x.name)}</strong><small>Core p. ${x.page||'—'}</small></div><button class="primary" type="button">Add class</button></div><p>${escapeHtml(x.summary||'')}</p><p class="muted"><b>Free benefits:</b> ${escapeHtml((x.free_benefits||[]).join(' · ')||'None')}</p><p class="muted">${escapeHtml((x.aliases||[]).join(' · '))}</p>`;
-      card.querySelector('button').onclick=()=>{fillClass(x);closeLibrary()};
-    }else{
-      const rank=(x.max_rank||1)>1?`SL 1–${x.max_rank}`:'Single rank';
-      card.innerHTML=`<div class="core-lib-head"><div><strong>${escapeHtml(x.name)}</strong><small>${escapeHtml(x.rule_classes?.name||'')} · ${rank} · Core p. ${x.page||'—'}</small></div><button class="primary" type="button">Add skill</button></div><p>${escapeHtml(x.effect||'')}</p>`;
-      card.querySelector('button').onclick=()=>{fillSkill(x);closeLibrary()};
-    }
-    body.appendChild(card);
-  });
-  if(!filtered.length)body.innerHTML='<p class="muted">No matching Core Rulebook entries.</p>';
+  if(!filtered.length)body.innerHTML='<p class="muted">No matching Core Rulebook entries.</p>'
 }
-function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]))}
-
-async function openLibrary(mode){
-  const modal=document.getElementById('coreLibraryModal');
-  const body=document.getElementById('coreLibraryBody');
-  modal.classList.remove('hidden'); body.innerHTML='<p class="muted">Loading Core Rulebook library…</p>';
-  document.getElementById('coreLibraryTitle').textContent=mode==='classes'?'Add a Core Class':'Add a Core Class Skill';
-  document.getElementById('coreLibrarySearch').value='';
-  modal.dataset.mode=mode;
-  try{await loadCoreLibrary();renderLibrary(mode)}catch(e){body.innerHTML=`<p>Could not load the Core library: ${escapeHtml(e.message||e)}</p>`}
+const titles={classes:'Add a Core Class',skills:'Add a Core Class Skill',heroics:'Add a Heroic Skill',spells:'Add a Core Spell',arcana:'Add an Arcanum',equipment:'Add Core Equipment'};
+async function openLibrary(mode){const modal=document.getElementById('coreLibraryModal'),body=document.getElementById('coreLibraryBody');modal.classList.remove('hidden');body.innerHTML='<p class="muted">Loading Core Rulebook library…</p>';modal.dataset.mode=mode;document.getElementById('coreLibraryTitle').textContent=titles[mode];document.getElementById('coreLibrarySearch').value='';try{await loadCoreLibrary();renderLibrary(mode)}catch(e){body.innerHTML=`<p>Could not load the Core library: ${esc(e.message||e)}</p>`}}
+function addLibraryButton(afterId,label,mode){const target=document.getElementById(afterId);if(!target||target.parentElement?.querySelector(`[data-core-mode="${mode}"]`))return;const b=document.createElement('button');b.type='button';b.className='secondary core-library-btn';b.dataset.coreMode=mode;b.textContent=label;b.onclick=()=>openLibrary(mode);target.parentElement?.appendChild(b)}
+function installLibraryUI(){if(document.getElementById('coreLibraryModal'))return;
+  addLibraryButton('addClassBtn','Core Classes','classes');addLibraryButton('addSkillBtn','Core Skills','skills');addLibraryButton('addSkillBtn','Heroic Skills','heroics');addLibraryButton('addSpellBtn','Core Spells','spells');addLibraryButton('addSpellBtn','Arcana','arcana');addLibraryButton('addEquipmentBtn','Core Equipment','equipment');
+  const modal=document.createElement('div');modal.id='coreLibraryModal';modal.className='core-library-modal hidden';modal.innerHTML=`<div class="core-library-dialog panel"><div class="split-heading"><div><p class="eyebrow">Fabula Ultima · Core Rulebook 1.02</p><h2 id="coreLibraryTitle">Core Library</h2></div><button id="coreLibraryClose" class="ghost" type="button">Close</button></div><input id="coreLibrarySearch" class="core-library-search" type="search" placeholder="Search the Core library…"><div id="coreLibraryBody" class="core-library-body"></div></div>`;document.body.appendChild(modal);document.getElementById('coreLibraryClose').onclick=closeLibrary;modal.addEventListener('click',e=>{if(e.target===modal)closeLibrary()});document.getElementById('coreLibrarySearch').addEventListener('input',e=>renderLibrary(modal.dataset.mode,e.target.value));
+  const style=document.createElement('style');style.textContent=`.core-library-btn{margin-left:8px}.core-library-modal{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.72);display:flex;align-items:flex-start;justify-content:center;padding:18px;overflow:auto}.core-library-modal.hidden{display:none!important}.core-library-dialog{width:min(900px,100%);margin:4vh auto}.core-library-search{width:100%;margin:10px 0 14px}.core-library-body{display:grid;gap:10px;max-height:70vh;overflow:auto;padding-right:4px}.core-lib-card{border:1px solid var(--border,#514638);border-radius:14px;padding:13px;background:rgba(255,255,255,.025)}.core-lib-head{display:flex;gap:12px;align-items:flex-start;justify-content:space-between}.core-lib-head div{display:grid;gap:3px}.core-lib-head small{opacity:.72}.core-lib-card p{margin:.55rem 0 0;line-height:1.45}@media(max-width:640px){.core-library-btn{margin-left:0;margin-top:8px}.core-lib-head button{white-space:nowrap}}`;document.head.appendChild(style)
 }
-
-function installLibraryUI(){
-  if(document.getElementById('coreLibraryModal'))return;
-  const classBtn=document.getElementById('addClassBtn');
-  const skillBtn=document.getElementById('addSkillBtn');
-  if(classBtn){const b=document.createElement('button');b.type='button';b.className='secondary core-library-btn';b.textContent='Core Library';b.onclick=()=>openLibrary('classes');classBtn.parentElement?.appendChild(b)}
-  if(skillBtn){const b=document.createElement('button');b.type='button';b.className='secondary core-library-btn';b.textContent='Core Library';b.onclick=()=>openLibrary('skills');skillBtn.parentElement?.appendChild(b)}
-
-  const modal=document.createElement('div'); modal.id='coreLibraryModal'; modal.className='core-library-modal hidden';
-  modal.innerHTML=`<div class="core-library-dialog panel"><div class="split-heading"><div><p class="eyebrow">Fabula Ultima · Core Rulebook 1.02</p><h2 id="coreLibraryTitle">Core Library</h2></div><button id="coreLibraryClose" class="ghost" type="button">Close</button></div><input id="coreLibrarySearch" class="core-library-search" type="search" placeholder="Search classes or skills…"><div id="coreLibraryBody" class="core-library-body"></div></div>`;
-  document.body.appendChild(modal);
-  document.getElementById('coreLibraryClose').onclick=closeLibrary;
-  modal.addEventListener('click',e=>{if(e.target===modal)closeLibrary()});
-  document.getElementById('coreLibrarySearch').addEventListener('input',e=>renderLibrary(modal.dataset.mode||'classes',e.target.value));
-
-  const style=document.createElement('style');style.textContent=`
-    .core-library-btn{margin-left:8px}.core-library-modal{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.72);display:flex;align-items:flex-start;justify-content:center;padding:18px;overflow:auto}.core-library-modal.hidden{display:none!important}.core-library-dialog{width:min(860px,100%);margin:4vh auto}.core-library-search{width:100%;margin:10px 0 14px}.core-library-body{display:grid;gap:10px;max-height:70vh;overflow:auto;padding-right:4px}.core-lib-card{border:1px solid var(--border,#514638);border-radius:14px;padding:13px;background:rgba(255,255,255,.025)}.core-lib-head{display:flex;gap:12px;align-items:center;justify-content:space-between}.core-lib-head div{display:grid;gap:3px}.core-lib-head small{opacity:.72}.core-lib-card p{margin:.55rem 0 0;line-height:1.45}@media(max-width:640px){.core-library-btn{margin-left:0;margin-top:8px}.core-lib-head{align-items:flex-start}.core-lib-head button{white-space:nowrap}}
-  `;document.head.appendChild(style);
-}
-
 installLibraryUI();
