@@ -17,12 +17,40 @@ const paths={
   derived:'M4 4h16v4H4V4Zm2 6h12v10H6V10Zm3 3v4h6v-4H9Z'
 };
 const classMap={arcanist:'magic',chimerist:'abilities',darkblade:'equipment',elementalist:'magic',entropist:'magic',fury:'mig',guardian:'classes',loremaster:'ins',orator:'bonds',rogue:'dex',sharpshooter:'skills',spiritist:'magic',tinkerer:'equipment',wayfarer:'bonds',weaponmaster:'equipment'};
-function icon(kind,label=''){const key=kind==='class'?(classMap[label.toLowerCase()]||'classes'):kind;const svg=document.createElementNS(NS,'svg');svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('aria-hidden','true');svg.classList.add('aestra-icon',`icon-${key}`);const p=document.createElementNS(NS,'path');p.setAttribute('d',paths[key]||paths.abilities);svg.appendChild(p);return svg}
+function icon(kind,label=''){const key=kind==='class'?(classMap[String(label).toLowerCase()]||'classes'):kind;const svg=document.createElementNS(NS,'svg');svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('aria-hidden','true');svg.classList.add('aestra-icon',`icon-${key}`);const p=document.createElementNS(NS,'path');p.setAttribute('d',paths[key]||paths.abilities);svg.appendChild(p);return svg}
 function prepend(el,kind,label=''){if(!el||el.querySelector(':scope > .aestra-icon'))return;el.prepend(icon(kind,label))}
-function decorateStatic(){document.querySelectorAll('#sheetView .attr-card').forEach(card=>{const name=card.querySelector(':scope > span');if(name)prepend(name,name.textContent.trim().toLowerCase())});document.querySelectorAll('#sheetView .resource-card').forEach(card=>prepend(card.querySelector('.resource-head > span'),card.dataset.resource));prepend(document.querySelector('#sheetView .details-grid article:first-child h3'),'ip');prepend(document.querySelector('#sheetView .details-grid article:nth-child(2) h3'),'status');prepend(document.querySelector('#sheetView article .section-title h3'),'derived');
-  const headings=[['#bondsEditor','bonds'],['#inventoryEditor','equipment']];headings.forEach(([id,k])=>{const p=document.querySelector(id)?.closest('article');prepend(p?.querySelector('h3'),k)});
+function decorateStatic(){
+  document.querySelectorAll('#sheetView .attr-card').forEach(card=>{const name=card.querySelector(':scope > span');if(name)prepend(name,name.textContent.trim().toLowerCase())});
+  document.querySelectorAll('#sheetView .resource-card').forEach(card=>prepend(card.querySelector('.resource-head > span'),card.dataset.resource));
+  prepend(document.querySelector('#sheetView .details-grid article:first-child h3'),'ip');
+  prepend(document.querySelector('#sheetView .details-grid article:nth-child(2) h3'),'status');
+  const derived=document.querySelector('#sheetView .derived-grid')?.closest('article')?.querySelector('.section-title h3');prepend(derived,'derived');
+  [['#bondsEditor','bonds'],['#inventoryEditor','equipment']].forEach(([id,k])=>{const p=document.querySelector(id)?.closest('article');prepend(p?.querySelector('h3'),k)});
 }
-function decorateBuild(){document.querySelectorAll('.build-tab').forEach(btn=>{const t=btn.textContent.toLowerCase();const k=t.includes('class')?'classes':t.includes('skill')?'skills':t.includes('equip')?'equipment':'magic';const old=btn.querySelector(':scope > span');if(old)old.replaceWith(icon(k));else btn.prepend(icon(k))});document.querySelectorAll('.build-entry').forEach(card=>{const title=card.querySelector('.build-entry-copy strong')?.textContent.trim()||'';const glyph=card.querySelector('.build-entry-glyph');let k=card.classList.contains('build-entry-classes')?'class':card.classList.contains('build-entry-skills')?'skills':card.classList.contains('build-entry-equipment')?'equipment':'magic';if(glyph&&!glyph.querySelector('svg')){glyph.textContent='';glyph.appendChild(icon(k,title))}})}
-function decorateModal(){const modal=document.getElementById('buildDetailModal');if(!modal)return;const target=modal.querySelector('.build-detail-icon');if(!target||target.dataset.iconReady)return;target.dataset.iconReady='1';const obs=new MutationObserver(()=>{const type=modal.querySelector('.build-detail-type')?.textContent.toLowerCase()||'';const title=modal.querySelector('.build-detail-title')?.textContent||'';const k=type.includes('class')?'class':type.includes('skill')?'skills':type.includes('equip')?'equipment':'magic';target.textContent='';target.appendChild(icon(k,title))});obs.observe(modal.querySelector('.build-detail-title'),{childList:true,characterData:true,subtree:true})}
-function install(){if(document.getElementById('aestraIconStyles'))return;const s=document.createElement('style');s.id='aestraIconStyles';s.textContent=`.aestra-icon{width:1.15em;height:1.15em;display:inline-block;vertical-align:-.18em;flex:0 0 auto;fill:currentColor;filter:drop-shadow(0 0 5px currentColor);opacity:.9}.attr-card>span,.resource-head>span,.details-grid h3,.section-title h3{display:flex;align-items:center;gap:.42em}.attr-card>span .aestra-icon{width:1.35em;height:1.35em}.resource-head>span .aestra-icon{width:1.25em;height:1.25em}.resource-hp .icon-hp{color:#ff7272}.resource-mp .icon-mp{color:#7ccaff}.resource-ip .icon-ip,.icon-ip{color:#e6c46f}.icon-mig{color:#e89967}.icon-dex{color:#80d4b4}.icon-ins{color:#8ec8ff}.icon-wlp{color:#c69cff}.icon-magic{color:#8dcfff}.icon-equipment{color:#d8b66b}.icon-bonds{color:#e6a7c8}.build-tab>.aestra-icon{width:1.15rem;height:1.15rem;color:#d8b160}.build-entry-glyph .aestra-icon{width:1.5rem;height:1.5rem}.build-detail-icon .aestra-icon{width:1.75rem;height:1.75rem;transform:rotate(-45deg)}@media(max-width:640px){.build-tab>.aestra-icon{width:1rem;height:1rem}}`;document.head.appendChild(s);decorateStatic();decorateBuild();decorateModal();const root=document.getElementById('sheetView');if(root)new MutationObserver(()=>{decorateStatic();decorateBuild();decorateModal()}).observe(root,{childList:true,subtree:true})}
+function decorateBuild(){
+  document.querySelectorAll('.build-tab').forEach(btn=>{
+    if(btn.dataset.aestraIconReady==='1')return;
+    const t=btn.textContent.toLowerCase();const k=t.includes('class')?'classes':t.includes('skill')?'skills':t.includes('equip')?'equipment':'magic';
+    const old=btn.querySelector(':scope > span');if(old)old.replaceWith(icon(k));else btn.prepend(icon(k));
+    btn.dataset.aestraIconReady='1';
+  });
+  document.querySelectorAll('.build-entry').forEach(card=>{
+    const glyph=card.querySelector('.build-entry-glyph');if(!glyph||glyph.dataset.aestraIconReady==='1')return;
+    const title=card.querySelector('.build-entry-copy strong')?.textContent.trim()||'';
+    const k=card.classList.contains('build-entry-classes')?'class':card.classList.contains('build-entry-skills')?'skills':card.classList.contains('build-entry-equipment')?'equipment':'magic';
+    glyph.textContent='';glyph.appendChild(icon(k,title));glyph.dataset.aestraIconReady='1';
+  });
+}
+function decorateModal(){
+  const modal=document.getElementById('buildDetailModal');if(!modal||modal.dataset.iconObserverReady==='1')return;
+  modal.dataset.iconObserverReady='1';const target=modal.querySelector('.build-detail-icon'),title=modal.querySelector('.build-detail-title');if(!target||!title)return;
+  const refresh=()=>{const type=modal.querySelector('.build-detail-type')?.textContent.toLowerCase()||'';const label=title.textContent||'';const k=type.includes('class')?'class':type.includes('skill')?'skills':type.includes('equip')?'equipment':'magic';target.textContent='';target.appendChild(icon(k,label))};
+  new MutationObserver(refresh).observe(title,{childList:true,characterData:true,subtree:true});refresh();
+}
+function install(){
+  if(document.getElementById('aestraIconStyles'))return;
+  const s=document.createElement('style');s.id='aestraIconStyles';s.textContent=`.aestra-icon{width:1.15em;height:1.15em;display:inline-block;vertical-align:-.18em;flex:0 0 auto;fill:currentColor;filter:drop-shadow(0 0 5px currentColor);opacity:.9}.attr-card>span,.resource-head>span,.details-grid h3,.section-title h3{display:flex;align-items:center;gap:.42em}.attr-card>span .aestra-icon{width:1.35em;height:1.35em}.resource-head>span .aestra-icon{width:1.25em;height:1.25em}.resource-hp .icon-hp{color:#ff7272}.resource-mp .icon-mp{color:#7ccaff}.resource-ip .icon-ip,.icon-ip{color:#e6c46f}.icon-mig{color:#e89967}.icon-dex{color:#80d4b4}.icon-ins{color:#8ec8ff}.icon-wlp{color:#c69cff}.icon-magic{color:#8dcfff}.icon-equipment{color:#d8b66b}.icon-bonds{color:#e6a7c8}.build-tab>.aestra-icon{width:1.15rem;height:1.15rem;color:#d8b160}.build-entry-glyph .aestra-icon{width:1.5rem;height:1.5rem}.build-detail-icon .aestra-icon{width:1.75rem;height:1.75rem;transform:rotate(-45deg)}@media(max-width:640px){.build-tab>.aestra-icon{width:1rem;height:1rem}}`;
+  document.head.appendChild(s);decorateStatic();decorateBuild();decorateModal();
+  const body=document.getElementById('buildMenuBody');if(body)new MutationObserver(()=>requestAnimationFrame(decorateBuild)).observe(body,{childList:true});
+}
 setTimeout(install,0);
