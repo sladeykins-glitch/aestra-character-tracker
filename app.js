@@ -124,7 +124,7 @@ async function loadGMDashboard(){
 }
 
 els.authForm.addEventListener('submit',async e=>{ e.preventDefault(); if(!configured()){setMessage('Supabase is not configured yet. Use the local demo, or follow README.md.');return;} setMessage('Signing in…'); const {data,error}=await supabase.auth.signInWithPassword({email:els.emailInput.value.trim(),password:els.passwordInput.value}); if(error){setMessage(error.message);return;} currentUser=data.user; setMessage(''); await enterApp(); });
-els.signUpBtn.addEventListener('click',async()=>{ if(!configured()){setMessage('Supabase is not configured yet.');return;} const {error}=await supabase.auth.signUp({email:els.emailInput.value.trim(),password:els.passwordInput.value}); setMessage(error?error.message:'Account created. Check your email if confirmation is enabled, then sign in.'); });
+els.signUpBtn.addEventListener('click',async()=>{ if(!configured()){setMessage('Supabase is not configured yet.');return;} const redirectTo='https://sladeykins-glitch.github.io/aestra-character-tracker/'; const {error}=await supabase.auth.signUp({email:els.emailInput.value.trim(),password:els.passwordInput.value,options:{emailRedirectTo:redirectTo}}); setMessage(error?error.message:'Account created. Check your email, confirm it, then return here and sign in.'); });
 els.demoBtn.addEventListener('click',enterDemo);
 els.logoutBtn.addEventListener('click',async()=>{ if(supabase) await supabase.auth.signOut(); currentUser=null; currentCharacterId=null; showAuth(); });
 els.saveBtn.addEventListener('click',saveCharacter);
