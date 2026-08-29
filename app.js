@@ -63,3 +63,4 @@ await loadLayer('./traits-inline.js?v=2');
 await loadLayer('./final-refinement.js?v=2');
 await loadLayer('./performance-lite.js?v=1');
 await loadLayer('./equipment-workbench.js?v=2');
+await loadLayer('./equipment-purchase.js?v=1');
