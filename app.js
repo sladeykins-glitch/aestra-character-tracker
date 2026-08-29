@@ -54,4 +54,4 @@ await import('./final-fixes.js?v=2');
 await import('./traits-inline.js?v=2');
 await import('./final-refinement.js?v=2');
 await import('./performance-lite.js?v=1');
-await import('./equipment-workbench.js?v=1');
+await import('./equipment-workbench.js?v=2');
