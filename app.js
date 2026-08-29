@@ -52,3 +52,4 @@ await import('./mobile-character-polish.js?v=1');
 await import('./final-experience.js?v=1');
 await import('./final-fixes.js?v=2');
 await import('./traits-inline.js?v=2');
+await import('./final-refinement.js?v=1');
