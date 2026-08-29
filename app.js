@@ -8,7 +8,7 @@ if(!document.getElementById('gmSaveBtn')){
 await import('./app-core.js?v=1');
 await import('./gm-structured.js?v=1');
 await import('./enhancements.js?v=2');
-await import('./status-fix.js?v=1');
+await import('./status-fix.js?v=2');
 await import('./core-library.js?v=4');
 await import('./rules-aware.js?v=3');
 await import('./aestra-visuals.js?v=2');
@@ -32,3 +32,4 @@ await import('./combat-ui-polish.js?v=1');
 await import('./save-orb.js?v=1');
 await import('./rules-orb.js?v=2');
 await import('./grand-ui.js?v=1');
+await import('./mobile-pages.js?v=1');
