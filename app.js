@@ -33,3 +33,4 @@ await import('./save-orb.js?v=1');
 await import('./rules-orb.js?v=2');
 await import('./grand-ui.js?v=1');
 await import('./mobile-pages.js?v=1');
+await import('./status-label-polish.js?v=1');
