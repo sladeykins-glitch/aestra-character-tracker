@@ -2,53 +2,15 @@ const RC_CONFIG=window.AESTRA_CONFIG||{};
 let rcClientPromise=null;
 const rcClient=()=>rcClientPromise||(rcClientPromise=import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm').then(m=>m.createClient(RC_CONFIG.supabaseUrl,RC_CONFIG.supabaseAnonKey)));
 
-const sectionMap={
-  classes:{editor:'classesEditor',name:'class'},
-  skills:{editor:'skillsEditor',name:'skill'},
-  equipment:{editor:'equipmentEditor',name:'equipment item'},
-  magic:{editor:'spellsEditor',name:'spell / Arcanum'}
-};
+const sectionMap={classes:{editor:'classesEditor',name:'class'},skills:{editor:'skillsEditor',name:'skill'},equipment:{editor:'equipmentEditor',name:'equipment item'},magic:{editor:'spellsEditor',name:'spell / Arcanum'}};
 let pendingDetail=null;
-
 function activeSection(){return document.querySelector('.build-tab.active')?.dataset.build||'classes'}
 function visibleCards(){return [...document.querySelectorAll('#buildMenuBody .build-entry')]}
 function hiddenRows(section){const cfg=sectionMap[section];return cfg?[...document.querySelectorAll(`#${cfg.editor} .entry-row`)]:[]}
 function entryTitle(row,section){const vals=[...row.querySelectorAll('input,textarea,select')].map(e=>String(e.value||'').trim());if(section==='equipment')return vals[1]||vals[0]||'this item';return vals[0]||`this ${sectionMap[section]?.name||'entry'}`}
-
-function addDetailRemove(){const modal=document.getElementById('buildDetailModal');const dialog=modal?.querySelector('.build-detail-dialog');if(!dialog||dialog.querySelector('.build-detail-remove'))return;const btn=document.createElement('button');btn.type='button';btn.className='build-detail-remove danger-action';btn.textContent='Remove from character';btn.addEventListener('click',()=>{
-  if(!pendingDetail)return;
-  const {section,index}=pendingDetail,row=hiddenRows(section)[index];
-  if(!row)return;
-  const title=entryTitle(row,section);
-  if(!confirm(`Remove ${title} from this character?`))return;
-  const remove=row.querySelector('.remove-entry');
-  if(remove){remove.click();document.querySelector('.build-detail-close')?.click();}
-});dialog.appendChild(btn)}
-
-function trackBuildClicks(){document.addEventListener('click',e=>{
-  const card=e.target.closest?.('#buildMenuBody .build-entry');
-  if(card){const section=activeSection(),index=visibleCards().indexOf(card);pendingDetail={section,index};setTimeout(addDetailRemove,0)}
-},true)}
-
-function decorateGMCards(){document.querySelectorAll('#gmCards .gm-card').forEach(card=>{
-  if(card.querySelector('.gm-delete-character'))return;
-  const id=card.dataset.charId;if(!id||id==='demo-character')return;
-  const btn=document.createElement('button');btn.type='button';btn.className='ghost gm-delete-character danger-action';btn.textContent='Delete character';
-  btn.onclick=async()=>{
-    const name=card.querySelector('.gm-name h3')?.textContent?.trim()||'this character';
-    if(!confirm(`Permanently delete ${name}'s character sheet? This cannot be undone.`))return;
-    const typed=prompt(`Type DELETE to permanently remove ${name}.`);
-    if(typed!=='DELETE')return;
-    btn.disabled=true;btn.textContent='Deleting…';
-    try{const sb=await rcClient();const {error}=await sb.from('characters').delete().eq('id',id).eq('campaign_id',RC_CONFIG.campaignId);if(error)throw error;card.remove();if(!document.querySelector('#gmCards .gm-card'))document.getElementById('refreshGmBtn')?.click();}
-    catch(err){alert(`Could not delete character: ${err.message||err}`);btn.disabled=false;btn.textContent='Delete character';}
-  };
-  card.appendChild(btn);
-})}
-
+function addDetailRemove(){const modal=document.getElementById('buildDetailModal'),dialog=modal?.querySelector('.build-detail-dialog');if(!dialog)return;let btn=dialog.querySelector('.build-detail-remove');if(!btn){btn=document.createElement('button');btn.type='button';btn.className='build-detail-remove danger-action';btn.innerHTML='<span aria-hidden="true">✕</span> Remove from character';dialog.appendChild(btn)}btn.onclick=()=>{if(!pendingDetail)return;const {section,index}=pendingDetail,row=hiddenRows(section)[index];if(!row)return;const title=entryTitle(row,section);if(!confirm(`Remove ${title} from this character?`))return;const remove=row.querySelector('.remove-entry');if(remove){remove.click();document.querySelector('.build-detail-close')?.click()}else alert(`Could not remove ${title}. Please try again.`)}}
+function trackBuildClicks(){document.addEventListener('click',e=>{const card=e.target.closest?.('#buildMenuBody .build-entry');if(!card)return;const section=activeSection(),index=visibleCards().indexOf(card);pendingDetail={section,index};requestAnimationFrame(()=>requestAnimationFrame(addDetailRemove))},true)}
+function decorateGMCards(){document.querySelectorAll('#gmCards .gm-card').forEach(card=>{if(card.querySelector('.gm-delete-character'))return;const id=card.dataset.charId;if(!id||id==='demo-character')return;const btn=document.createElement('button');btn.type='button';btn.className='ghost gm-delete-character danger-action';btn.textContent='Delete character';btn.onclick=async()=>{const name=card.querySelector('.gm-name h3')?.textContent?.trim()||'this character';if(!confirm(`Permanently delete ${name}'s character sheet? This cannot be undone.`))return;const typed=prompt(`Type DELETE to permanently remove ${name}.`);if(typed!=='DELETE')return;btn.disabled=true;btn.textContent='Deleting…';try{const sb=await rcClient();const {error}=await sb.from('characters').delete().eq('id',id).eq('campaign_id',RC_CONFIG.campaignId);if(error)throw error;card.remove();if(!document.querySelector('#gmCards .gm-card'))document.getElementById('refreshGmBtn')?.click()}catch(err){alert(`Could not delete character: ${err.message||err}`);btn.disabled=false;btn.textContent='Delete character'}};card.appendChild(btn)})}
 function installGMObserver(){const root=document.getElementById('gmCards');if(!root)return;decorateGMCards();new MutationObserver(decorateGMCards).observe(root,{childList:true,subtree:false})}
-
-const style=document.createElement('style');style.textContent=`
-.danger-action{border-color:rgba(221,88,88,.42)!important;color:#f0a0a0!important;background:rgba(91,20,25,.16)!important}.danger-action:hover{border-color:rgba(241,112,112,.72)!important;background:rgba(121,29,36,.28)!important;color:#ffd0d0!important}.build-detail-remove{display:block;margin:26px 0 0 auto;padding:10px 14px!important;border-radius:10px!important;font-size:.82rem!important}.gm-delete-character{width:100%;margin-top:8px}.build-detail-remove:before,.gm-delete-character:before{content:'✕';margin-right:7px;font-size:.78em}@media(max-width:640px){.build-detail-remove{width:100%;margin-top:20px;min-height:44px}}
-`;document.head.appendChild(style);
-trackBuildClicks();setTimeout(installGMObserver,0);
+const style=document.createElement('style');style.textContent=`.danger-action{border-color:rgba(221,88,88,.55)!important;color:#f0a0a0!important;background:rgba(91,20,25,.22)!important}.danger-action:hover{border-color:rgba(241,112,112,.8)!important;background:rgba(121,29,36,.34)!important;color:#ffd0d0!important}.build-detail-remove{display:flex!important;align-items:center;justify-content:center;gap:7px;width:100%;margin:22px 0 0!important;padding:11px 14px!important;border-radius:10px!important;font-size:.84rem!important;position:relative!important;z-index:5!important}.gm-delete-character{width:100%;margin-top:8px}@media(max-width:640px){.build-detail-remove{min-height:44px}}`;
+document.head.appendChild(style);trackBuildClicks();setTimeout(installGMObserver,0);
