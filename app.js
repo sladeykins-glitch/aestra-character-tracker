@@ -27,3 +27,4 @@ await import('./build-entry-icons.js?v=2');
 await import('./unique-icons.js?v=1');
 await import('./point-orbs.js?v=2');
 await import('./sheet-polish.js?v=1');
+await import('./conditions-collapse.js?v=1');
