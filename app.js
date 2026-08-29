@@ -18,40 +18,48 @@ if(!document.getElementById('gmMpOther')){
     host.appendChild(label);
   }
 }
-await import('./app-core.js?v=1');
-await import('./gm-structured.js?v=1');
-await import('./enhancements.js?v=2');
-await import('./status-fix.js?v=2');
-await import('./core-library.js?v=5');
-await import('./rules-aware.js?v=3');
-await import('./aestra-visuals.js?v=2');
-await import('./aestra-theme.js?v=1');
-await import('./resource-glow.js?v=1');
-await import('./compact-attributes.js?v=2');
-await import('./compact-ip.js?v=1');
+
+async function loadLayer(path){
+  try{return await import(path)}
+  catch(err){console.error(`Aestra layer failed: ${path}`,err);return null}
+}
+
+// Core mechanics first. Each presentation layer is isolated so one optional UI error
+// can never stop the rest of the character sheet from loading.
+await loadLayer('./app-core.js?v=1');
+await loadLayer('./gm-structured.js?v=1');
+await loadLayer('./enhancements.js?v=2');
+await loadLayer('./status-fix.js?v=2');
+await loadLayer('./core-library.js?v=5');
+await loadLayer('./rules-aware.js?v=3');
+await loadLayer('./aestra-visuals.js?v=2');
+await loadLayer('./aestra-theme.js?v=1');
+await loadLayer('./resource-glow.js?v=1');
+await loadLayer('./compact-attributes.js?v=2');
+await loadLayer('./compact-ip.js?v=1');
 // magic-effects intentionally disabled: pointer trails and continuous animations were expensive on mobile.
-await import('./build-menu.js?v=3');
-await import('./ui-icons.js?v=2');
-await import('./remove-controls.js?v=1');
-await import('./skill-levels.js?v=2');
-await import('./class-mastery.js?v=1');
-await import('./picker-icons.js?v=2');
-await import('./build-entry-icons.js?v=2');
+await loadLayer('./build-menu.js?v=3');
+await loadLayer('./ui-icons.js?v=2');
+await loadLayer('./remove-controls.js?v=1');
+await loadLayer('./skill-levels.js?v=2');
+await loadLayer('./class-mastery.js?v=1');
+await loadLayer('./picker-icons.js?v=2');
+await loadLayer('./build-entry-icons.js?v=2');
 // unique-icons intentionally disabled: semantic icons remain, without the extra DOM observer/decorating pass.
-await import('./point-orbs.js?v=3');
-await import('./sheet-polish.js?v=1');
-await import('./conditions-collapse.js?v=3');
-await import('./combat-ui-polish.js?v=1');
-await import('./save-orb.js?v=1');
-await import('./rules-orb.js?v=2');
-await import('./grand-ui.js?v=1');
-await import('./mobile-pages.js?v=1');
-await import('./status-label-polish.js?v=1');
-await import('./portrait-upload.js?v=1');
-await import('./mobile-character-polish.js?v=1');
-await import('./final-experience.js?v=1');
-await import('./final-fixes.js?v=2');
-await import('./traits-inline.js?v=2');
-await import('./final-refinement.js?v=2');
-await import('./performance-lite.js?v=1');
-await import('./equipment-workbench.js?v=2');
+await loadLayer('./point-orbs.js?v=3');
+await loadLayer('./sheet-polish.js?v=1');
+await loadLayer('./conditions-collapse.js?v=3');
+await loadLayer('./combat-ui-polish.js?v=1');
+await loadLayer('./save-orb.js?v=1');
+await loadLayer('./rules-orb.js?v=2');
+await loadLayer('./grand-ui.js?v=1');
+await loadLayer('./mobile-pages.js?v=1');
+await loadLayer('./status-label-polish.js?v=1');
+await loadLayer('./portrait-upload.js?v=1');
+await loadLayer('./mobile-character-polish.js?v=1');
+await loadLayer('./final-experience.js?v=1');
+await loadLayer('./final-fixes.js?v=2');
+await loadLayer('./traits-inline.js?v=2');
+await loadLayer('./final-refinement.js?v=2');
+await loadLayer('./performance-lite.js?v=1');
+await loadLayer('./equipment-workbench.js?v=2');
