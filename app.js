@@ -18,6 +18,6 @@ await import('./compact-attributes.js?v=1');
 await import('./compact-ip.js?v=1');
 await import('./magic-effects.js?v=2');
 await import('./build-menu.js?v=3');
-await import('./ui-icons.js?v=1');
+await import('./ui-icons.js?v=2');
 await import('./remove-controls.js?v=1');
 await import('./skill-levels.js?v=1');
