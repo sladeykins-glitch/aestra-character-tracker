@@ -16,3 +16,4 @@ await import('./aestra-theme.js?v=1');
 await import('./resource-glow.js?v=1');
 await import('./compact-attributes.js?v=1');
 await import('./compact-ip.js?v=1');
+await import('./magic-interactions.js?v=1');
