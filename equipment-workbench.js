@@ -5,6 +5,7 @@
   const SLOT_NAMES={weapon:'Weapon',armor:'Armor',shield:'Shield',accessory:'Accessory'};
   let selectedIndex=null;
   let dragIndex=null;
+  let detailIndex=null;
   let renderQueued=false;
 
   const editor=()=>document.getElementById('equipmentEditor');
@@ -50,7 +51,6 @@
   function commitRow(row,vals){
     const v=inputs(row);if(v.length<6)return;
     setField(v[0],vals.slot);setField(v[2],vals.def);setField(v[3],vals.mdef);setField(v[4],vals.init);setField(v[5],vals.notes);
-    // One bubbled event updates rules/build presentation without flooding it with five renders.
     v[0].dispatchEvent(new Event('input',{bubbles:true}));
     v[0].dispatchEvent(new Event('change',{bubbles:true}));
     document.dispatchEvent(new CustomEvent('aestra:equipment-changed'));
@@ -61,9 +61,7 @@
     const packed=encode(meta);if(!packed)return;
     commitRow(row,{slot:'Loadout',def:0,mdef:0,init:0,notes:`Stored in loadout\n${MARK}${packed}`});
   }
-  function equippedRowFor(kind,except=null){
-    return rows().find(r=>r!==except&&!isStowed(r)&&classify(effective(r))===kind)||null;
-  }
+  function equippedRowFor(kind,except=null){return rows().find(r=>r!==except&&!isStowed(r)&&classify(effective(r))===kind)||null}
   function equipRow(row,kind){
     if(!row)return;
     const data=effective(row),itemKind=classify(data);
@@ -76,27 +74,33 @@
   }
   function unequipIndex(index){const row=rows()[index];if(row){const name=effective(row).name;stowRow(row);selectedIndex=null;queueRender();toast(`${name||'Item'} moved to loadout.`)}}
 
-  function statLine(d){
-    const bits=[];if(d.def)bits.push(`DEF ${d.def>0?'+':''}${d.def}`);if(d.mdef)bits.push(`MDEF ${d.mdef>0?'+':''}${d.mdef}`);if(d.init)bits.push(`INIT ${d.init>0?'+':''}${d.init}`);return bits.length?bits.join(' · '):'No sheet stat modifiers';
-  }
+  function statLine(d){const bits=[];if(d.def)bits.push(`DEF ${d.def>0?'+':''}${d.def}`);if(d.mdef)bits.push(`MDEF ${d.mdef>0?'+':''}${d.mdef}`);if(d.init)bits.push(`INIT ${d.init>0?'+':''}${d.init}`);return bits.length?bits.join(' · '):'No sheet stat modifiers'}
   function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
   function icon(kind){return ({weapon:'⚔',armor:'⬟',shield:'◈',accessory:'✦',any:'◇'})[kind]||'◇'}
 
   function makeSlot(kind){
     const row=equippedRowFor(kind),all=rows(),idx=row?all.indexOf(row):-1,data=row?effective(row):null;
-    return `<div class="equip-drop-slot ${row?'occupied':''}" data-equip-slot="${kind}">
-      <div class="equip-slot-icon">${icon(kind)}</div><small>${SLOT_NAMES[kind]}</small>
-      ${data?`<strong>${esc(data.name||'Unnamed item')}</strong><span>${esc(statLine(data))}</span><button type="button" class="equip-unequip" data-unequip-index="${idx}">Unequip</button>`:`<strong>Empty</strong><span>Drop an item here</span>`}
-    </div>`;
+    return `<div class="equip-drop-slot ${row?'occupied':''}" data-equip-slot="${kind}"><div class="equip-slot-icon">${icon(kind)}</div><small>${SLOT_NAMES[kind]}</small>${data?`<strong>${esc(data.name||'Unnamed item')}</strong><span>${esc(statLine(data))}</span><button type="button" class="equip-unequip" data-unequip-index="${idx}">Unequip</button>`:`<strong>Empty</strong><span>Drop an item here</span>`}</div>`;
+  }
+
+  function cleanBuildEquipmentCards(){
+    const cards=[...document.querySelectorAll('#buildMenuBody .build-entry-equipment')],all=rows();
+    cards.forEach((card,i)=>{const row=all[i];if(!row||!isStowed(row))return;const d=effective(row),kind=classify(d),copy=card.querySelector('.build-entry-copy'),small=copy?.querySelector('small'),detail=copy?.querySelector(':scope > span');if(small)small.textContent=`Loadout · ${SLOT_NAMES[kind]||'Any slot'}`;if(detail)detail.textContent=[statLine(d),d.notes].filter(Boolean).join(' · ')});
+  }
+  function cleanEquipmentDetail(){
+    if(detailIndex==null)return;const row=rows()[detailIndex],modal=document.getElementById('buildDetailModal');if(!row||!modal||!isStowed(row)||modal.classList.contains('hidden'))return;
+    const d=effective(row),kind=classify(d),content=modal.querySelector('.build-detail-content');
+    modal.querySelector('.build-detail-meta').textContent=`Loadout · ${SLOT_NAMES[kind]||'Any slot'}`;
+    if(content)content.innerHTML=[['Item',d.name],['Status','In Build Loadout'],['Preferred Slot',d.slot||SLOT_NAMES[kind]||'Any'],['Defence',d.def],['Magic Defence',d.mdef],['Initiative',d.init],['Details',d.notes]].filter(([,v])=>v!==''&&v!=null).map(([l,v],i,a)=>`<section class="build-detail-field${i===a.length-1?' build-detail-main':''}"><small>${esc(l)}</small><div>${esc(v)}</div></section>`).join('');
   }
 
   function render(){
-    renderQueued=false;const host=document.getElementById('equipmentWorkbench');if(!host)return;
-    const all=rows();
+    renderQueued=false;const host=document.getElementById('equipmentWorkbench');if(!host)return;const all=rows();
     host.querySelector('.equip-slots').innerHTML=['weapon','armor','shield','accessory'].map(makeSlot).join('');
     const list=host.querySelector('.equip-loadout-list');
-    if(!all.length){list.innerHTML='<div class="equip-empty">Choose equipment from the Build page and it will appear here.</div>';return}
-    list.innerHTML=all.map((row,i)=>{const d=effective(row),kind=classify(d),equipped=!isStowed(row);return `<button type="button" class="equip-pool-card ${equipped?'is-equipped':''} ${selectedIndex===i?'selected':''}" data-equip-index="${i}" draggable="${matchMedia('(pointer:fine)').matches?'true':'false'}"><span class="equip-pool-icon">${icon(kind)}</span><span class="equip-pool-copy"><strong>${esc(d.name||'Unnamed item')}</strong><small>${equipped?`Equipped · ${esc(current(row).slot)}`:`Loadout · ${SLOT_NAMES[kind]||'Any slot'}`}</small><em>${esc(statLine(d))}</em></span><span class="equip-pool-grip">${equipped?'✓':'⋮⋮'}</span></button>`}).join('');
+    if(!all.length)list.innerHTML='<div class="equip-empty">Choose equipment from the Build page and it will appear here.</div>';
+    else list.innerHTML=all.map((row,i)=>{const d=effective(row),kind=classify(d),equipped=!isStowed(row);return `<button type="button" class="equip-pool-card ${equipped?'is-equipped':''} ${selectedIndex===i?'selected':''}" data-equip-index="${i}" draggable="${matchMedia('(pointer:fine)').matches?'true':'false'}"><span class="equip-pool-icon">${icon(kind)}</span><span class="equip-pool-copy"><strong>${esc(d.name||'Unnamed item')}</strong><small>${equipped?`Equipped · ${esc(current(row).slot)}`:`Loadout · ${SLOT_NAMES[kind]||'Any slot'}`}</small><em>${esc(statLine(d))}</em></span><span class="equip-pool-grip">${equipped?'✓':'⋮⋮'}</span></button>`}).join('');
+    requestAnimationFrame(cleanBuildEquipmentCards);
   }
   function queueRender(){if(renderQueued)return;renderQueued=true;requestAnimationFrame(render)}
 
@@ -104,37 +108,22 @@
   function toast(text){let t=document.getElementById('equipmentToast');if(!t){t=document.createElement('div');t.id='equipmentToast';t.className='equipment-toast';document.body.appendChild(t)}t.textContent=text;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),1700)}
 
   function installUI(){
-    if(document.getElementById('equipmentWorkbench'))return;
-    const target=page();if(!target)return;
+    if(document.getElementById('equipmentWorkbench'))return;const target=page();if(!target)return;
     document.getElementById('inventoryLoadout')?.remove();
-    const host=document.createElement('section');host.id='equipmentWorkbench';host.className='equipment-workbench';host.innerHTML=`
-      <div class="equipment-workbench-head"><div><p class="eyebrow">EQUIPMENT</p><h2>Equipped Loadout</h2></div><small>Drag items into a slot · on touch, tap an item then a slot</small></div>
-      <div class="equip-slots"></div>
-      <div class="equip-pool-head"><div><strong>Build Loadout</strong><span>Items chosen on the Build → Equipment tab</span></div></div>
-      <div class="equip-loadout-list"></div>`;
+    const host=document.createElement('section');host.id='equipmentWorkbench';host.className='equipment-workbench';host.innerHTML=`<div class="equipment-workbench-head"><div><p class="eyebrow">EQUIPMENT</p><h2>Equipped Loadout</h2></div><small>Drag items into a slot · on touch, tap an item then a slot</small></div><div class="equip-slots"></div><div class="equip-pool-head"><div><strong>Build Loadout</strong><span>Items chosen on the Build → Equipment tab</span></div></div><div class="equip-loadout-list"></div>`;
     target.prepend(host);
-
     host.addEventListener('dragstart',e=>{const card=e.target.closest('[data-equip-index]');if(!card)return;dragIndex=Number(card.dataset.equipIndex);card.classList.add('dragging');e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',String(dragIndex))});
     host.addEventListener('dragend',e=>{e.target.closest('[data-equip-index]')?.classList.remove('dragging');dragIndex=null;host.querySelectorAll('.drag-over').forEach(x=>x.classList.remove('drag-over'))});
     host.addEventListener('dragover',e=>{const slot=e.target.closest('[data-equip-slot]');if(!slot)return;e.preventDefault();slot.classList.add('drag-over');e.dataTransfer.dropEffect='move'});
     host.addEventListener('dragleave',e=>{const slot=e.target.closest('[data-equip-slot]');if(slot&&!slot.contains(e.relatedTarget))slot.classList.remove('drag-over')});
     host.addEventListener('drop',e=>{const slot=e.target.closest('[data-equip-slot]');if(!slot)return;e.preventDefault();slot.classList.remove('drag-over');const idx=Number(e.dataTransfer.getData('text/plain'));if(Number.isInteger(idx))equipRow(rows()[idx],slot.dataset.equipSlot)});
-    host.addEventListener('click',e=>{
-      const un=e.target.closest('[data-unequip-index]');if(un){e.stopPropagation();unequipIndex(Number(un.dataset.unequipIndex));return}
-      const card=e.target.closest('[data-equip-index]');if(card){selectedIndex=Number(card.dataset.equipIndex);queueRender();return}
-      const slot=e.target.closest('[data-equip-slot]');if(slot&&selectedIndex!=null){equipRow(rows()[selectedIndex],slot.dataset.equipSlot)}
-    });
+    host.addEventListener('click',e=>{const un=e.target.closest('[data-unequip-index]');if(un){e.stopPropagation();unequipIndex(Number(un.dataset.unequipIndex));return}const card=e.target.closest('[data-equip-index]');if(card){selectedIndex=Number(card.dataset.equipIndex);queueRender();return}const slot=e.target.closest('[data-equip-slot]');if(slot&&selectedIndex!=null)equipRow(rows()[selectedIndex],slot.dataset.equipSlot)});
     render();
   }
 
   function installAutoStowForCorePicks(){
     const add=document.getElementById('addEquipmentBtn');if(!add)return;
-    add.addEventListener('click',()=>{
-      const modal=document.getElementById('coreLibraryModal');
-      const fromCore=modal&&!modal.classList.contains('hidden')&&modal.dataset.mode==='equipment';
-      if(!fromCore)return;
-      setTimeout(()=>{const r=rows().at(-1);if(r&&!isStowed(r)&&current(r).name)stowRow(r);queueRender()},220);
-    },true);
+    add.addEventListener('click',()=>{const modal=document.getElementById('coreLibraryModal'),fromCore=modal&&!modal.classList.contains('hidden')&&modal.dataset.mode==='equipment';if(!fromCore)return;setTimeout(()=>{const r=rows().at(-1);if(r&&!isStowed(r)&&current(r).name)stowRow(r);queueRender()},220)},true);
   }
 
   function installStyles(){
@@ -153,6 +142,7 @@
     installStyles();installUI();installAutoStowForCorePicks();
     const ed=editor();if(ed){new MutationObserver(queueRender).observe(ed,{childList:true,subtree:false});ed.addEventListener('input',queueRender);ed.addEventListener('change',queueRender)}
     document.addEventListener('aestra:equipment-changed',queueRender);
+    document.getElementById('buildMenu')?.addEventListener('click',e=>{const card=e.target.closest('.build-entry-equipment');if(card){detailIndex=[...document.querySelectorAll('#buildMenuBody .build-entry-equipment')].indexOf(card);setTimeout(cleanEquipmentDetail,35)}else setTimeout(cleanBuildEquipmentCards,0)},true);
     document.querySelector('#grandMobileNav [data-jump="inventory"]')?.addEventListener('click',()=>setTimeout(queueRender,30));
     setTimeout(queueRender,500);setTimeout(queueRender,1200);
   }
