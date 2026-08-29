@@ -34,6 +34,7 @@ await loadLayer('./core-library.js?v=6');
 await loadLayer('./rules-aware.js?v=3');
 await loadLayer('./aestra-visuals.js?v=2');
 await loadLayer('./aestra-theme.js?v=1');
+await loadLayer('./aestra-title-v2.js?v=1');
 await loadLayer('./resource-glow.js?v=1');
 await loadLayer('./compact-attributes.js?v=2');
 await loadLayer('./compact-ip.js?v=1');
