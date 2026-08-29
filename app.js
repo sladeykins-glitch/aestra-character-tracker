@@ -35,3 +35,4 @@ await import('./grand-ui.js?v=1');
 await import('./mobile-pages.js?v=1');
 await import('./status-label-polish.js?v=1');
 await import('./portrait-upload.js?v=1');
+await import('./mobile-character-polish.js?v=1');
