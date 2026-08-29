@@ -12,4 +12,4 @@ await import('./app-core.js?v=1');
 await import('./gm-structured.js?v=1');
 await import('./enhancements.js?v=2');
 await import('./status-fix.js?v=1');
-await import('./core-library.js?v=1');
+await import('./core-library.js?v=2');
