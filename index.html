@@ -1,92 +1,57 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="theme-color" content="#17130f" />
-  <title>Aestra Character Tracker</title>
-  <link rel="stylesheet" href="styles.css?v=4" />
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta name="theme-color" content="#17130f" />
+<title>Aestra Character Tracker</title>
+<link rel="stylesheet" href="styles.css?v=5" />
 </head>
 <body>
 <div class="app-shell">
-  <header class="topbar">
-    <div><p class="eyebrow">Fabula Ultima · Aestra</p><h1>Character Tracker</h1></div>
-    <div class="top-actions"><span id="connectionBadge" class="badge">Connecting…</span><button id="logoutBtn" class="ghost hidden" type="button">Sign out</button></div>
-  </header>
+<header class="topbar"><div><p class="eyebrow">Fabula Ultima · Aestra</p><h1>Character Tracker</h1></div><div class="top-actions"><span id="connectionBadge" class="badge">Connecting…</span><button id="logoutBtn" class="ghost hidden" type="button">Sign out</button></div></header>
+<main>
+<section id="authView" class="panel auth-panel"><div><p class="eyebrow">Shared campaign access</p><h2>Sign in</h2><p class="muted">Each player edits their own sheet. The GM can view and manage the whole party.</p></div><form id="authForm" class="stack"><label>Email<input id="emailInput" type="email" autocomplete="email" required /></label><label>Password<input id="passwordInput" type="password" autocomplete="current-password" minlength="6" required /></label><div class="button-row"><button class="primary" type="submit">Sign in</button><button id="signUpBtn" class="secondary" type="button">Create account</button></div><p id="authMessage" class="message" aria-live="polite"></p></form><button id="demoBtn" class="ghost wide" type="button">Open local demo instead</button></section>
 
-  <main>
-    <section id="authView" class="panel auth-panel">
-      <div><p class="eyebrow">Shared campaign access</p><h2>Sign in</h2><p class="muted">Each player signs in and edits only their own sheet. The GM can view and manage the whole party.</p></div>
-      <form id="authForm" class="stack">
-        <label>Email<input id="emailInput" type="email" autocomplete="email" required /></label>
-        <label>Password<input id="passwordInput" type="password" autocomplete="current-password" minlength="6" required /></label>
-        <div class="button-row"><button class="primary" type="submit">Sign in</button><button id="signUpBtn" class="secondary" type="button">Create account</button></div>
-        <p id="authMessage" class="message" aria-live="polite"></p>
-      </form>
-      <button id="demoBtn" class="ghost wide" type="button">Open local demo instead</button>
-    </section>
+<section id="appView" class="hidden">
+<nav class="tabs"><button class="tab active" data-view="sheet" type="button">Character Sheet</button><button class="tab" data-view="gm" type="button">GM Dashboard</button></nav>
+<section id="sheetView" class="view-section">
+<div class="identity-grid"><article class="panel portrait-card"><div id="portraitFallback" class="portrait-fallback">?</div><img id="portraitImg" class="portrait hidden" alt="Character portrait" /><label class="small-label">Portrait URL<input id="portraitUrl" type="url" placeholder="https://…" /></label></article><article class="panel identity-card"><div class="split-heading"><div><p class="eyebrow">Character</p><input id="charName" class="title-input" value="Iris" /></div><label class="level-box">Level<input id="level" type="number" min="1" max="50" value="5" /></label></div><div class="two-col"><label>Identity<input id="identity" /></label><label>Theme<input id="theme" /></label><label>Origin<input id="origin" /></label><label>Player<input id="playerName" /></label><label>XP<input id="xp" type="number" min="0" /></label><label>Zenit<input id="zenit" type="number" min="0" /></label></div></article></div>
 
-    <section id="appView" class="hidden">
-      <nav class="tabs" aria-label="Tracker views"><button class="tab active" data-view="sheet" type="button">Character Sheet</button><button class="tab" data-view="gm" type="button">GM Dashboard</button></nav>
+<article class="panel"><div class="section-title"><div><p class="eyebrow">Traits</p><h3>Identity · Theme · Origin traits</h3></div><span class="muted">Three freeform traits</span></div><div id="traitsEditor" class="three-col"></div></article>
 
-      <section id="sheetView" class="view-section">
-        <div class="identity-grid">
-          <article class="panel portrait-card"><div id="portraitFallback" class="portrait-fallback">?</div><img id="portraitImg" class="portrait hidden" alt="Character portrait" /><label class="small-label">Portrait URL<input id="portraitUrl" type="url" placeholder="https://…" /></label></article>
-          <article class="panel identity-card"><div class="split-heading"><div><p class="eyebrow">Character</p><input id="charName" class="title-input" value="Iris" aria-label="Character name" /></div><label class="level-box">Level<input id="level" type="number" min="1" max="50" value="5" /></label></div><div class="two-col"><label>Identity<input id="identity" value="Princess of Rübenberg" /></label><label>Theme<input id="theme" value="Duty" /></label><label>Origin<input id="origin" value="Rübenberg" /></label><label>Player<input id="playerName" value="Player" /></label></div></article>
-        </div>
+<section class="attribute-grid" aria-label="Attributes">
+<article class="panel attr-card"><span>MIG</span><label>Base<select id="migBase"><option>d6</option><option>d8</option><option>d10</option><option>d12</option></select></label><label>Current<select id="mig"><option>d6</option><option>d8</option><option>d10</option><option>d12</option></select></label></article>
+<article class="panel attr-card"><span>DEX</span><label>Base<select id="dexBase"><option>d6</option><option>d8</option><option>d10</option><option>d12</option></select></label><label>Current<select id="dex"><option>d6</option><option>d8</option><option>d10</option><option>d12</option></select></label></article>
+<article class="panel attr-card"><span>INS</span><label>Base<select id="insBase"><option>d6</option><option>d8</option><option>d10</option><option>d12</option></select></label><label>Current<select id="ins"><option>d6</option><option>d8</option><option>d10</option><option>d12</option></select></label></article>
+<article class="panel attr-card"><span>WLP</span><label>Base<select id="wlpBase"><option>d6</option><option>d8</option><option>d10</option><option>d12</option></select></label><label>Current<select id="wlp"><option>d6</option><option>d8</option><option>d10</option><option>d12</option></select></label></article>
+</section>
 
-        <section class="stat-grid" aria-label="Attributes">
-          <article class="panel stat-card"><span>MIG</span><select id="mig"><option>d6</option><option selected>d8</option><option>d10</option><option>d12</option></select></article>
-          <article class="panel stat-card"><span>DEX</span><select id="dex"><option>d6</option><option>d8</option><option selected>d10</option><option>d12</option></select></article>
-          <article class="panel stat-card"><span>INS</span><select id="ins"><option>d6</option><option selected>d8</option><option>d10</option><option>d12</option></select></article>
-          <article class="panel stat-card"><span>WLP</span><select id="wlp"><option>d6</option><option>d8</option><option selected>d10</option><option>d12</option></select></article>
-        </section>
+<section class="resource-grid">
+<article class="panel resource-card" data-resource="hp"><div class="resource-head"><span>HP</span><strong><span id="hpNow">0</span> / <span id="hpMaxText">0</span></strong></div><div class="formula" id="hpFormula"></div><div class="bar"><span id="hpBar"></span></div><div class="adjust-row"><button data-delta="-5">−5</button><button data-delta="-1">−1</button><button data-delta="1">+1</button><button data-delta="5">+5</button></div><label class="max-label">Other<input id="hpOther" type="number" /></label></article>
+<article class="panel resource-card" data-resource="mp"><div class="resource-head"><span>MP</span><strong><span id="mpNow">0</span> / <span id="mpMaxText">0</span></strong></div><div class="formula" id="mpFormula"></div><div class="bar"><span id="mpBar"></span></div><div class="adjust-row"><button data-delta="-5">−5</button><button data-delta="-1">−1</button><button data-delta="1">+1</button><button data-delta="5">+5</button></div><label class="max-label">Other<input id="mpOther" type="number" /></label></article>
+<article class="panel resource-card" data-resource="ip"><div class="resource-head"><span>IP</span><strong><span id="ipNow">0</span> / <span id="ipMaxText">0</span></strong></div><div class="formula" id="ipFormula"></div><div class="bar"><span id="ipBar"></span></div><div class="adjust-row two"><button data-delta="-1">−1</button><button data-delta="1">+1</button></div><label class="max-label">Other<input id="ipOther" type="number" /></label></article>
+</section>
 
-        <section class="resource-grid">
-          <article class="panel resource-card" data-resource="hp"><div class="resource-head"><span>HP</span><strong><span id="hpNow">31</span> / <span id="hpMaxText">38</span></strong></div><div class="bar"><span id="hpBar"></span></div><div class="adjust-row"><button data-delta="-5" type="button">−5</button><button data-delta="-1" type="button">−1</button><button data-delta="1" type="button">+1</button><button data-delta="5" type="button">+5</button></div><label class="max-label">Maximum<input id="hpMax" type="number" min="1" value="38" /></label></article>
-          <article class="panel resource-card" data-resource="mp"><div class="resource-head"><span>MP</span><strong><span id="mpNow">42</span> / <span id="mpMaxText">55</span></strong></div><div class="bar"><span id="mpBar"></span></div><div class="adjust-row"><button data-delta="-5" type="button">−5</button><button data-delta="-1" type="button">−1</button><button data-delta="1" type="button">+1</button><button data-delta="5" type="button">+5</button></div><label class="max-label">Maximum<input id="mpMax" type="number" min="0" value="55" /></label></article>
-          <article class="panel resource-card" data-resource="ip"><div class="resource-head"><span>IP</span><strong><span id="ipNow">4</span> / <span id="ipMaxText">6</span></strong></div><div class="bar"><span id="ipBar"></span></div><div class="adjust-row"><button data-delta="-1" type="button">−1</button><button data-delta="1" type="button">+1</button></div><label class="max-label">Maximum<input id="ipMax" type="number" min="0" value="6" /></label></article>
-        </section>
+<section class="details-grid"><article class="panel"><div class="section-title"><h3>Fabula Points</h3><strong id="fpText">0</strong></div><div class="adjust-row two"><button id="fpMinus">Spend 1</button><button id="fpPlus">Gain 1</button></div></article><article class="panel"><h3>Status Effects</h3><div id="statuses" class="chips"></div></article></section>
 
-        <section class="details-grid">
-          <article class="panel"><div class="section-title"><h3>Fabula Points</h3><strong id="fpText">3</strong></div><div class="adjust-row two"><button id="fpMinus" type="button">Spend 1</button><button id="fpPlus" type="button">Gain 1</button></div></article>
-          <article class="panel"><h3>Status Effects</h3><div id="statuses" class="chips"></div></article>
-          <article class="panel wide-panel"><h3>Derived Stats</h3><div class="four-col"><label>Initiative<input id="initiative" type="number" value="2" /></label><label>Defence<input id="defence" type="number" value="10" /></label><label>Magic Defence<input id="magicDefence" type="number" value="11" /></label><label>Crisis<input id="crisis" type="number" value="19" /></label></div></article>
-          <article class="panel wide-panel"><h3>Classes</h3><textarea id="classes" rows="3"></textarea></article>
-          <article class="panel wide-panel"><h3>Skills & Abilities</h3><textarea id="skills" rows="5"></textarea></article>
-          <article class="panel wide-panel"><h3>Equipment</h3><textarea id="equipment" rows="4"></textarea></article>
-          <article class="panel wide-panel"><h3>Spells</h3><textarea id="spells" rows="4"></textarea></article>
-          <article class="panel wide-panel"><h3>Bonds</h3><textarea id="bonds" rows="4"></textarea></article>
-          <article class="panel wide-panel"><h3>Inventory & Notes</h3><textarea id="notes" rows="6"></textarea></article>
-        </section>
-        <div class="save-dock"><span id="saveStatus" class="muted" aria-live="polite">Not saved yet</span><button id="saveBtn" class="primary" type="button">Save character</button></div>
-      </section>
+<article class="panel"><div class="section-title"><div><p class="eyebrow">Derived</p><h3>Initiative & Defences</h3></div><span class="muted">Base values update automatically</span></div><div class="derived-grid"><div class="derived"><span>Initiative</span><strong id="initiativeText">0</strong><label>Other<input id="initiativeOther" type="number" /></label></div><div class="derived"><span>Defence</span><strong id="defenceText">0</strong><label>Other<input id="defenceOther" type="number" /></label></div><div class="derived"><span>Magic Defence</span><strong id="magicDefenceText">0</strong><label>Other<input id="magicDefenceOther" type="number" /></label></div><div class="derived"><span>Crisis</span><strong id="crisisText">0</strong><small>½ Max HP</small></div></div></article>
 
-      <section id="gmView" class="view-section hidden">
-        <article class="panel gm-head"><div><p class="eyebrow">Session view</p><h2>GM Dashboard</h2><p class="muted">See the whole party at a glance, make quick resource changes, or open a character for detailed editing.</p></div><button id="refreshGmBtn" class="secondary" type="button">Refresh party</button></article>
-        <div id="gmCards" class="gm-grid"></div>
+<article class="panel structured"><div class="section-title"><div><p class="eyebrow">Progression</p><h3>Classes</h3><p id="classLevelSummary" class="muted"></p></div><button id="addClassBtn" class="secondary" type="button">+ Class</button></div><div id="classesEditor" class="entry-list"></div></article>
+<article class="panel structured"><div class="section-title"><div><p class="eyebrow">Abilities</p><h3>Skills & Heroic Skills</h3></div><button id="addSkillBtn" class="secondary" type="button">+ Skill</button></div><div id="skillsEditor" class="entry-list"></div></article>
+<article class="panel structured"><div class="section-title"><div><p class="eyebrow">Loadout</p><h3>Equipment</h3><p class="muted">Use bonuses for armour, shields, accessories or custom effects.</p></div><button id="addEquipmentBtn" class="secondary" type="button">+ Item</button></div><div id="equipmentEditor" class="entry-list"></div></article>
+<article class="panel structured"><div class="section-title"><div><p class="eyebrow">Magic</p><h3>Spells & Arcana</h3></div><button id="addSpellBtn" class="secondary" type="button">+ Spell</button></div><div id="spellsEditor" class="entry-list"></div></article>
+<article class="panel structured"><div class="section-title"><div><p class="eyebrow">Connections</p><h3>Bonds</h3></div><button id="addBondBtn" class="secondary" type="button">+ Bond</button></div><div id="bondsEditor" class="entry-list"></div></article>
+<article class="panel structured"><div class="section-title"><div><p class="eyebrow">Backpack</p><h3>Inventory</h3></div><button id="addInventoryBtn" class="secondary" type="button">+ Item</button></div><div id="inventoryEditor" class="entry-list"></div></article>
+<article class="panel"><h3>Notes</h3><textarea id="notes" rows="6"></textarea><details class="legacy"><summary>Legacy text fields</summary><p class="muted">Kept so older saved data is not lost.</p><textarea id="classes" rows="2" placeholder="Old classes text"></textarea><textarea id="skills" rows="2" placeholder="Old skills text"></textarea><textarea id="equipment" rows="2" placeholder="Old equipment text"></textarea><textarea id="spells" rows="2" placeholder="Old spells text"></textarea><textarea id="bonds" rows="2" placeholder="Old bonds text"></textarea></details></article>
+<div class="save-dock"><span id="saveStatus" class="muted">Not saved yet</span><button id="saveBtn" class="primary" type="button">Save character</button></div>
+</section>
 
-        <section id="gmEditor" class="panel gm-editor hidden">
-          <div class="split-heading"><div><p class="eyebrow">GM editor</p><h2 id="gmEditTitle">Character</h2><p id="gmEditPlayer" class="muted"></p></div><button id="gmCloseEditor" class="ghost" type="button">Close</button></div>
-          <div class="gm-editor-grid">
-            <label>Name<input id="gmName" /></label><label>Level<input id="gmLevel" type="number" min="1" max="50" /></label>
-            <label>Identity<input id="gmIdentity" /></label><label>Theme<input id="gmTheme" /></label><label>Origin<input id="gmOrigin" /></label><label>Player<input id="gmPlayerName" /></label>
-          </div>
-          <div class="gm-resource-edit">
-            <div><span>HP</span><div class="pair"><input id="gmHpCurrent" type="number" min="0" /><span>/</span><input id="gmHpMax" type="number" min="1" /></div></div>
-            <div><span>MP</span><div class="pair"><input id="gmMpCurrent" type="number" min="0" /><span>/</span><input id="gmMpMax" type="number" min="0" /></div></div>
-            <div><span>IP</span><div class="pair"><input id="gmIpCurrent" type="number" min="0" /><span>/</span><input id="gmIpMax" type="number" min="0" /></div></div>
-            <label>Fabula Points<input id="gmFabulaPoints" type="number" min="0" /></label>
-          </div>
-          <div><h3>Status Effects</h3><div id="gmStatuses" class="chips"></div></div>
-          <div class="gm-editor-grid"><label>Classes<textarea id="gmClasses" rows="3"></textarea></label><label>Skills & Abilities<textarea id="gmSkills" rows="3"></textarea></label><label>Equipment<textarea id="gmEquipment" rows="3"></textarea></label><label>Spells<textarea id="gmSpells" rows="3"></textarea></label><label>Bonds<textarea id="gmBonds" rows="3"></textarea></label><label>Notes<textarea id="gmNotes" rows="3"></textarea></label></div>
-          <div class="gm-editor-actions"><span id="gmSaveStatus" class="muted" aria-live="polite"></span><button id="gmSaveBtn" class="primary" type="button">Save player character</button></div>
-        </section>
-      </section>
-    </section>
-  </main>
+<section id="gmView" class="view-section hidden"><article class="panel gm-head"><div><p class="eyebrow">Session view</p><h2>GM Dashboard</h2><p class="muted">Party overview, quick resource changes and detailed editing.</p></div><button id="refreshGmBtn" class="secondary">Refresh party</button></article><div id="gmCards" class="gm-grid"></div><section id="gmEditor" class="panel gm-editor hidden"><div class="split-heading"><div><p class="eyebrow">GM editor</p><h2 id="gmEditTitle">Character</h2><p id="gmEditPlayer" class="muted"></p></div><button id="gmCloseEditor" class="ghost">Close</button></div><div class="gm-editor-grid"><label>Name<input id="gmName" /></label><label>Level<input id="gmLevel" type="number" /></label><label>Identity<input id="gmIdentity" /></label><label>Theme<input id="gmTheme" /></label><label>Origin<input id="gmOrigin" /></label><label>Player<input id="gmPlayerName" /></label></div><div class="gm-resource-edit"><div><span>HP</span><div class="pair"><input id="gmHpCurrent" type="number" /><span>/</span><input id="gmHpMax" type="number" /></div></div><div><span>MP</span><div class="pair"><input id="gmMpCurrent" type="number" /><span>/</span><input id="gmMpMax" type="number" /></div></div><div><span>IP</span><div class="pair"><input id="gmIpCurrent" type="number" /><span>/</span><input id="gmIpMax" type="number" /></div></div><label>Fabula Points<input id="gmFabulaPoints" type="number" /></label></div><div><h3>Status Effects</h3><div id="gmStatuses" class="chips"></div></div><div class="gm-editor-grid"><label>Classes<textarea id="gmClasses"></textarea></label><label>Skills<textarea id="gmSkills"></textarea></label><label>Equipment<textarea id="gmEquipment"></textarea></label><label>Spells<textarea id="gmSpells"></textarea></label><label>Bonds<textarea id="gmBonds"></textarea></label><label>Notes<textarea id="gmNotes"></textarea></label></div><div class="gm-editor-actions"><span id="gmSaveStatus" class="muted"></span><button id="gmSaveBtn" class="primary">Save player character</button></div></section></section>
+</section>
+</main>
 </div>
 <script>window.AESTRA_CONFIG={supabaseUrl:"https://pbsfiwzwdseslvnprcph.supabase.co",supabaseAnonKey:"sb_publishable_uE7LjZhZf2dXuza1vpGtSQ_CZaR7xFH",campaignId:"00000000-0000-0000-0000-000000000001"};</script>
-<script type="module" src="app.js?v=4"></script>
+<script type="module" src="app.js?v=5"></script>
 </body>
 </html>
