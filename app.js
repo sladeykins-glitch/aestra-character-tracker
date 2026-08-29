@@ -38,3 +38,4 @@ await import('./portrait-upload.js?v=1');
 await import('./mobile-character-polish.js?v=1');
 await import('./final-experience.js?v=1');
 await import('./final-fixes.js?v=2');
+await import('./traits-inline.js?v=1');
