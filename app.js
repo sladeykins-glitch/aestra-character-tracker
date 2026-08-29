@@ -31,3 +31,4 @@ await import('./conditions-collapse.js?v=3');
 await import('./combat-ui-polish.js?v=1');
 await import('./save-orb.js?v=1');
 await import('./rules-orb.js?v=2');
+await import('./grand-ui.js?v=1');
