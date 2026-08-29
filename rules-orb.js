@@ -28,8 +28,20 @@ function installRulesOrb(){
     head.setAttribute('aria-label',text||'Rules conflict');
     head.setAttribute('title',text||'Rules conflict');
   };
+  const syncVisibility=()=>{
+    const auth=document.getElementById('authView');
+    const app=document.getElementById('appView');
+    const sheet=document.getElementById('sheetView');
+    const onSheet=!!app&&!app.classList.contains('hidden')&&!!sheet&&!sheet.classList.contains('hidden')&&(!auth||auth.classList.contains('hidden'));
+    alert.classList.toggle('rules-orb-offsheet',!onSheet);
+    if(!onSheet)alert.classList.remove('expanded');
+  };
   new MutationObserver(syncBadge).observe(count,{childList:true,subtree:true,characterData:true});
+  const viewObserver=new MutationObserver(syncVisibility);
+  ['authView','appView','sheetView','gmView'].forEach(id=>{const el=document.getElementById(id);if(el)viewObserver.observe(el,{attributes:true,attributeFilter:['class']})});
+  document.addEventListener('click',()=>requestAnimationFrame(syncVisibility),true);
   syncBadge();
+  syncVisibility();
 }
 function installRulesOrbStyles(){
   if(document.getElementById('rulesOrbStyles'))return;
@@ -37,7 +49,7 @@ function installRulesOrbStyles(){
   s.id='rulesOrbStyles';
   s.textContent=`
   #rulesAwareAlert.rules-orb{position:fixed!important;z-index:9991!important;left:max(14px,env(safe-area-inset-left))!important;right:auto!important;top:auto!important;bottom:max(14px,calc(env(safe-area-inset-bottom) + 10px))!important;transform:none!important;width:54px!important;height:54px!important;overflow:visible!important;border:0!important;border-radius:50%!important;background:transparent!important;box-shadow:none!important;color:#f5d88c!important}
-  #rulesAwareAlert.rules-orb.hidden{display:none!important}
+  #rulesAwareAlert.rules-orb.hidden,#rulesAwareAlert.rules-orb.rules-orb-offsheet{display:none!important}
   #rulesAwareAlert.rules-orb .rules-alert-head{position:relative!important;width:54px!important;height:54px!important;min-width:54px!important;min-height:54px!important;padding:0!important;display:grid!important;place-items:center!important;border-radius:50%!important;border:2px solid rgba(232,175,72,.86)!important;background:radial-gradient(circle at 35% 28%,rgba(255,255,255,.14),rgba(145,83,28,.96) 43%,rgba(69,38,18,.99) 100%)!important;box-shadow:0 7px 22px rgba(0,0,0,.45),0 0 0 4px rgba(222,151,66,.08),0 0 18px rgba(222,134,48,.18)!important;color:#ffe09a!important;transition:transform .16s ease,box-shadow .2s ease!important}
   #rulesAwareAlert.rules-orb .rules-alert-head:active{transform:scale(.93)}
   #rulesAwareAlert.rules-orb .rules-alert-symbol{width:auto!important;height:auto!important;border:0!important;background:transparent!important;box-shadow:none!important;font-family:Georgia,serif!important;font-size:1.65rem!important;line-height:1!important;color:#ffe09a!important;text-shadow:0 0 9px rgba(255,177,67,.35)!important}
