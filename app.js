@@ -36,3 +36,5 @@ await import('./mobile-pages.js?v=1');
 await import('./status-label-polish.js?v=1');
 await import('./portrait-upload.js?v=1');
 await import('./mobile-character-polish.js?v=1');
+await import('./final-experience.js?v=1');
+await import('./final-fixes.js?v=1');
