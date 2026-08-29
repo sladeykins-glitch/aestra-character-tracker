@@ -22,3 +22,4 @@ await import('./ui-icons.js?v=2');
 await import('./remove-controls.js?v=1');
 await import('./skill-levels.js?v=2');
 await import('./class-mastery.js?v=1');
+await import('./picker-icons.js?v=1');
