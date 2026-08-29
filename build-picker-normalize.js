@@ -20,8 +20,10 @@
     if(section!=='classes'&&section!=='skills')return;
     const actions=body.querySelector('.build-actions');if(!actions)return;
 
-    // Remove every legacy/source-specific add control from the visible Build surface.
+    // Remove every legacy/source-specific add control from the visible Build surface,
+    // but always preserve the dedicated Remove Class control.
     [...actions.querySelectorAll('button')].forEach(btn=>{
+      if(btn.classList.contains('class-remove-before-picker'))return;
       if(btn.classList.contains('build-remove-class'))return;
       if(btn.classList.contains('ubp-main-add'))return;
       btn.remove();
@@ -37,19 +39,17 @@
     add.textContent=section==='classes'?'+ Add Class':'+ Add Skill';
     add.onclick=e=>{
       e.preventDefault();e.stopPropagation();
-      if(!openUnified(section)){
-        setTimeout(()=>openUnified(section),80);
-      }
+      if(!openUnified(section))setTimeout(()=>openUnified(section),80);
     };
 
-    // Keep Remove Class first if that separate control exists.
-    const remove=actions.querySelector('.build-remove-class');
-    if(remove&&remove.nextSibling!==add)actions.insertBefore(add,remove.nextSibling);
+    if(section==='classes'){
+      const remove=actions.querySelector('.class-remove-before-picker,.build-remove-class');
+      if(remove&&remove.nextSibling!==add)actions.insertBefore(add,remove.nextSibling);
+    }
   }
 
   function queue(){if(queued)return;queued=true;requestAnimationFrame(normalize)}
 
-  // Class-card "Learn X Skill" must use the same unified picker, pre-filtered to that class.
   document.addEventListener('click',e=>{
     const learn=e.target.closest?.('[data-bh-add-skill]');
     if(!learn)return;
