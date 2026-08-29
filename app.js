@@ -29,7 +29,7 @@ await import('./aestra-theme.js?v=1');
 await import('./resource-glow.js?v=1');
 await import('./compact-attributes.js?v=2');
 await import('./compact-ip.js?v=1');
-await import('./magic-effects.js?v=2');
+// magic-effects intentionally disabled: pointer trails and continuous animations were expensive on mobile.
 await import('./build-menu.js?v=3');
 await import('./ui-icons.js?v=2');
 await import('./remove-controls.js?v=1');
@@ -37,7 +37,7 @@ await import('./skill-levels.js?v=2');
 await import('./class-mastery.js?v=1');
 await import('./picker-icons.js?v=2');
 await import('./build-entry-icons.js?v=2');
-await import('./unique-icons.js?v=1');
+// unique-icons intentionally disabled: semantic icons remain, without the extra DOM observer/decorating pass.
 await import('./point-orbs.js?v=3');
 await import('./sheet-polish.js?v=1');
 await import('./conditions-collapse.js?v=3');
@@ -53,3 +53,4 @@ await import('./final-experience.js?v=1');
 await import('./final-fixes.js?v=2');
 await import('./traits-inline.js?v=2');
 await import('./final-refinement.js?v=2');
+await import('./performance-lite.js?v=1');
