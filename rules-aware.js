@@ -1,6 +1,6 @@
 // Rules-aware Core Rulebook calculations + contextual floating conflict alert.
 const number=v=>Number(v)||0, norm=v=>String(v||'').trim().toLowerCase();
-const CLASS_BENEFITS={arcanist:{mp:5},chimerist:{mp:5},darkblade:{hp:5,martial:['melee','armor']},elementalist:{mp:5},entropist:{mp:5},fury:{hp:5,martial:['melee','armor']},guardian:{hp:5,martial:['armor','shield']},loremaster:{mp:5},orator:{mp:5},rogue:{ip:2},sharpshooter:{hp:5,martial:['ranged','shield']},spiritist:{mp:5},tinkerer:{ip:2},wayfarer:{ip:2},weaponmaster:{hp:5,martial:['melee','shield']}};
+const CLASS_BENEFITS={arcanist:{mp:5},chimerist:{mp:5},darkblade:{hp:5,martial:['melee','armor']},elementalist:{mp:5},entropist:{mp:5},fury:{hp:5,martial:['melee','armor']},guardian:{hp:5,martial:['armor','shield']},loremaster:{mp:5},orator:{mp:5},rogue:{ip:2},sharpshooter:{hp:5,martial:['ranged','shield']},spiritist:{mp:5},tinkerer:{ip:2},wayfarer:{ip:2},weaponmaster:{hp:5,martial:['melee','shield']},chanter:{mp:5},commander:{hp:5,martial:['melee','ranged']},symbolist:{ip:2}};
 const rowValues=id=>[...document.querySelectorAll(`#${id} .entry-row`)].map(r=>[...r.querySelectorAll('input,textarea')].map(x=>x.value));
 const classes=()=>rowValues('classesEditor').map(v=>({name:v[0]||'',level:number(v[1])}));
 const skills=()=>rowValues('skillsEditor').map(v=>({name:v[0]||'',rank:Math.max(0,number(v[1])),source:v[2]||''}));
