@@ -11,3 +11,4 @@ await import('./enhancements.js?v=2');
 await import('./status-fix.js?v=1');
 await import('./core-library.js?v=3');
 await import('./rules-aware.js?v=2');
+await import('./aestra-visuals.js?v=1');
