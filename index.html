@@ -9,127 +9,21 @@
 </head>
 <body>
   <div class="app-shell">
-    <header class="topbar">
-      <div>
-        <p class="eyebrow">Fabula Ultima · Aestra</p>
-        <h1>Character Tracker</h1>
-      </div>
-      <div class="top-actions">
-        <span id="connectionBadge" class="badge">Connecting…</span>
-        <button id="logoutBtn" class="ghost hidden" type="button">Sign out</button>
-      </div>
-    </header>
-
+    <header class="topbar"><div><p class="eyebrow">Fabula Ultima · Aestra</p><h1>Character Tracker</h1></div><div class="top-actions"><span id="connectionBadge" class="badge">Connecting…</span><button id="logoutBtn" class="ghost hidden" type="button">Sign out</button></div></header>
     <main>
-      <section id="authView" class="panel auth-panel">
-        <div>
-          <p class="eyebrow">Shared campaign access</p>
-          <h2>Sign in</h2>
-          <p class="muted">Each player signs in and edits only their own sheet. The GM can view the whole party.</p>
-        </div>
-        <form id="authForm" class="stack">
-          <label>Email<input id="emailInput" type="email" autocomplete="email" placeholder="player@example.com" required /></label>
-          <label>Password<input id="passwordInput" type="password" autocomplete="current-password" minlength="6" placeholder="••••••••" required /></label>
-          <div class="button-row">
-            <button id="signInBtn" class="primary" type="submit">Sign in</button>
-            <button id="signUpBtn" class="secondary" type="button">Create account</button>
-          </div>
-          <p id="authMessage" class="message" aria-live="polite"></p>
-        </form>
-        <button id="demoBtn" class="ghost wide" type="button">Open local demo instead</button>
-      </section>
-
-      <section id="appView" class="hidden">
-        <nav class="tabs" aria-label="Tracker views">
-          <button class="tab active" data-view="sheet" type="button">Character Sheet</button>
-          <button class="tab" data-view="gm" type="button">GM Dashboard</button>
-        </nav>
-
+      <section id="authView" class="panel auth-panel"><div><p class="eyebrow">Shared campaign access</p><h2>Sign in</h2><p class="muted">Each player signs in and edits only their own sheet. The GM can view the whole party.</p></div><form id="authForm" class="stack"><label>Email<input id="emailInput" type="email" autocomplete="email" placeholder="player@example.com" required /></label><label>Password<input id="passwordInput" type="password" autocomplete="current-password" minlength="6" placeholder="••••••••" required /></label><div class="button-row"><button id="signInBtn" class="primary" type="submit">Sign in</button><button id="signUpBtn" class="secondary" type="button">Create account</button></div><p id="authMessage" class="message" aria-live="polite"></p></form><button id="demoBtn" class="ghost wide" type="button">Open local demo instead</button></section>
+      <section id="appView" class="hidden"><nav class="tabs" aria-label="Tracker views"><button class="tab active" data-view="sheet" type="button">Character Sheet</button><button class="tab" data-view="gm" type="button">GM Dashboard</button></nav>
         <section id="sheetView" class="view-section">
-          <div class="identity-grid">
-            <article class="panel portrait-card">
-              <div id="portraitFallback" class="portrait-fallback">?</div>
-              <img id="portraitImg" class="portrait hidden" alt="Character portrait" />
-              <label class="small-label">Portrait URL<input id="portraitUrl" type="url" placeholder="https://…" /></label>
-            </article>
-
-            <article class="panel identity-card">
-              <div class="split-heading">
-                <div>
-                  <p class="eyebrow">Character</p>
-                  <input id="charName" class="title-input" value="Iris" aria-label="Character name" />
-                </div>
-                <label class="level-box">Level<input id="level" type="number" min="1" max="50" value="5" /></label>
-              </div>
-              <div class="two-col">
-                <label>Identity<input id="identity" value="Princess of Rübenberg" /></label>
-                <label>Theme<input id="theme" value="Duty" /></label>
-                <label>Origin<input id="origin" value="Rübenberg" /></label>
-                <label>Player<input id="playerName" value="Player" /></label>
-              </div>
-            </article>
-          </div>
-
-          <section class="stat-grid" aria-label="Attributes">
-            <article class="panel stat-card"><span>MIG</span><select id="mig"><option>d6</option><option selected>d8</option><option>d10</option><option>d12</option></select></article>
-            <article class="panel stat-card"><span>DEX</span><select id="dex"><option>d6</option><option>d8</option><option selected>d10</option><option>d12</option></select></article>
-            <article class="panel stat-card"><span>INS</span><select id="ins"><option>d6</option><option selected>d8</option><option>d10</option><option>d12</option></select></article>
-            <article class="panel stat-card"><span>WLP</span><select id="wlp"><option>d6</option><option>d8</option><option selected>d10</option><option>d12</option></select></article>
-          </section>
-
-          <section class="resource-grid">
-            <article class="panel resource-card" data-resource="hp">
-              <div class="resource-head"><span>HP</span><strong><span id="hpNow">31</span> / <span id="hpMaxText">38</span></strong></div>
-              <div class="bar"><span id="hpBar"></span></div>
-              <div class="adjust-row"><button data-delta="-5" type="button">−5</button><button data-delta="-1" type="button">−1</button><button data-delta="1" type="button">+1</button><button data-delta="5" type="button">+5</button></div>
-              <label class="max-label">Maximum<input id="hpMax" type="number" min="1" value="38" /></label>
-            </article>
-
-            <article class="panel resource-card" data-resource="mp">
-              <div class="resource-head"><span>MP</span><strong><span id="mpNow">42</span> / <span id="mpMaxText">55</span></strong></div>
-              <div class="bar"><span id="mpBar"></span></div>
-              <div class="adjust-row"><button data-delta="-5" type="button">−5</button><button data-delta="-1" type="button">−1</button><button data-delta="1" type="button">+1</button><button data-delta="5" type="button">+5</button></div>
-              <label class="max-label">Maximum<input id="mpMax" type="number" min="0" value="55" /></label>
-            </article>
-
-            <article class="panel resource-card" data-resource="ip">
-              <div class="resource-head"><span>IP</span><strong><span id="ipNow">4</span> / <span id="ipMaxText">6</span></strong></div>
-              <div class="bar"><span id="ipBar"></span></div>
-              <div class="adjust-row"><button data-delta="-1" type="button">−1</button><button data-delta="1" type="button">+1</button></div>
-              <label class="max-label">Maximum<input id="ipMax" type="number" min="0" value="6" /></label>
-            </article>
-          </section>
-
-          <section class="details-grid">
-            <article class="panel"><div class="section-title"><h3>Fabula Points</h3><strong id="fpText">3</strong></div><div class="adjust-row two"><button id="fpMinus" type="button">Spend 1</button><button id="fpPlus" type="button">Gain 1</button></div></article>
-            <article class="panel"><h3>Status Effects</h3><div id="statuses" class="chips"></div></article>
-            <article class="panel wide-panel"><h3>Derived Stats</h3><div class="four-col"><label>Initiative<input id="initiative" type="number" value="2" /></label><label>Defence<input id="defence" type="number" value="10" /></label><label>Magic Defence<input id="magicDefence" type="number" value="11" /></label><label>Crisis<input id="crisis" type="number" value="19" /></label></div></article>
-            <article class="panel wide-panel"><h3>Classes</h3><textarea id="classes" rows="3" placeholder="e.g. Elementalist 3, Guardian 2"></textarea></article>
-            <article class="panel wide-panel"><h3>Skills & Abilities</h3><textarea id="skills" rows="5" placeholder="Class skills, heroic skills, custom abilities…"></textarea></article>
-            <article class="panel wide-panel"><h3>Equipment</h3><textarea id="equipment" rows="4" placeholder="Weapons, armour, accessories…"></textarea></article>
-            <article class="panel wide-panel"><h3>Spells</h3><textarea id="spells" rows="4" placeholder="Spell name, MP cost, target, effect…"></textarea></article>
-            <article class="panel wide-panel"><h3>Bonds</h3><textarea id="bonds" rows="4" placeholder="Name — admiration / loyalty / affection…"></textarea></article>
-            <article class="panel wide-panel"><h3>Inventory & Notes</h3><textarea id="notes" rows="6" placeholder="Items, story notes, campaign details…"></textarea></article>
-          </section>
-
-          <div class="save-dock"><span id="saveStatus" class="muted" aria-live="polite">Not saved yet</span><button id="saveBtn" class="primary" type="button">Save character</button></div>
+          <div class="identity-grid"><article class="panel portrait-card"><div id="portraitFallback" class="portrait-fallback">?</div><img id="portraitImg" class="portrait hidden" alt="Character portrait" /><label class="small-label">Portrait URL<input id="portraitUrl" type="url" placeholder="https://…" /></label></article><article class="panel identity-card"><div class="split-heading"><div><p class="eyebrow">Character</p><input id="charName" class="title-input" value="Iris" aria-label="Character name" /></div><label class="level-box">Level<input id="level" type="number" min="1" max="50" value="5" /></label></div><div class="two-col"><label>Identity<input id="identity" value="Princess of Rübenberg" /></label><label>Theme<input id="theme" value="Duty" /></label><label>Origin<input id="origin" value="Rübenberg" /></label><label>Player<input id="playerName" value="Player" /></label></div></article></div>
+          <section class="stat-grid" aria-label="Attributes"><article class="panel stat-card"><span>MIG</span><select id="mig"><option>d6</option><option selected>d8</option><option>d10</option><option>d12</option></select></article><article class="panel stat-card"><span>DEX</span><select id="dex"><option>d6</option><option>d8</option><option selected>d10</option><option>d12</option></select></article><article class="panel stat-card"><span>INS</span><select id="ins"><option>d6</option><option selected>d8</option><option>d10</option><option>d12</option></select></article><article class="panel stat-card"><span>WLP</span><select id="wlp"><option>d6</option><option>d8</option><option selected>d10</option><option>d12</option></select></article></section>
+          <section class="resource-grid"><article class="panel resource-card" data-resource="hp"><div class="resource-head"><span>HP</span><strong><span id="hpNow">31</span> / <span id="hpMaxText">38</span></strong></div><div class="bar"><span id="hpBar"></span></div><div class="adjust-row"><button data-delta="-5" type="button">−5</button><button data-delta="-1" type="button">−1</button><button data-delta="1" type="button">+1</button><button data-delta="5" type="button">+5</button></div><label class="max-label">Maximum<input id="hpMax" type="number" min="1" value="38" /></label></article><article class="panel resource-card" data-resource="mp"><div class="resource-head"><span>MP</span><strong><span id="mpNow">42</span> / <span id="mpMaxText">55</span></strong></div><div class="bar"><span id="mpBar"></span></div><div class="adjust-row"><button data-delta="-5" type="button">−5</button><button data-delta="-1" type="button">−1</button><button data-delta="1" type="button">+1</button><button data-delta="5" type="button">+5</button></div><label class="max-label">Maximum<input id="mpMax" type="number" min="0" value="55" /></label></article><article class="panel resource-card" data-resource="ip"><div class="resource-head"><span>IP</span><strong><span id="ipNow">4</span> / <span id="ipMaxText">6</span></strong></div><div class="bar"><span id="ipBar"></span></div><div class="adjust-row"><button data-delta="-1" type="button">−1</button><button data-delta="1" type="button">+1</button></div><label class="max-label">Maximum<input id="ipMax" type="number" min="0" value="6" /></label></article></section>
+          <section class="details-grid"><article class="panel"><div class="section-title"><h3>Fabula Points</h3><strong id="fpText">3</strong></div><div class="adjust-row two"><button id="fpMinus" type="button">Spend 1</button><button id="fpPlus" type="button">Gain 1</button></div></article><article class="panel"><h3>Status Effects</h3><div id="statuses" class="chips"></div></article><article class="panel wide-panel"><h3>Derived Stats</h3><div class="four-col"><label>Initiative<input id="initiative" type="number" value="2" /></label><label>Defence<input id="defence" type="number" value="10" /></label><label>Magic Defence<input id="magicDefence" type="number" value="11" /></label><label>Crisis<input id="crisis" type="number" value="19" /></label></div></article><article class="panel wide-panel"><h3>Classes</h3><textarea id="classes" rows="3"></textarea></article><article class="panel wide-panel"><h3>Skills & Abilities</h3><textarea id="skills" rows="5"></textarea></article><article class="panel wide-panel"><h3>Equipment</h3><textarea id="equipment" rows="4"></textarea></article><article class="panel wide-panel"><h3>Spells</h3><textarea id="spells" rows="4"></textarea></article><article class="panel wide-panel"><h3>Bonds</h3><textarea id="bonds" rows="4"></textarea></article><article class="panel wide-panel"><h3>Inventory & Notes</h3><textarea id="notes" rows="6"></textarea></article></section><div class="save-dock"><span id="saveStatus" class="muted" aria-live="polite">Not saved yet</span><button id="saveBtn" class="primary" type="button">Save character</button></div>
         </section>
-
-        <section id="gmView" class="view-section hidden">
-          <article class="panel"><div class="split-heading"><div><p class="eyebrow">Session view</p><h2>GM Dashboard</h2></div><button id="refreshGmBtn" class="secondary" type="button">Refresh</button></div><p class="muted">All campaign characters appear here. Only users marked as GM can see this list.</p></article>
-          <div id="gmCards" class="gm-grid"></div>
-        </section>
+        <section id="gmView" class="view-section hidden"><article class="panel"><div class="split-heading"><div><p class="eyebrow">Session view</p><h2>GM Dashboard</h2></div><button id="refreshGmBtn" class="secondary" type="button">Refresh</button></div><p class="muted">All campaign characters appear here. Only users marked as GM can see this list.</p></article><div id="gmCards" class="gm-grid"></div></section>
       </section>
     </main>
   </div>
-
-  <script>
-    window.AESTRA_CONFIG = {
-      supabaseUrl: "https://pbsfiwzwdseslvnprcph.supabase.co",
-      supabaseAnonKey: "sb_publishable_uE7LjZhZf2dXuza1vpGtSQ_CZaR7xFH",
-      campaignId: "00000000-0000-0000-0000-000000000001"
-    };
-  </script>
-  <script type="module" src="app.js?v=2"></script>
+  <script>window.AESTRA_CONFIG={supabaseUrl:"https://pbsfiwzwdseslvnprcph.supabase.co",supabaseAnonKey:"sb_publishable_uE7LjZhZf2dXuza1vpGtSQ_CZaR7xFH",campaignId:"00000000-0000-0000-0000-000000000001"};</script>
+  <script type="module" src="app.js?v=3"></script>
 </body>
 </html>
