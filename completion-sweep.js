@@ -7,4 +7,4 @@ await load('./aestra-session-suite.js?v=1');
 await load('./build122-stabilization.js?v=1');
 await load('./hero-console-v2.js?v=1');
 await load('./compact-header.js?v=2');
-await load('./pwa-register.js?v=5');
+await load('./pwa-register.js?v=6');
