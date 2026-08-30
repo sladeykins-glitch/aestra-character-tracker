@@ -5,6 +5,7 @@
   const $=id=>document.getElementById(id);
   const norm=v=>String(v||'').trim().toLowerCase();
   const ATTRS=[['mig','MIG'],['dex','DEX'],['ins','INS'],['wlp','WLP']];
+  const DERIVED=[['initiativeText','INIT'],['defenceText','DEF'],['magicDefenceText','MDEF'],['crisisText','CRISIS']];
 
   function installStyles(){
     if($('build122Styles'))return;
@@ -21,10 +22,13 @@
       .b122-attr.status-reduced{border-color:rgba(215,119,93,.38);background:linear-gradient(145deg,rgba(93,39,32,.16),rgba(31,19,24,.32));box-shadow:inset 0 0 18px rgba(176,72,56,.06)}
       .b122-attr.status-reduced b{color:#d89882}.b122-attr.status-reduced strong{color:#f1c1ad}.b122-attr.status-reduced small{color:#c98d7b}
       .b122-attr.flash{transform:scale(1.035)}
+      .b122-derived{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:6px}
+      .b122-derived span{display:flex;align-items:baseline;justify-content:space-between;gap:4px;padding:5px 7px;border-radius:8px;background:rgba(0,0,0,.12);border:1px solid rgba(104,175,207,.08)}
+      .b122-derived b{font-size:.44rem;letter-spacing:.09em;color:#718b98}.b122-derived strong{font-size:.7rem;color:#c9dce3}
       #aestraHeroDashboard .asu-dash-status{min-height:19px}
       #aestraHeroDashboard .asu-dash-actions button,#grandMobileNav button{min-height:44px!important}
       #aestraHeroDashboard button:focus-visible,#grandMobileNav button:focus-visible,.asu-session button:focus-visible,.asu-modal button:focus-visible{outline:2px solid #86c9e8!important;outline-offset:2px!important}
-      @media(max-width:430px){.b122-attrs{gap:4px}.b122-attr{padding:7px 3px}.b122-attr strong{font-size:1rem}}
+      @media(max-width:430px){.b122-attrs{gap:4px}.b122-attr{padding:7px 3px}.b122-attr strong{font-size:1rem}.b122-derived{grid-template-columns:1fr 1fr}}
     `;
     document.head.appendChild(s);
   }
@@ -60,6 +64,15 @@
     return grid;
   }
 
+  function ensureHeroDerived(){
+    const attrs=ensureHeroAttributes();if(!attrs)return null;
+    let grid=$('b122HeroDerived');if(grid)return grid;
+    grid=document.createElement('div');grid.id='b122HeroDerived';grid.className='b122-derived';grid.setAttribute('aria-label','Combat values');grid.setAttribute('aria-live','polite');
+    grid.innerHTML=DERIVED.map(([id,label])=>`<span data-b122-derived="${id}"><b>${label}</b><strong>0</strong></span>`).join('');
+    attrs.after(grid);
+    return grid;
+  }
+
   function currentDie(key){return $(`${key}`)?.value||'d6'}
   function baseDie(key){return $(`${key}Base`)?.value||currentDie(key)}
   function syncHeroAttributes(flashKey=''){
@@ -73,6 +86,12 @@
       card.classList.toggle('status-reduced',reduced);
       if(key===flashKey){card.classList.remove('flash');void card.offsetWidth;card.classList.add('flash');setTimeout(()=>card.classList.remove('flash'),180)}
     }
+    syncHeroDerived();
+  }
+
+  function syncHeroDerived(){
+    const grid=ensureHeroDerived();if(!grid)return;
+    for(const [id] of DERIVED){const out=grid.querySelector(`[data-b122-derived="${id}"] strong`);if(out)out.textContent=$(id)?.textContent?.trim()||'0'}
   }
 
   function statusName(btn){
@@ -114,7 +133,8 @@
       statuses.addEventListener('click',()=>requestAnimationFrame(()=>{syncHeroAttributes();syncHeroStatuses()}));
       new MutationObserver(()=>requestAnimationFrame(()=>{syncHeroAttributes();syncHeroStatuses()})).observe(statuses,{subtree:true,childList:true,attributes:true,attributeFilter:['class','aria-pressed']});
     }
-    document.addEventListener('aestra:character-loaded',()=>setTimeout(()=>{syncHeroAttributes();syncHeroStatuses();installPlayLabels();cleanRuntimeMarkup()},80));
+    for(const [id] of DERIVED){const el=$(id);if(el)new MutationObserver(()=>requestAnimationFrame(syncHeroDerived)).observe(el,{childList:true,subtree:true,characterData:true})}
+    document.addEventListener('aestra:character-loaded',()=>setTimeout(()=>{syncHeroAttributes();syncHeroDerived();syncHeroStatuses();installPlayLabels();cleanRuntimeMarkup()},80));
   }
 
   function boot(){
@@ -122,13 +142,15 @@
     cleanRuntimeMarkup();
     installPlayLabels();
     ensureHeroAttributes();
+    ensureHeroDerived();
     syncHeroAttributes();
+    syncHeroDerived();
     syncHeroStatuses();
     migrateNameScopedLocalData();
     wire();
-    setTimeout(()=>{cleanRuntimeMarkup();installPlayLabels();syncHeroAttributes();syncHeroStatuses()},350);
+    setTimeout(()=>{cleanRuntimeMarkup();installPlayLabels();syncHeroAttributes();syncHeroDerived();syncHeroStatuses()},350);
   }
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
-  window.AESTRA_BUILD_122={syncHeroAttributes,syncHeroStatuses};
+  window.AESTRA_BUILD_122={syncHeroAttributes,syncHeroDerived,syncHeroStatuses};
 })();
