@@ -32,7 +32,7 @@ jobs:
           python -m json.tool manifest.webmanifest >/dev/null
           python -m json.tool version.json >/dev/null
 
-      - name: Check Build 122 wiring
+      - name: Check Build 123 wiring
         shell: bash
         run: |
           grep -q 'techno-bootstrap.js?v=4' index.html
@@ -42,17 +42,20 @@ jobs:
           grep -q 'character-creation-v2.js?v=1' completion-sweep.js
           grep -q 'aestra-session-suite.js?v=1' completion-sweep.js
           grep -q 'build122-stabilization.js?v=1' completion-sweep.js
+          grep -q 'hero-console-v2.js?v=1' completion-sweep.js
           grep -q 'pwa-register.js?v=3' completion-sweep.js
-          grep -q "const BUILD=122" pwa-register.js
-          grep -q "aestra-v122" sw.js
-          grep -q '"version":122' version.json
+          grep -q "const BUILD=123" pwa-register.js
+          grep -q "aestra-v123" sw.js
+          grep -q '"version":123' version.json
 
       - name: Check Hero Console attribute/status contract
         shell: bash
         run: |
-          grep -q "ATTRS=\[\['mig','MIG'\],\['dex','DEX'\],\['ins','INS'\],\['wlp','WLP'\]\]" build122-stabilization.js
-          grep -q 'aestra:status-die' build122-stabilization.js
-          grep -q 'status-reduced' build122-stabilization.js
+          grep -q "ATTRS=\[\['mig','MIG'\],\['dex','DEX'\],\['ins','INS'\],\['wlp','WLP'\]\]" hero-console-v2.js
+          grep -q 'aestra:status-die' hero-console-v2.js
+          grep -q "classList.toggle('reduced'" hero-console-v2.js
+          grep -q 'data-open-hero-console' hero-console-v2.js
+          grep -q 'aestraSessionMode' hero-console-v2.js
           grep -q "Slow:{dex:1},Dazed:{ins:1},Weak:{mig:1},Shaken:{wlp:1}" status-fix.js
 
       - name: Check excluded campaign systems stay disabled
