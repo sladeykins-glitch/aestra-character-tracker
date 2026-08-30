@@ -1,0 +1,19 @@
+// Adds Techno Fantasy Heroic Skills into the existing Heroic picker without creating a new visible source button.
+(function(){
+ const CONFIG=window.AESTRA_CONFIG||{},norm=v=>String(v||'').trim().toLowerCase(),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const rows=id=>[...(document.getElementById(id)?.querySelectorAll('.entry-row')||[])],inputs=r=>r?.querySelectorAll('input,textarea,select')||[],latest=id=>rows(id).at(-1)||null;
+ let sb=null,loaded=false,heroics=[];
+ async function client(){if(sb)return sb;const m=await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');sb=m.createClient(CONFIG.supabaseUrl,CONFIG.supabaseAnonKey);return sb}
+ async function load(){if(loaded)return;const c=await client(),r=await c.from('rule_heroic_skills').select('*').eq('source_id','techno-fantasy-1.0').order('sort_order');if(r.error)throw r.error;heroics=r.data||[];loaded=true}
+ const mastered=()=>new Set(rows('classesEditor').filter(r=>(+inputs(r)[1]?.value||0)>=10).map(r=>norm(inputs(r)[0]?.value)).filter(Boolean));
+ const learned=()=>new Set(rows('skillsEditor').map(r=>norm(inputs(r)[0]?.value)).filter(Boolean));
+ function eligible(h){const req=norm(h.requirements),ms=mastered(),ls=learned();if(!req)return true;const checks=[['greater akromorphosis','mutant','akromorphosis'],['mimeoclepsis',null,'genoclepsis'],['decoy bait','sharpshooter','hawkeye'],['overload burst','pilot','compression tech']];const s=checks.find(x=>norm(h.name)===x[0]);if(s&&s[1]&&!ms.has(s[1]))return false;if(s&&s[2]&&!ls.has(s[2]))return false;const classes=['esper','mutant','pilot','darkblade','fury','entropist','rogue','sharpshooter','weaponmaster','elementalist','chanter','orator','chimerist','tinkerer','loremaster'];const mentioned=classes.filter(c=>req.includes(c));return !mentioned.length||mentioned.some(c=>ms.has(c))}
+ function fill(row,vals){const ins=inputs(row);vals.forEach((v,i)=>{if(ins[i]){ins[i].value=v??'';ins[i].dispatchEvent(new Event('input',{bubbles:true}));ins[i].dispatchEvent(new Event('change',{bubbles:true}))}})}
+ function add(h){document.getElementById('addSkillBtn')?.click();requestAnimationFrame(()=>fill(latest('skillsEditor'),[h.name,1,'Heroic Skill · Techno Fantasy',`${h.requirements?`Requirements: ${h.requirements}. `:''}${h.effect}`]));document.getElementById('unifiedBuildPicker')?.classList.add('hidden')}
+ function heroicActive(){return document.querySelector('#ubpTabs [data-ubp-tab="heroic"]')?.classList.contains('active')}
+ async function append(){const m=document.getElementById('unifiedBuildPicker'),body=document.getElementById('ubpBody');if(!m||m.classList.contains('hidden')||!body||!heroicActive())return;await load();body.querySelectorAll('[data-techno-heroic]').forEach(x=>x.remove());const q=norm(document.getElementById('ubpSearch')?.value);const have=learned();for(const h of heroics.filter(eligible).filter(h=>!have.has(norm(h.name))).filter(h=>!q||norm(`${h.name} ${h.requirements} ${h.effect}`).includes(q))){const c=document.createElement('article');c.className='ubp-card';c.dataset.technoHeroic='1';c.innerHTML=`<div class="ubp-card-head"><div><strong>${esc(h.name)}</strong><small>Techno Fantasy Heroic · ${esc(h.requirements||'No requirement')}${h.page?` · p. ${h.page}`:''}</small></div><button class="primary" type="button">Add skill</button></div><p>${esc(h.effect||'')}</p>`;c.querySelector('button').onclick=()=>add(h);body.appendChild(c)}}
+ document.addEventListener('click',e=>{if(e.target.closest?.('#ubpTabs [data-ubp-tab="heroic"]'))setTimeout(append,20)},true);
+ document.addEventListener('input',e=>{if(e.target?.id==='ubpSearch'&&heroicActive())setTimeout(append,20)},true);
+ document.addEventListener('aestra:character-loaded',()=>{loaded=false;setTimeout(append,50)});
+ load().catch(e=>console.warn('Techno Heroic library unavailable',e));
+})();
