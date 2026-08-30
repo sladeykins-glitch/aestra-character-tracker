@@ -32,11 +32,11 @@ jobs:
           python -m json.tool manifest.webmanifest >/dev/null
           python -m json.tool version.json >/dev/null
 
-      - name: Check Build 125 wiring
+      - name: Check Build 126 wiring
         shell: bash
         run: |
           grep -q 'techno-bootstrap.js?v=4' index.html
-          grep -q 'completion-sweep.js?v=4' techno-bootstrap.js
+          grep -q 'completion-sweep.js?v=5' techno-bootstrap.js
           grep -q 'campaign-settings.js?v=2' completion-sweep.js
           grep -q 'rules-compendium-v2.js?v=1' completion-sweep.js
           grep -q 'character-creation-v2.js?v=1' completion-sweep.js
@@ -44,10 +44,22 @@ jobs:
           grep -q 'build122-stabilization.js?v=1' completion-sweep.js
           grep -q 'hero-console-v2.js?v=1' completion-sweep.js
           grep -q 'compact-header.js?v=2' completion-sweep.js
-          grep -q 'pwa-register.js?v=5' completion-sweep.js
-          grep -q "const BUILD=125" pwa-register.js
-          grep -q "aestra-v125-mobile" sw.js
-          grep -q '"version":125' version.json
+          grep -q 'pwa-register.js?v=6' completion-sweep.js
+          grep -q 'performance-lite.js?v=2' app.js
+          grep -q "const BUILD=126" pwa-register.js
+          grep -q "aestra-v126-visuals" sw.js
+          grep -q '"version":126' version.json
+
+      - name: Check visual alignment and atmosphere contract
+        shell: bash
+        run: |
+          grep -q 'left:50%;top:14px' app.js
+          grep -q 'translateX(-50%) rotate(360deg)' app.js
+          grep -q 'grid-template-columns:minmax(0,1fr)' app.js
+          grep -q '.aestra-atmosphere{display:block!important' performance-lite.js
+          grep -q '.magic-backdrop{display:block!important' performance-lite.js
+          grep -q 'animation:magicMote 28s linear infinite!important' performance-lite.js
+          ! grep -q '\*,\*::before,\*::after{animation-duration:0s' performance-lite.js
 
       - name: Check Hero Console attribute/status contract
         shell: bash
