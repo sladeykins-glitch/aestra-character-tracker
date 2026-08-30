@@ -1,5 +1,5 @@
-const CACHE='aestra-v123-refresh';
-const SHELL=['./','./index.html','./styles.css?v=5','./aestra-icon.svg','./manifest.webmanifest','./version.json','./hero-console-v2.js?v=1'];
+const CACHE='aestra-v124';
+const SHELL=['./','./index.html','./styles.css?v=5','./aestra-icon.svg','./manifest.webmanifest','./version.json','./hero-console-v2.js?v=1','./compact-header.js?v=1'];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL.map(x=>new Request(x,{cache:'reload'})))).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',event=>{event.waitUntil((async()=>{const keys=await caches.keys();await Promise.all(keys.filter(k=>k.startsWith('aestra-')&&k!==CACHE).map(k=>caches.delete(k)));await self.clients.claim();const windows=await self.clients.matchAll({type:'window',includeUncontrolled:true});for(const client of windows){try{await client.navigate(client.url)}catch{}}})())});
 function sameOrigin(req){try{return new URL(req.url).origin===self.location.origin}catch{return false}}
