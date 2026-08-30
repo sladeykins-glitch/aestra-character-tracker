@@ -8,3 +8,4 @@ await load('./mutant-tools.js?v=1');
 await load('./pilot-tools.js?v=1');
 await load('./techno-fantasy-picker.js?v=2');
 await load('./techno-heroic-picker.js?v=1');
+await load('./rules-compendium.js?v=1');
