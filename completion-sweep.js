@@ -6,4 +6,5 @@ await load('./character-creation-v2.js?v=1');
 await load('./aestra-session-suite.js?v=1');
 await load('./build122-stabilization.js?v=1');
 await load('./hero-console-v2.js?v=1');
-await load('./pwa-register.js?v=3');
+await load('./compact-header.js?v=1');
+await load('./pwa-register.js?v=4');
