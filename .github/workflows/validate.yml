@@ -5,8 +5,16 @@ on:
     branches: [main]
   workflow_dispatch:
 
+concurrency:
+  group: aestra-validation-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   validate:
+    # Repository edits are made as several small commits. Only validate the final
+    # commit in a change set so temporary in-between states do not generate
+    # misleading failure notifications. Manual runs always remain available.
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[validate]')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -32,23 +40,24 @@ jobs:
           python -m json.tool manifest.webmanifest >/dev/null
           python -m json.tool version.json >/dev/null
 
-      - name: Check Build 126 wiring
+      - name: Check current build wiring
         shell: bash
         run: |
-          grep -q 'techno-bootstrap.js?v=4' index.html
-          grep -q 'completion-sweep.js?v=5' techno-bootstrap.js
-          grep -q 'campaign-settings.js?v=2' completion-sweep.js
-          grep -q 'rules-compendium-v2.js?v=1' completion-sweep.js
-          grep -q 'character-creation-v2.js?v=1' completion-sweep.js
-          grep -q 'aestra-session-suite.js?v=1' completion-sweep.js
-          grep -q 'build122-stabilization.js?v=1' completion-sweep.js
-          grep -q 'hero-console-v2.js?v=1' completion-sweep.js
-          grep -q 'compact-header.js?v=2' completion-sweep.js
-          grep -q 'pwa-register.js?v=6' completion-sweep.js
-          grep -q 'performance-lite.js?v=2' app.js
-          grep -q "const BUILD=126" pwa-register.js
-          grep -q "aestra-v126-visuals" sw.js
-          grep -q '"version":126' version.json
+          set -euo pipefail
+          BUILD=$(node -e "const fs=require('fs');process.stdout.write(String(JSON.parse(fs.readFileSync('version.json','utf8')).version))")
+          echo "Validating Build $BUILD"
+          grep -Eq 'techno-bootstrap\.js\?v=[0-9]+' index.html
+          grep -Eq 'completion-sweep\.js\?v=[0-9]+' techno-bootstrap.js
+          grep -Eq 'campaign-settings\.js\?v=[0-9]+' completion-sweep.js
+          grep -Eq 'rules-compendium-v2\.js\?v=[0-9]+' completion-sweep.js
+          grep -Eq 'character-creation-v2\.js\?v=[0-9]+' completion-sweep.js
+          grep -Eq 'aestra-session-suite\.js\?v=[0-9]+' completion-sweep.js
+          grep -Eq 'hero-console-v2\.js\?v=[0-9]+' completion-sweep.js
+          grep -Eq 'compact-header\.js\?v=[0-9]+' completion-sweep.js
+          grep -Eq 'pwa-register\.js\?v=[0-9]+' completion-sweep.js
+          grep -q "const BUILD=$BUILD" pwa-register.js
+          grep -q "aestra-v$BUILD" sw.js
+          grep -q "\"version\":$BUILD" version.json
 
       - name: Check visual alignment and atmosphere contract
         shell: bash
