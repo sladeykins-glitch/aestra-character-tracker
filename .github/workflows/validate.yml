@@ -1,0 +1,53 @@
+name: Validate Aestra Companion
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Check JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in *.js; do
+            echo "Checking $file"
+            node --input-type=module --check < "$file"
+          done
+
+      - name: Check JSON manifests
+        shell: bash
+        run: |
+          python -m json.tool manifest.webmanifest >/dev/null
+          python -m json.tool version.json >/dev/null
+
+      - name: Check completion wiring
+        shell: bash
+        run: |
+          grep -q 'techno-bootstrap.js?v=4' index.html
+          grep -q 'completion-sweep.js?v=2' techno-bootstrap.js
+          grep -q 'campaign-settings.js?v=2' completion-sweep.js
+          grep -q 'rules-compendium-v2.js?v=1' completion-sweep.js
+          grep -q 'character-creation-v2.js?v=1' completion-sweep.js
+          grep -q 'aestra-session-suite.js?v=1' completion-sweep.js
+          grep -q 'pwa-register.js?v=2' completion-sweep.js
+          grep -q "const BUILD=121" pwa-register.js
+          grep -q "aestra-v121" sw.js
+
+      - name: Check excluded campaign systems stay disabled
+        shell: bash
+        run: |
+          grep -q "quirks:false" campaign-settings.js
+          grep -q "zero_powers:false" campaign-settings.js
+          grep -q "technospheres:false" campaign-settings.js
