@@ -1,6 +1,6 @@
 // Installability, offline state and lightweight update notification.
 (function(){
- const BUILD=122,$=id=>document.getElementById(id);
+ const BUILD=123,$=id=>document.getElementById(id);
  function ensureManifest(){if(document.querySelector('link[rel="manifest"]'))return;const l=document.createElement('link');l.rel='manifest';l.href='./manifest.webmanifest';document.head.appendChild(l);const icon=document.createElement('link');icon.rel='icon';icon.href='./aestra-icon.svg';icon.type='image/svg+xml';document.head.appendChild(icon)}
  function badge(){let b=$('aestraNetBadge');if(b)return b;const top=document.querySelector('.top-actions');if(!top)return null;b=document.createElement('span');b.id='aestraNetBadge';b.className='aestra-net-badge';top.insertBefore(b,top.firstChild);return b}
  function syncOnline(){const b=badge();if(!b)return;b.textContent=navigator.onLine?'● Online':'○ Offline';b.classList.toggle('offline',!navigator.onLine);b.title=navigator.onLine?'Connected. Character sync is available.':'Offline mode. Previously visited app files remain available; character sync waits for connection.'}
