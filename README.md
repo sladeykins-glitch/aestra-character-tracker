@@ -1,83 +1,79 @@
-# Aestra Fabula Ultima Character Tracker — V1
+# Aestra Complete Companion — Build 122
 
-A mobile-friendly shared character tracker for a Fabula Ultima campaign.
+A shared, mobile-first Fabula Ultima campaign companion for Aestra, backed by Supabase and deployed through GitHub Pages.
 
-## Included in V1
+## Current player experience
 
-- Player login / signup through Supabase Auth
-- One editable character sheet per player per campaign
-- Character identity, theme, origin, level and portrait URL
-- MIG / DEX / INS / WLP die sizes
-- HP / MP / IP with touch-friendly +/- controls
-- Fabula Points
-- Status effects
-- Initiative, Defence, Magic Defence and Crisis
-- Classes, skills, equipment, spells, bonds, inventory / notes
-- GM-only dashboard showing every player's current HP / MP / IP and statuses
-- Row Level Security so players can edit only their own sheet while a GM can access all sheets
-- Local demo mode before Supabase is configured
+- Hero Console / Play screen with character name, level, classes, HP, MP, IP and Fabula Points
+- Live MIG / DEX / INS / WLP dice on the Hero Console
+- Status-aware attribute dice: Slow → DEX, Dazed → INS, Weak → MIG, Shaken → WLP, with the existing Enraged/Poisoned combinations preserved
+- Adventure Mode with quick actions, attacks, magic, skills, items and core actions
+- Character Build, Inventory and Notes pages
+- Bonds, equipment, spells, Arcana, Heroic Skills and class progression
+- Dedicated class tools including Floralist, Gourmet, Invoker, Merchant, Chanter, Commander, Dancer, Symbolist, Esper, Mutant and Pilot systems
+- Rules Compendium and global Ctrl/Cmd + K search
+- Character Creator using enabled campaign source books
+- Undo for session resource/status changes
 
-## 1. Test it locally first
+## GM experience
 
-You can open `index.html` directly and choose **Open local demo instead**. Demo mode saves to your browser with localStorage.
+- Party dashboard and detailed character editing
+- Quick party resource controls
+- Scene controls with safe New Scene resets
+- Persistent scene clocks and campaign source settings
+- GM Magiseed support
 
-For the full online version, use the steps below.
+## Campaign sources
 
-## 2. Create a Supabase project
+Enabled:
 
-1. Create a new project at Supabase.
-2. Open **SQL Editor**.
-3. Paste all of `schema.sql` and run it.
-4. Open **Authentication** and make sure Email authentication is enabled.
-5. Create your own account from the website once it is running.
-6. In **Table Editor -> profiles**, change your account's `is_gm` value to `true`.
-7. In **Table Editor -> campaigns**, create a campaign named `Aestra` and copy its UUID.
+- Core Rulebook
+- High Fantasy Atlas
+- Natural Fantasy Atlas
+- Techno Fantasy Atlas
 
-## 3. Configure the website
+Explicitly disabled for this campaign:
 
-Open `config.js` and enter:
+- Quirks
+- Zero Powers
+- Technospheres
 
-```js
-window.AESTRA_CONFIG = {
-  supabaseUrl: "https://YOUR-PROJECT.supabase.co",
-  supabaseAnonKey: "YOUR-PUBLIC-ANON-KEY",
-  campaignId: "YOUR-CAMPAIGN-UUID"
-};
-```
+## Build 122 stabilisation work
 
-The Supabase anon key is designed to be public in a browser app. The database is protected by the Row Level Security policies in `schema.sql`. Do not put a Supabase service-role key in this file.
+Build 122 begins the transition from the original long-form character editor toward a player-first companion app.
 
-## 4. Put it on GitHub Pages
+- The primary player area is labelled **Play**.
+- The Hero Console now displays all four current Attribute dice.
+- Attribute dice listen to the same status-adjustment events as the character sheet; there is no second condition rules engine.
+- Status-reduced dice are visually marked and show their base die.
+- Name-scoped local Quick/Undo data is migrated when a character is renamed so it is not silently lost.
+- Important player controls receive larger touch targets and clearer keyboard focus treatment.
+- Legacy GM INS markup is repaired at runtime for compatibility with the existing editor modules.
+- PWA/version/cache metadata has been bumped to Build 122.
 
-Create a new GitHub repository, for example `aestra-character-tracker`, and upload every file from this folder to the repository root.
+The larger legacy module chain is intentionally still present in Build 122. It is being stabilised before deeper consolidation so working class mechanics are not put at risk by a single large rewrite.
 
-Then open:
+## Validation
 
-**Settings -> Pages -> Build and deployment -> Deploy from a branch -> main / root**
+The GitHub Actions validation workflow checks:
 
-GitHub will give you the live Pages address.
+- JavaScript syntax for every root JavaScript module
+- JSON manifest/version validity
+- Completion/cache module wiring
+- Build 122 Hero Console attribute integration
+- The status-to-attribute reduction contract
+- Campaign systems that must remain disabled
 
-## 5. Give it to players
+## Local demo
 
-Each player visits the site, creates an account, and signs in. Their first save creates their personal character sheet for the campaign.
+Open `index.html` and choose **Open local demo instead**. Demo mode stores its character locally in the browser.
 
-Your account should be the only account with `is_gm = true` unless you want another GM to have full access.
+## Supabase configuration
 
-## Security notes
+The browser uses the public Supabase anon/publishable key from `config.js` / the page configuration. Database security is enforced with Row Level Security from `schema.sql`.
 
-- `service_role` keys must never be added to this project.
-- Players are restricted by Supabase Row Level Security, not just hidden buttons in the interface.
-- The default design allows one character per account per campaign. This can be expanded later.
+Never place a Supabase `service_role` key in this repository.
 
-## Natural V2 upgrades
+## Deployment
 
-- Structured class / skill picker instead of text boxes
-- Fabula Ultima automatic derived-stat calculations
-- Weapon / armour attack formulas
-- Separate spell and equipment cards
-- Bonds UI
-- Multiple characters per player
-- Campaign invite codes
-- Live Supabase Realtime updates on the GM dashboard
-- Aestra-specific artwork and styling
-- GM damage / healing controls directly from the dashboard
+GitHub Pages deploys the `main` branch. The PWA service worker uses versioned caches and `version.json` to notify clients when a newer tracker build is available.
