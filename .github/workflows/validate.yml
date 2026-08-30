@@ -32,21 +32,22 @@ jobs:
           python -m json.tool manifest.webmanifest >/dev/null
           python -m json.tool version.json >/dev/null
 
-      - name: Check Build 123 wiring
+      - name: Check Build 124 wiring
         shell: bash
         run: |
           grep -q 'techno-bootstrap.js?v=4' index.html
-          grep -q 'completion-sweep.js?v=3' techno-bootstrap.js
+          grep -q 'completion-sweep.js?v=4' techno-bootstrap.js
           grep -q 'campaign-settings.js?v=2' completion-sweep.js
           grep -q 'rules-compendium-v2.js?v=1' completion-sweep.js
           grep -q 'character-creation-v2.js?v=1' completion-sweep.js
           grep -q 'aestra-session-suite.js?v=1' completion-sweep.js
           grep -q 'build122-stabilization.js?v=1' completion-sweep.js
           grep -q 'hero-console-v2.js?v=1' completion-sweep.js
-          grep -q 'pwa-register.js?v=3' completion-sweep.js
-          grep -q "const BUILD=123" pwa-register.js
-          grep -q "aestra-v123" sw.js
-          grep -q '"version":123' version.json
+          grep -q 'compact-header.js?v=1' completion-sweep.js
+          grep -q 'pwa-register.js?v=4' completion-sweep.js
+          grep -q "const BUILD=124" pwa-register.js
+          grep -q "aestra-v124" sw.js
+          grep -q '"version":124' version.json
 
       - name: Check Hero Console attribute/status contract
         shell: bash
@@ -57,6 +58,15 @@ jobs:
           grep -q 'data-open-hero-console' hero-console-v2.js
           grep -q 'aestraSessionMode' hero-console-v2.js
           grep -q "Slow:{dex:1},Dazed:{ins:1},Weak:{mig:1},Shaken:{wlp:1}" status-fix.js
+
+      - name: Check compact header contract
+        shell: bash
+        run: |
+          grep -q 'compact-header-tools' compact-header.js
+          grep -q 'Create Character' compact-header.js
+          grep -q 'compactHeaderMenu' compact-header.js
+          grep -q "found.hero" compact-header.js
+          grep -q "found.logout" compact-header.js
 
       - name: Check excluded campaign systems stay disabled
         shell: bash
