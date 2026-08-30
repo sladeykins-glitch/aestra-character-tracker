@@ -1,0 +1,6 @@
+// Techno Fantasy uses the same custom-weapon framework already implemented by custom-weapons-v2.
+// This layer makes the shared builder source-neutral and documents the Techno rules in the UI.
+(function(){
+ const retitle=()=>{const btn=document.getElementById('cw2Create');if(btn)btn.textContent='Create Custom Weapon';const m=document.getElementById('cw2Modal');if(!m||m.classList.contains('hidden'))return;const eyebrow=m.querySelector('.eyebrow'),help=m.querySelector('.cw2-help');if(eyebrow)eyebrow.textContent='Atlas Custom Weapons · High / Techno Fantasy';if(help)help.textContent='Choose a Category, melee/ranged use, Accuracy formula, and exactly three customization points. Custom weapons cost 300z, are always two-handed, and use the shared High Fantasy / Techno Fantasy custom-weapon framework.'};
+ document.addEventListener('click',e=>{if(e.target?.id==='cw2Create')setTimeout(retitle,0)},true);const mo=new MutationObserver(()=>requestAnimationFrame(retitle));mo.observe(document.body,{childList:true,subtree:false});setTimeout(retitle,500);
+})();
