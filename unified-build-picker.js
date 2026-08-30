@@ -18,25 +18,37 @@
   async function load(){
     if(loaded)return;
     const c=await client();
-    const [cc,hc,cs,hs,hh]=await Promise.all([
+    const [cc,hc,cs,hs,ch,hh]=await Promise.all([
       c.from('rule_classes').select('*').eq('source_id','core-1.02').order('sort_order'),
       c.from('rule_classes').select('*').eq('source_id','high-fantasy-1.03').order('sort_order'),
       c.from('rule_class_skills').select('*,rule_classes!inner(name,source_id)').eq('rule_classes.source_id','core-1.02').order('sort_order'),
       c.from('rule_class_skills').select('*,rule_classes!inner(name,source_id)').eq('rule_classes.source_id','high-fantasy-1.03').order('sort_order'),
-      c.from('rule_heroic_skills').select('*').eq('source_id','core-1.02').order('sort_order')
+      c.from('rule_heroic_skills').select('*').eq('source_id','core-1.02').order('sort_order'),
+      c.from('rule_heroic_skills').select('*').eq('source_id','high-fantasy-1.03').order('sort_order')
     ]);
-    const err=[cc,hc,cs,hs,hh].find(x=>x.error)?.error;if(err)throw err;
-    cache={coreClasses:cc.data||[],hfClasses:hc.data||[],coreSkills:cs.data||[],hfSkills:hs.data||[],heroics:hh.data||[]};loaded=true;
+    const err=[cc,hc,cs,hs,ch,hh].find(x=>x.error)?.error;if(err)throw err;
+    cache={coreClasses:cc.data||[],hfClasses:hc.data||[],coreSkills:cs.data||[],hfSkills:hs.data||[],heroics:[...(ch.data||[]),...(hh.data||[])]};loaded=true;
   }
   function inputs(row){return row?.querySelectorAll('input,textarea,select')||[]}
   function fill(row,vals){const ins=inputs(row);vals.forEach((v,i)=>{if(ins[i]){ins[i].value=v??'';fire(ins[i]);fire(ins[i],'change')}})}
   function addClass(x){document.getElementById('addClassBtn')?.click();requestAnimationFrame(()=>fill(latest('classesEditor'),[x.name,1,(x.free_benefits||[]).join(' · ')]))}
   function addSkill(x){document.getElementById('addSkillBtn')?.click();requestAnimationFrame(()=>{const r=latest('skillsEditor'),source=x.rule_classes?.name||'Class Skill';fill(r,[x.name,1,source,x.effect]);const rank=inputs(r)[1];if(rank)rank.max=String(x.max_rank||1)})}
-  function addHeroic(x){document.getElementById('addSkillBtn')?.click();requestAnimationFrame(()=>fill(latest('skillsEditor'),[x.name,1,'Heroic Skill',`${x.requirements&&x.requirements!=='None'?`Requirements: ${x.requirements}. `:''}${x.effect}`]))}
+  function addHeroic(x){document.getElementById('addSkillBtn')?.click();requestAnimationFrame(()=>fill(latest('skillsEditor'),[x.name,1,`Heroic Skill · ${x.source_id==='high-fantasy-1.03'?'High Fantasy':'Core'}`,`${x.requirements&&x.requirements!=='None'?`Requirements: ${x.requirements}. `:''}${x.effect}`]))}
   function addCustom(kind){const id=kind==='classes'?'addClassBtn':'addSkillBtn';document.getElementById(id)?.click();close();setTimeout(()=>{const r=latest(kind==='classes'?'classesEditor':'skillsEditor');r?.querySelector('input,textarea,select')?.focus()},40)}
   function selectedClasses(){return new Set(rows('classesEditor').map(r=>norm(inputs(r)[0]?.value)).filter(Boolean))}
   function mastered(){return new Set(rows('classesEditor').filter(r=>(Number(inputs(r)[1]?.value)||0)>=10).map(r=>norm(inputs(r)[0]?.value)).filter(Boolean))}
-  function heroicMatches(h){const req=norm(h.requirements);if(!req||req==='none')return true;return [...mastered()].some(c=>req.includes(c))}
+  function learnedSkills(){return new Set(rows('skillsEditor').map(r=>norm(inputs(r)[0]?.value)).filter(Boolean))}
+  function heroicMatches(h){
+    const req=norm(h.requirements),ms=mastered(),learned=learnedSkills(),level=Number(document.getElementById('level')?.value)||0;
+    if(!req||req==='none')return true;
+    if(norm(h.name)==='bimagus')return ['elementalist','entropist','spiritist'].filter(x=>ms.has(x)).length>=2&&level>=30;
+    if(norm(h.name)==='grand summoning')return ms.has('arcanist')&&level>=30;
+    if(norm(h.name)==='fleeting moment')return ms.has('weaponmaster')&&learned.has('counterattack');
+    if(norm(h.name)==='paso doble')return ms.has('dancer')&&learned.has('follow my lead');
+    const classNames=['arcanist','chanter','chimerist','commander','dancer','darkblade','elementalist','entropist','fury','guardian','loremaster','orator','rogue','sharpshooter','spiritist','symbolist','tinkerer','wayfarer','weaponmaster'];
+    const mentioned=classNames.filter(c=>req.includes(c));
+    return !mentioned.length||mentioned.some(c=>ms.has(c));
+  }
 
   function modal(){
     let m=document.getElementById('unifiedBuildPicker');if(m)return m;
@@ -69,13 +81,14 @@
     for(const x of list){
       const card=document.createElement('article');card.className='ubp-card';
       const source=tab==='core'?'Core':tab==='high'?'High Fantasy':'Heroic';
-      const meta=mode==='classes'?`${source}${x.page?` · p. ${x.page}`:''}`:tab==='heroic'?`${x.requirements||'No requirement'}${x.page?` · Core p. ${x.page}`:''}`:`${x.rule_classes?.name||''} · ${(x.max_rank||1)>1?`SL 1–${x.max_rank}`:'Single rank'} · ${source}${x.page?` p. ${x.page}`:''}`;
+      const heroicSource=x.source_id==='high-fantasy-1.03'?'High Fantasy':'Core';
+      const meta=mode==='classes'?`${source}${x.page?` · p. ${x.page}`:''}`:tab==='heroic'?`${heroicSource} Heroic · ${x.requirements||'No requirement'}${x.page?` · p. ${x.page}`:''}`:`${x.rule_classes?.name||''} · ${(x.max_rank||1)>1?`SL 1–${x.max_rank}`:'Single rank'} · ${source}${x.page?` p. ${x.page}`:''}`;
       const text=mode==='classes'?`${x.summary||''}${(x.free_benefits||[]).length?`\nFree benefits: ${(x.free_benefits||[]).join(' · ')}`:''}`:x.effect||'';
       card.innerHTML=`<div class="ubp-card-head"><div><strong>${esc(x.name)}</strong><small>${esc(meta)}</small></div><button class="primary" type="button">Add ${mode==='classes'?'class':'skill'}</button></div><p>${esc(text).replace(/\n/g,'<br>')}</p>`;
       card.querySelector('button').onclick=()=>{mode==='classes'?addClass(x):tab==='heroic'?addHeroic(x):addSkill(x);close()};body.appendChild(card);
     }
     if(!list.length){
-      const msg=mode==='skills'&&classFilter?`No ${tab==='high'?'High Fantasy':'Core'} skills found for ${classFilter}.`:mode==='skills'?'No matching skills from your current classes.':'No matching options.';
+      const msg=mode==='skills'&&classFilter?`No ${tab==='high'?'High Fantasy':'Core'} skills found for ${classFilter}.`:tab==='heroic'?'No Heroic Skills currently meet this character’s requirements.':mode==='skills'?'No matching skills from your current classes.':'No matching options.';
       body.innerHTML=`<p class="muted ubp-empty">${esc(msg)}</p>`;
     }
   }
