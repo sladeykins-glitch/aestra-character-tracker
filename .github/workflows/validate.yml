@@ -32,7 +32,7 @@ jobs:
           python -m json.tool manifest.webmanifest >/dev/null
           python -m json.tool version.json >/dev/null
 
-      - name: Check Build 124 wiring
+      - name: Check Build 125 wiring
         shell: bash
         run: |
           grep -q 'techno-bootstrap.js?v=4' index.html
@@ -43,11 +43,11 @@ jobs:
           grep -q 'aestra-session-suite.js?v=1' completion-sweep.js
           grep -q 'build122-stabilization.js?v=1' completion-sweep.js
           grep -q 'hero-console-v2.js?v=1' completion-sweep.js
-          grep -q 'compact-header.js?v=1' completion-sweep.js
-          grep -q 'pwa-register.js?v=4' completion-sweep.js
-          grep -q "const BUILD=124" pwa-register.js
-          grep -q "aestra-v124" sw.js
-          grep -q '"version":124' version.json
+          grep -q 'compact-header.js?v=2' completion-sweep.js
+          grep -q 'pwa-register.js?v=5' completion-sweep.js
+          grep -q "const BUILD=125" pwa-register.js
+          grep -q "aestra-v125-mobile" sw.js
+          grep -q '"version":125' version.json
 
       - name: Check Hero Console attribute/status contract
         shell: bash
@@ -59,14 +59,15 @@ jobs:
           grep -q 'aestraSessionMode' hero-console-v2.js
           grep -q "Slow:{dex:1},Dazed:{ins:1},Weak:{mig:1},Shaken:{wlp:1}" status-fix.js
 
-      - name: Check compact header contract
+      - name: Check mobile-first header contract
         shell: bash
         run: |
           grep -q 'compact-header-tools' compact-header.js
-          grep -q 'Create Character' compact-header.js
-          grep -q 'compactHeaderMenu' compact-header.js
-          grep -q "found.hero" compact-header.js
-          grep -q "found.logout" compact-header.js
+          grep -q "mobile.matches" compact-header.js
+          grep -q "account?.after(found.create)" compact-header.js
+          grep -q "display:none!important" compact-header.js
+          grep -q "isMobile?'GM':'GM Dashboard'" compact-header.js
+          grep -q "isMobile?'Console':'Hero Console'" compact-header.js
 
       - name: Check excluded campaign systems stay disabled
         shell: bash
