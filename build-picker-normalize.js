@@ -38,6 +38,7 @@
     }
     add.textContent=section==='classes'?'+ Add Class':'+ Add Skill';
     add.onclick=e=>{
+      if(!e.isTrusted)return;
       e.preventDefault();e.stopPropagation();
       if(!openUnified(section))setTimeout(()=>openUnified(section),80);
     };
@@ -51,6 +52,7 @@
   function queue(){if(queued)return;queued=true;requestAnimationFrame(normalize)}
 
   document.addEventListener('click',e=>{
+    if(!e.isTrusted)return;
     const learn=e.target.closest?.('[data-bh-add-skill]');
     if(!learn)return;
     e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
