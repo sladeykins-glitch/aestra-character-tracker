@@ -98,12 +98,20 @@
     }
   }
 
+  function isOwnPickerNode(node){
+    return node?.nodeType===1&&(node.id==='buildSectionRemovePicker'||node.classList?.contains('build-section-remove-picker'));
+  }
+
   function observeBuildBody(){
     const body=document.getElementById('buildMenuBody');
     if(!body||body===observedBody)return;
     bodyObserver?.disconnect();
     observedBody=body;
-    bodyObserver=new MutationObserver(()=>{
+    bodyObserver=new MutationObserver(records=>{
+      // The remove picker is itself a direct child of buildMenuBody. Do not treat
+      // opening/closing our own picker as a Build redraw or it immediately closes itself.
+      const structural=records.some(r=>[...r.addedNodes,...r.removedNodes].some(n=>n.nodeType===1&&!isOwnPickerNode(n)));
+      if(!structural)return;
       closePicker();
       schedule();
     });
