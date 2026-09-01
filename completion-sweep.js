@@ -10,4 +10,5 @@ await load('./hero-console-v2.js?v=1');
 await load('./compact-header.js?v=2');
 await load('./opening-cinematic.js?v=4');
 await load('./opening-cinematic-interaction-fix.js?v=1');
-await load('./pwa-register.js?v=11');
+await load('./ambient-music.js?v=1');
+await load('./pwa-register.js?v=12');
