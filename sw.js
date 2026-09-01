@@ -1,5 +1,5 @@
-const CACHE='aestra-v132-moonlit-opening';
-const SHELL=['./','./index.html','./styles.css?v=5','./aestra-icon.svg','./manifest.webmanifest','./version.json','./app.js?v=79','./hero-console-v2.js?v=1','./compact-header.js?v=2','./performance-lite.js?v=2','./character-creation-v2-identity-fix.js?v=2','./completion-sweep.js?v=9','./opening-cinematic.js?v=2','./opening-cinematic-interaction-fix.js?v=1','./pwa-register.js?v=9'];
+const CACHE='aestra-v133-dream-pacing';
+const SHELL=['./','./index.html','./styles.css?v=5','./aestra-icon.svg','./manifest.webmanifest','./version.json','./app.js?v=79','./hero-console-v2.js?v=1','./compact-header.js?v=2','./performance-lite.js?v=2','./character-creation-v2-identity-fix.js?v=2','./completion-sweep.js?v=10','./opening-cinematic.js?v=3','./opening-cinematic-interaction-fix.js?v=1','./pwa-register.js?v=10'];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL.map(x=>new Request(x,{cache:'reload'})))).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',event=>{event.waitUntil((async()=>{const keys=await caches.keys();await Promise.all(keys.filter(k=>k.startsWith('aestra-')&&k!==CACHE).map(k=>caches.delete(k)));await self.clients.claim();const windows=await self.clients.matchAll({type:'window',includeUncontrolled:true});for(const client of windows){try{await client.navigate(client.url)}catch{}}})())});
 function sameOrigin(req){try{return new URL(req.url).origin===self.location.origin}catch{return false}}
