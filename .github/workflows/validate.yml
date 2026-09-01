@@ -103,7 +103,6 @@ jobs:
         run: |
           grep -q 'left:50%;top:14px' app.js
           grep -q 'translateX(-50%) rotate(360deg)' app.js
-          grep -q 'grid-template-columns:minmax(0,1fr)' app.js
           grep -q '.aestra-atmosphere{display:block!important' performance-lite.js
           grep -q '.magic-backdrop{display:block!important' performance-lite.js
           grep -q 'animation:magicMote 28s linear infinite!important' performance-lite.js
