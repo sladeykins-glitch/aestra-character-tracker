@@ -78,8 +78,6 @@
       body.querySelectorAll('.core-lib-card').forEach(card=>{
         if(card.dataset.purchaseReady==='1')return;
         const add=card.querySelector('.core-lib-head>button.primary');if(!add)return;
-        const original=()=>add.onclick?.call(add,new MouseEvent('click',{bubbles:true}));
-        // Preserve the original library action before replacing the button.
         const originalHandler=add.onclick;
         card._aestraOriginalAdd=()=>{if(typeof originalHandler==='function')originalHandler.call(add)};
         const cost=equipmentCost(card);
@@ -110,13 +108,8 @@
       body.querySelector('.build-core-add')?.classList.add('equipment-buy-moved');
       const core=body.querySelector('.build-core-add');if(core)core.style.display='none';
       if(!body.querySelector('.equipment-build-shop-note')){
-        const note=document.createElement('div');note.className='equipment-build-shop-note';note.innerHTML='<span>Equipment purchasing has moved to <strong>Inventory</strong>.</span><button type="button">Go to Inventory</button>';
+        const note=document.createElement('div');note.className='equipment-build-shop-note';note.innerHTML='<span>Equipment purchasing has moved to <strong>Inventory</strong>.</span><button type="button" data-aestra-nav="inventory">Go to Inventory</button>';
         body.querySelector('.build-actions')?.prepend(note);
-        note.querySelector('button').onclick=()=>{
-          const nav=document.querySelector('[data-mobile-target="inventory"], [data-page-target="inventory"], #grandMobileNav [data-page="inventory"]');
-          if(nav){nav.click();return}
-          document.querySelector('#equipmentWorkbench')?.scrollIntoView({behavior:'smooth',block:'start'});
-        };
       }
     });
     new MutationObserver(adjust).observe(body,{childList:true});
