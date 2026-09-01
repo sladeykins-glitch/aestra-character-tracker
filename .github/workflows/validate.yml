@@ -90,6 +90,18 @@ jobs:
           grep -q 'Class Level and Character Level are derived from the Skill change' level-up-v2.js
           ! grep -q 'lv.value=String' level-up-v2.js
 
+      - name: Check reliable music playback contract
+        shell: bash
+        run: |
+          grep -q "ambient-music.js?v=4" techno-bootstrap.js
+          grep -q "ambient-music.js?v=4" completion-sweep.js
+          grep -q 'function actuallyPlaying' ambient-music.js
+          grep -q "label:'Play'" ambient-music.js
+          grep -q "label:'On'" ambient-music.js
+          grep -q "if(!actuallyPlaying())" ambient-music.js
+          grep -q "audio.addEventListener('playing'" ambient-music.js
+          grep -q "audio.addEventListener('pause'" ambient-music.js
+
       - name: Check safe PWA update contract
         shell: bash
         run: |
