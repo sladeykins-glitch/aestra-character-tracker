@@ -6,6 +6,5 @@ await load('./techno-custom-weapons.js?v=1');
 await load('./esper-tools.js?v=1');
 await load('./mutant-tools.js?v=1');
 await load('./pilot-tools.js?v=1');
-await load('./techno-fantasy-picker.js?v=2');
-await load('./techno-heroic-picker.js?v=1');
-await load('./completion-sweep.js?v=23');
+// Class/Skill/Heroic browsing is owned by unified-build-library-v3.
+await load('./completion-sweep.js?v=24');
