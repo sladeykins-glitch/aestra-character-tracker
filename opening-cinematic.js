@@ -31,39 +31,53 @@
       @media(min-width:701px){.aestra-opening-replay{position:absolute!important;right:0;bottom:calc(100% + 3px);white-space:nowrap}}
       @media(max-width:700px){.aestra-opening-replay{opacity:.7}}
 
-      .aestra-opening{position:fixed;inset:0;z-index:70000;display:grid;place-items:center;overflow:hidden;background:
-        radial-gradient(circle at 28% 18%,rgba(116,163,190,.12),transparent 24%),
-        radial-gradient(circle at 72% 22%,rgba(195,211,218,.08),transparent 18%),
-        radial-gradient(ellipse at 50% 82%,rgba(32,72,91,.26),transparent 42%),
-        linear-gradient(180deg,#020509 0%,#050a10 46%,#071019 100%);
-        opacity:0;transition:opacity .65s ease}
-      .aestra-opening.show{opacity:1}
-      .aestra-opening::before{content:"";position:absolute;inset:-20%;background:
-        repeating-radial-gradient(ellipse at 50% 105%,transparent 0 34px,rgba(117,171,196,.025) 35px 36px,transparent 37px 68px);
-        transform:scaleY(.38);filter:blur(.3px);animation:aestraWaterDrift 14s linear infinite;opacity:.75}
-      .aestra-opening::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 0 47%,rgba(111,169,197,.035) 50%,transparent 53%);mix-blend-mode:screen;animation:aestraWaterBand 7s ease-in-out infinite}
-      .aestra-dream-stars{position:absolute;inset:0;pointer-events:none;background-image:radial-gradient(circle,rgba(211,225,232,.32) 0 1px,transparent 1.3px);background-size:91px 83px;opacity:.16;mask-image:linear-gradient(to bottom,#000,transparent 72%)}
-      .aestra-dream-stage{position:relative;z-index:2;width:min(900px,90vw);height:min(520px,72vh);display:grid;place-items:center;text-align:center;perspective:900px}
-      .aestra-dream-line{position:absolute;max-width:min(780px,88vw);padding:18px 22px;margin:0;color:#e9e5d8;font:500 clamp(1.25rem,3.2vw,2.45rem)/1.35 Georgia,'Times New Roman',serif;letter-spacing:.025em;text-shadow:0 0 20px rgba(155,203,225,.16),0 4px 28px rgba(0,0,0,.75);opacity:0;filter:blur(11px);transform:translateY(11px) scale(.985) rotateX(4deg);transition:opacity .72s ease,filter .9s ease,transform 1s cubic-bezier(.2,.7,.2,1)}
-      .aestra-dream-line.show{opacity:1;filter:blur(0);transform:translateY(0) scale(1) rotateX(0)}
-      .aestra-dream-line.disturb{animation:aestraTextRipple 1.15s ease-out}
-      .aestra-ripple{position:absolute;left:50%;top:50%;width:24px;height:10px;border:1px solid rgba(161,207,228,.34);border-radius:50%;transform:translate(-50%,-50%) scale(.2);box-shadow:0 0 18px rgba(99,172,207,.12);pointer-events:none;opacity:0;animation:aestraRipple 2.5s ease-out forwards}
-      .aestra-ripple.secondary{animation-delay:.18s;border-color:rgba(211,197,151,.2)}
-      .aestra-awaken-wrap{position:absolute;left:50%;top:64%;transform:translate(-50%,20px);display:grid;place-items:center;gap:9px;opacity:0;transition:opacity .8s ease,transform .8s ease;pointer-events:none}
+      .aestra-opening{position:fixed;inset:0;z-index:70000;display:grid;place-items:center;overflow:hidden;pointer-events:none;visibility:hidden;background:
+        radial-gradient(ellipse at 50% 88%,rgba(38,68,82,.18) 0%,rgba(11,24,32,.08) 30%,transparent 58%),
+        linear-gradient(180deg,#020406 0%,#04080c 48%,#071017 74%,#050a0e 100%);
+        opacity:0;transition:opacity .8s ease,visibility 0s linear .8s}
+      .aestra-opening.show{opacity:1;visibility:visible;pointer-events:auto;transition:opacity .8s ease}
+      .aestra-opening.closing{opacity:0;pointer-events:auto;visibility:visible;transition:opacity .75s ease}
+
+      .aestra-water-horizon{position:absolute;left:-10%;right:-10%;top:57%;height:1px;background:linear-gradient(90deg,transparent,rgba(163,194,207,.08) 28%,rgba(205,218,220,.13) 50%,rgba(163,194,207,.08) 72%,transparent);filter:blur(.15px);opacity:.72}
+      .aestra-water-glow{position:absolute;left:50%;top:57%;width:min(70vw,760px);height:30vh;transform:translateX(-50%);background:radial-gradient(ellipse at 50% 0%,rgba(171,202,215,.08),rgba(90,132,150,.025) 28%,transparent 67%);filter:blur(16px);opacity:.72;pointer-events:none}
+      .aestra-water-sheen{position:absolute;left:50%;top:58%;width:min(82vw,980px);height:34vh;transform:translateX(-50%) perspective(420px) rotateX(70deg);transform-origin:top center;background:repeating-linear-gradient(180deg,rgba(179,207,218,.035) 0 1px,transparent 1px 17px);mask-image:linear-gradient(to bottom,rgba(0,0,0,.75),transparent 86%);opacity:.42;animation:aestraSheen 12s ease-in-out infinite;pointer-events:none}
+      .aestra-mist{position:absolute;left:-25%;width:150%;height:24vh;border-radius:50%;filter:blur(34px);opacity:.08;pointer-events:none;background:radial-gradient(ellipse,rgba(176,198,204,.75),rgba(80,108,117,.22) 42%,transparent 70%)}
+      .aestra-mist.one{top:25%;animation:aestraMistOne 18s ease-in-out infinite alternate}
+      .aestra-mist.two{top:64%;opacity:.055;animation:aestraMistTwo 22s ease-in-out infinite alternate-reverse}
+      .aestra-motes{position:absolute;inset:0;pointer-events:none;opacity:.13;background-image:
+        radial-gradient(circle at 18% 31%,rgba(226,232,229,.8) 0 .7px,transparent .9px),
+        radial-gradient(circle at 73% 23%,rgba(226,232,229,.7) 0 .6px,transparent .8px),
+        radial-gradient(circle at 82% 67%,rgba(202,218,222,.65) 0 .7px,transparent .9px),
+        radial-gradient(circle at 31% 75%,rgba(202,218,222,.55) 0 .65px,transparent .85px),
+        radial-gradient(circle at 57% 38%,rgba(226,232,229,.5) 0 .55px,transparent .75px);
+        animation:aestraMotes 16s ease-in-out infinite alternate}
+
+      .aestra-dream-stage{position:relative;z-index:2;width:min(900px,92vw);height:min(520px,72vh);display:grid;place-items:center;text-align:center}
+      .aestra-dream-line{position:absolute;max-width:min(760px,88vw);padding:18px 22px;margin:0;color:rgba(237,239,233,.94);font:400 clamp(1.22rem,3vw,2.3rem)/1.42 Georgia,'Times New Roman',serif;letter-spacing:.018em;text-shadow:0 0 22px rgba(177,207,218,.09),0 3px 22px rgba(0,0,0,.72);opacity:0;filter:blur(8px);transform:translateY(7px);transition:opacity .95s ease,filter 1.15s ease,transform 1.15s ease}
+      .aestra-dream-line.show{opacity:1;filter:blur(0);transform:translateY(0)}
+      .aestra-dream-line.disturb{animation:aestraTextBreath 1.4s ease-out}
+
+      .aestra-ripple{position:absolute;left:50%;top:57%;width:44px;height:13px;border:1px solid rgba(181,209,220,.18);border-radius:50%;transform:translate(-50%,-50%) scale(.25);pointer-events:none;opacity:0;animation:aestraRipple 3.1s cubic-bezier(.12,.58,.2,1) forwards}
+      .aestra-ripple.secondary{display:none}
+
+      .aestra-awaken-wrap{position:absolute;left:50%;top:66%;transform:translate(-50%,12px);display:grid;place-items:center;gap:10px;opacity:0;transition:opacity 1s ease,transform 1s ease;pointer-events:none}
       .aestra-awaken-wrap.show{opacity:1;transform:translate(-50%,0);pointer-events:auto}
-      .aestra-awaken{min-width:152px!important;min-height:48px!important;padding:10px 24px!important;border-radius:999px!important;border:1px solid rgba(210,189,129,.52)!important;background:radial-gradient(circle at 50% 20%,rgba(230,204,133,.22),rgba(75,61,39,.12))!important;color:#ead9a7!important;font:700 .82rem Georgia,serif!important;letter-spacing:.14em!important;text-transform:uppercase!important;box-shadow:0 0 34px rgba(182,157,93,.08)!important;animation:aestraAwakenPulse 3.4s ease-in-out infinite}
-      .aestra-awaken-note{font-size:.55rem;letter-spacing:.14em;text-transform:uppercase;color:rgba(203,211,211,.45)}
-      .aestra-opening-skip{position:absolute;z-index:4;right:max(18px,env(safe-area-inset-right));top:max(16px,env(safe-area-inset-top));border:0!important;background:transparent!important;color:rgba(216,220,216,.42)!important;font-size:.58rem!important;letter-spacing:.1em!important;text-transform:uppercase!important;padding:8px!important;min-height:0!important}
-      .aestra-opening-skip:hover,.aestra-opening-skip:focus-visible{color:rgba(235,231,216,.9)!important}
-      .aestra-opening-mark{position:absolute;z-index:3;left:50%;bottom:max(22px,env(safe-area-inset-bottom));transform:translateX(-50%);font-size:.49rem;letter-spacing:.24em;text-transform:uppercase;color:rgba(141,181,198,.28);white-space:nowrap}
-      .aestra-opening.closing{opacity:0;transition-duration:.7s}
-      @keyframes aestraRipple{0%{opacity:0;transform:translate(-50%,-50%) scale(.25)}12%{opacity:.8}100%{opacity:0;transform:translate(-50%,-50%) scale(28,16)}}
-      @keyframes aestraTextRipple{0%,100%{transform:translateY(0) skewX(0);filter:blur(0)}28%{transform:translateY(1px) skewX(-.7deg);filter:blur(.35px)}55%{transform:translateY(-1px) skewX(.45deg);filter:blur(.15px)}}
-      @keyframes aestraWaterDrift{from{transform:translate3d(-2%,0,0) scaleY(.38)}50%{transform:translate3d(2%,1%,0) scaleY(.4)}to{transform:translate3d(-2%,0,0) scaleY(.38)}}
-      @keyframes aestraWaterBand{0%,100%{transform:translateY(-18vh);opacity:.2}50%{transform:translateY(18vh);opacity:.65}}
-      @keyframes aestraAwakenPulse{0%,100%{box-shadow:0 0 25px rgba(184,159,95,.08)}50%{box-shadow:0 0 46px rgba(184,159,95,.18)}}
-      @media(max-width:600px){.aestra-dream-stage{height:66vh}.aestra-dream-line{font-size:clamp(1.18rem,7vw,1.8rem);padding:16px}.aestra-awaken-wrap{top:68%}.aestra-opening-mark{font-size:.42rem;letter-spacing:.18em}}
-      @media(prefers-reduced-motion:reduce){.aestra-opening::before,.aestra-opening::after,.aestra-awaken{animation:none!important}.aestra-ripple{animation-duration:.7s!important}.aestra-dream-line{transition-duration:.18s!important;filter:none!important}.aestra-dream-line.disturb{animation:none!important}}
+      .aestra-awaken{min-width:138px!important;min-height:44px!important;padding:9px 22px!important;border-radius:999px!important;border:1px solid rgba(215,218,204,.22)!important;background:rgba(8,13,17,.22)!important;color:rgba(237,235,218,.9)!important;font:600 .76rem Georgia,serif!important;letter-spacing:.17em!important;text-transform:uppercase!important;box-shadow:0 0 0 1px rgba(160,188,199,.025),0 0 28px rgba(157,191,204,.035)!important;backdrop-filter:blur(3px);transition:border-color .25s,color .25s,background .25s,box-shadow .25s!important}
+      .aestra-awaken:hover,.aestra-awaken:focus-visible{border-color:rgba(226,220,184,.48)!important;color:#f0e7c9!important;background:rgba(18,25,29,.38)!important;box-shadow:0 0 32px rgba(190,206,201,.08)!important}
+      .aestra-awaken-note{font-size:.5rem;letter-spacing:.16em;text-transform:uppercase;color:rgba(203,211,211,.32)}
+      .aestra-opening-skip{position:absolute;z-index:4;right:max(18px,env(safe-area-inset-right));top:max(16px,env(safe-area-inset-top));border:0!important;background:transparent!important;color:rgba(216,220,216,.32)!important;font-size:.56rem!important;letter-spacing:.12em!important;text-transform:uppercase!important;padding:8px!important;min-height:0!important}
+      .aestra-opening-skip:hover,.aestra-opening-skip:focus-visible{color:rgba(235,231,216,.82)!important}
+      .aestra-opening-mark{position:absolute;z-index:3;left:50%;bottom:max(22px,env(safe-area-inset-bottom));transform:translateX(-50%);font-size:.44rem;letter-spacing:.23em;text-transform:uppercase;color:rgba(159,179,185,.18);white-space:nowrap}
+
+      @keyframes aestraRipple{0%{opacity:0;transform:translate(-50%,-50%) scale(.25)}14%{opacity:.45}55%{opacity:.17}100%{opacity:0;transform:translate(-50%,-50%) scale(18,8)}}
+      @keyframes aestraTextBreath{0%,100%{letter-spacing:.018em;filter:blur(0)}45%{letter-spacing:.024em;filter:blur(.18px)}}
+      @keyframes aestraSheen{0%,100%{opacity:.32;transform:translateX(-50%) perspective(420px) rotateX(70deg) translateY(0)}50%{opacity:.47;transform:translateX(-50%) perspective(420px) rotateX(70deg) translateY(5px)}}
+      @keyframes aestraMistOne{from{transform:translate3d(-3%,0,0) scaleX(1)}to{transform:translate3d(4%,2%,0) scaleX(1.06)}}
+      @keyframes aestraMistTwo{from{transform:translate3d(3%,0,0) scaleX(1.05)}to{transform:translate3d(-4%,-1%,0) scaleX(.98)}}
+      @keyframes aestraMotes{from{transform:translateY(0);opacity:.09}to{transform:translateY(-7px);opacity:.15}}
+
+      @media(max-width:600px){.aestra-dream-stage{height:66vh}.aestra-dream-line{font-size:clamp(1.14rem,6.6vw,1.72rem);padding:16px}.aestra-awaken-wrap{top:70%}.aestra-opening-mark{font-size:.4rem;letter-spacing:.18em}.aestra-water-horizon,.aestra-ripple{top:59%}.aestra-water-glow,.aestra-water-sheen{top:59%}}
+      @media(prefers-reduced-motion:reduce){.aestra-water-sheen,.aestra-mist,.aestra-motes{animation:none!important}.aestra-ripple{animation-duration:.8s!important}.aestra-dream-line{transition-duration:.22s!important;filter:none!important}.aestra-dream-line.disturb{animation:none!important}}
     `;
     document.head.appendChild(s);
   }
@@ -97,7 +111,7 @@
     overlay.setAttribute('role','dialog');
     overlay.setAttribute('aria-modal','true');
     overlay.setAttribute('aria-label','Aestra opening cinematic');
-    overlay.innerHTML=`<div class="aestra-dream-stars"></div><button type="button" class="aestra-opening-skip">Skip</button><div class="aestra-dream-stage"><p class="aestra-dream-line" aria-live="polite"></p><div class="aestra-awaken-wrap"><button type="button" class="aestra-awaken">Awaken</button><span class="aestra-awaken-note">The dream is ending</span></div></div><div class="aestra-opening-mark">Aestra · Age of Fading Light</div>`;
+    overlay.innerHTML=`<div class="aestra-water-horizon"></div><div class="aestra-water-glow"></div><div class="aestra-water-sheen"></div><div class="aestra-mist one"></div><div class="aestra-mist two"></div><div class="aestra-motes"></div><button type="button" class="aestra-opening-skip">Skip</button><div class="aestra-dream-stage"><p class="aestra-dream-line" aria-live="polite"></p><div class="aestra-awaken-wrap"><button type="button" class="aestra-awaken">Awaken</button><span class="aestra-awaken-note">The dream is ending</span></div></div><div class="aestra-opening-mark">Aestra · Age of Fading Light</div>`;
     document.body.appendChild(overlay);
     overlay.querySelector('.aestra-opening-skip').onclick=()=>revealFinal();
     overlay.querySelector('.aestra-awaken').onclick=finish;
@@ -106,12 +120,10 @@
 
   function spawnRipple(){
     const o=ensureOverlay();
-    for(const secondary of [false,true]){
-      const r=document.createElement('span');
-      r.className=`aestra-ripple${secondary?' secondary':''}`;
-      o.querySelector('.aestra-dream-stage').appendChild(r);
-      setTimeout(()=>r.remove(),3000);
-    }
+    const r=document.createElement('span');
+    r.className='aestra-ripple';
+    o.querySelector('.aestra-dream-stage').appendChild(r);
+    setTimeout(()=>r.remove(),3400);
     const line=o.querySelector('.aestra-dream-line');
     line.classList.remove('disturb');
     void line.offsetWidth;
@@ -122,15 +134,15 @@
     if(token!==runToken)return false;
     const line=ensureOverlay().querySelector('.aestra-dream-line');
     line.classList.remove('show','disturb');
-    await sleep(reducedMotion?35:240);
+    await sleep(reducedMotion?35:320);
     if(token!==runToken)return false;
     line.textContent=text;
     line.classList.add('show');
-    setTimeout(()=>{if(token===runToken)spawnRipple()},reducedMotion?40:260);
+    setTimeout(()=>{if(token===runToken)spawnRipple()},reducedMotion?40:420);
     await sleep(reducedMotion?450:hold);
     if(token!==runToken)return false;
     line.classList.remove('show');
-    await sleep(reducedMotion?60:420);
+    await sleep(reducedMotion?60:520);
     return token===runToken;
   }
 
@@ -145,7 +157,7 @@
     o.querySelector('.aestra-opening-skip').textContent='Skip';
     document.body.classList.add('aestra-cinematic-open');
     requestAnimationFrame(()=>o.classList.add('show'));
-    await sleep(reducedMotion?80:520);
+    await sleep(reducedMotion?80:650);
     const sequence=[
       ['Somewhere, you are dreaming.',1450],
       ['You do not yet remember your name.',1500],
@@ -166,7 +178,7 @@
     line.textContent='Who will you become?';
     line.classList.add('show');
     spawnRipple();
-    await sleep(reducedMotion?120:900);
+    await sleep(reducedMotion?120:1050);
     if(token!==runToken)return;
     o.querySelector('.aestra-awaken-wrap').classList.add('show');
     o.querySelector('.aestra-awaken').focus({preventScroll:true});
@@ -198,7 +210,7 @@
       o.querySelector('.aestra-dream-line').classList.remove('show');
       document.body.classList.remove('aestra-cinematic-open');
       if(shouldCreate)openCreator();
-    },reducedMotion?100:700);
+    },reducedMotion?100:760);
   }
 
   async function maybeAutoStart(){
