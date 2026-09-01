@@ -223,8 +223,9 @@
     `;document.head.appendChild(s);
   }
 
-  // Final capture route: all Build Class/Skill entry points go to v3, even if a legacy button still exists underneath.
+  // Final capture route: all real Build Class/Skill entry points go to v3. Synthetic startup/render clicks are ignored.
   document.addEventListener('click',e=>{
+    if(!e.isTrusted)return;
     const learn=e.target.closest?.('[data-bh-add-skill]');
     if(learn){e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();open('skills',learn.dataset.bhAddSkill||'');return}
     const main=e.target.closest?.('.ubp-main-add');
@@ -234,7 +235,11 @@
   },true);
 
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!document.getElementById('unifiedBuildPickerV3')?.classList.contains('hidden'))close()});
-  document.addEventListener('aestra:source-settings-changed',()=>{loaded=false;if(!document.getElementById('unifiedBuildPickerV3')?.classList.contains('hidden'))open(mode,classFilter)});
+  document.addEventListener('aestra:source-settings-changed',()=>{
+    loaded=false;
+    const m=document.getElementById('unifiedBuildPickerV3');
+    if(m&&!m.classList.contains('hidden'))open(mode,classFilter);
+  });
   window.AESTRA_BUILD_PICKER={openClass:()=>open('classes'),openSkill:(name='')=>open('skills',name),reload:()=>load(true)};
   installStyles();
 })();
