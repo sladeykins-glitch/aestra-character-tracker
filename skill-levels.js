@@ -13,12 +13,12 @@ async function loadSkillRanks(){
   if(skillRankCache)return skillRankCache;
   const sb=await getSkillLevelClient();
   const {data,error}=await sb.from('rule_class_skills')
-    .select('name,max_rank,rule_classes!inner(name,source_id)')
-    .eq('rule_classes.source_id','core-1.02');
+    .select('name,max_rank,rule_classes!inner(name,source_id)');
   if(error)throw error;
   skillRankCache=(data||[]).map(x=>({
     name:String(x.name||'').trim(),
     className:String(x.rule_classes?.name||'').trim(),
+    sourceId:String(x.rule_classes?.source_id||'').trim(),
     maxRank:Number(x.max_rank)||1
   }));
   return skillRankCache;
