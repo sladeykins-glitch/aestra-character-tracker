@@ -11,13 +11,20 @@
   const CINEMATIC_VOLUME=.30;
   const $=id=>document.getElementById(id);
   let sb=null,audio=null,button=null,floatingButton=null,fileInput=null,hasTrack=false,isGM=false,userInteracted=false,visibilityPaused=false,fadeFrame=0;
+  let playbackState='idle',lastPlayError='';
 
   function muted(){return localStorage.getItem(MUTED_KEY)==='1'}
+  function actuallyPlaying(){return !!audio&&!audio.paused&&!audio.ended&&playbackState==='playing'}
+  function setPlaybackState(state,error=''){
+    playbackState=state;
+    lastPlayError=error||'';
+    renderButton();
+  }
   function setMuted(value){
     localStorage.setItem(MUTED_KEY,value?'1':'0');
     if(audio)audio.muted=value;
     renderButton();
-    if(!value)tryPlay();
+    if(!value&&!actuallyPlaying())tryPlay('unmute');
   }
   function publicUrl(cacheBust=false){
     if(!CONFIG.supabaseUrl)return'';
@@ -40,6 +47,7 @@
       .aestra-music-toggle:hover,.aestra-music-toggle:focus-visible{opacity:1;color:#d9c48e!important;border-color:rgba(211,171,91,.38)!important}
       .aestra-music-toggle .aestra-music-symbol{font-size:.72rem;margin-right:3px;vertical-align:-.03em}
       .aestra-music-toggle.muted{opacity:.42}
+      .aestra-music-toggle.ready:not(.muted){opacity:.72;border-color:rgba(211,171,91,.28)!important;color:#d9c48e!important}
       .aestra-music-toggle.uploading{pointer-events:none;opacity:.38}
       @media(min-width:701px){.top-actions{position:relative}.aestra-music-toggle:not(.aestra-music-floating){position:absolute!important;right:67px;bottom:calc(100% + 3px)}}
       @media(max-width:700px){.aestra-music-toggle{opacity:.7}}
@@ -66,12 +74,18 @@
     audio=document.createElement('audio');
     audio.id='aestraAmbientAudio';
     audio.loop=true;
-    // Preload the actual audio so the login tap can start it immediately.
     audio.preload='auto';
     audio.volume=BASE_VOLUME;
     audio.muted=muted();
     audio.setAttribute('playsinline','');
-    audio.addEventListener('error',()=>{if(!hasTrack)renderButton()});
+    audio.addEventListener('loadstart',()=>{if(!audio.paused)setPlaybackState('loading')});
+    audio.addEventListener('loadedmetadata',()=>{hasTrack=true;renderButton()});
+    audio.addEventListener('playing',()=>{hasTrack=true;setPlaybackState('playing')});
+    audio.addEventListener('waiting',()=>{if(!audio.paused)setPlaybackState('loading')});
+    audio.addEventListener('stalled',()=>{if(!audio.paused)setPlaybackState('loading')});
+    audio.addEventListener('pause',()=>{if(!document.hidden)setPlaybackState('paused')});
+    audio.addEventListener('ended',()=>setPlaybackState('paused'));
+    audio.addEventListener('error',()=>setPlaybackState('error',audio.error?.message||'Audio could not be loaded.'));
     document.body.appendChild(audio);
     return audio;
   }
@@ -80,9 +94,18 @@
     userInteracted=true;
     if(!hasTrack&&isGM){fileInput?.click();return}
     if(!hasTrack)return;
-    const next=!muted();
-    setMuted(next);
-    if(!next)await tryPlay();
+    if(muted()){
+      setMuted(false);
+      await tryPlay('control');
+      return;
+    }
+    // If music is enabled but playback was blocked/paused, the control should
+    // START it rather than interpreting the click as a request to mute it.
+    if(!actuallyPlaying()){
+      await tryPlay('control');
+      return;
+    }
+    setMuted(true);
   }
 
   function installControl(){
@@ -132,33 +155,40 @@
     return !!c&&!c.classList.contains('hidden');
   }
 
+  function displayState(){
+    if(muted())return{label:'Off',title:'Turn background music on',mode:'muted'};
+    if(actuallyPlaying())return{label:'On',title:'Mute background music',mode:'playing'};
+    if(playbackState==='loading')return{label:'Loading',title:'Background music is loading',mode:'ready'};
+    if(playbackState==='error')return{label:'Retry',title:lastPlayError||'Retry background music',mode:'ready'};
+    return{label:'Play',title:'Start background music',mode:'ready'};
+  }
   function buttonMarkup(){
-    return `<span class="aestra-music-symbol">♫</span><span class="aestra-music-label">${muted()?'Off':'On'}</span>`;
+    const state=displayState();
+    return `<span class="aestra-music-symbol">♫</span><span class="aestra-music-label">${state.label}</span>`;
   }
   function applyButtonState(b){
     if(!b)return;
-    b.classList.toggle('muted',muted());
+    const state=displayState();
+    b.classList.toggle('muted',state.mode==='muted');
+    b.classList.toggle('ready',state.mode==='ready');
     b.innerHTML=buttonMarkup();
-    b.title=muted()?'Turn background music on':'Mute background music';
-    b.setAttribute('aria-label',muted()?'Turn background music on':'Mute background music');
-    b.setAttribute('aria-pressed',muted()?'true':'false');
+    b.title=state.title;
+    b.setAttribute('aria-label',state.title);
+    b.setAttribute('aria-pressed',actuallyPlaying()&&!muted()?'true':'false');
   }
 
   function renderButton(){
-    // The normal control belongs to the logged-in tracker header.
     if(button){
       const appVisible=!$('appView')?.classList.contains('hidden');
       button.classList.toggle('hidden',!appVisible||(!hasTrack&&!isGM));
-      button.classList.toggle('muted',muted());
       if(!hasTrack&&isGM){
+        button.classList.remove('muted','ready');
         button.innerHTML='<span class="aestra-music-symbol">♫</span>Add Track';
         button.title='Upload the campaign background soundtrack';
         button.setAttribute('aria-label','Upload campaign background music');
       }else applyButtonState(button);
     }
 
-    // During the dream and first-time creation the tracker header may be hidden
-    // or covered, so expose a tiny unobtrusive mute control above those layers.
     if(floatingButton){
       const showFloating=hasTrack&&(cinematicActive()||creatorActive());
       floatingButton.classList.toggle('hidden',!showFloating);
@@ -166,38 +196,44 @@
     }
   }
 
-  async function tryPlay(){
-    if(muted()||document.hidden)return;
+  async function tryPlay(reason='automatic'){
+    if(muted()||document.hidden)return false;
     const a=prepareAudio();
-    try{await a.play()}catch{}
+    if(actuallyPlaying())return true;
+    setPlaybackState('loading');
+    try{
+      await a.play();
+      // The `playing` event is the authoritative indication that audible
+      // playback has actually begun. If it has not fired yet, keep Loading.
+      if(!a.paused&&a.readyState>=2&&playbackState!=='playing')setPlaybackState('playing');
+      return !a.paused;
+    }catch(err){
+      const blocked=err?.name==='NotAllowedError';
+      setPlaybackState(blocked?'blocked':'error',err?.message||`Music playback failed (${reason}).`);
+      return false;
+    }
   }
 
-  // Called directly inside pointer/key events. It intentionally does NOT wait
-  // for the asynchronous HEAD check: delaying play until after that check can
-  // lose the browser's short user-activation window. Calling play() here lets
-  // the login click/tap unlock audio for the opening cinematic.
+  // This is called synchronously from the pointer/key event. `tryPlay()` reaches
+  // audio.play() before its first await, preserving the browser user-activation
+  // window for login, opening-screen and normal tracker interactions.
   function playFromGesture(e){
     if(e?.target?.closest?.('#aestraMusicToggle,#aestraMusicFloatingToggle'))return;
     userInteracted=true;
-    if(muted()||document.hidden)return;
-    const a=prepareAudio();
-    try{
-      const p=a.play();
-      if(p?.catch)p.catch(()=>{});
-    }catch{}
+    if(muted()||document.hidden||actuallyPlaying())return;
+    void tryPlay('gesture');
   }
 
   async function detectTrack(){
     const url=publicUrl();
     if(!url)return false;
-    // Prepare the source before the first login interaction occurs.
     prepareAudio();
     try{
       const r=await fetch(url,{method:'HEAD',cache:'no-store'});
       hasTrack=r.ok;
-    }catch{hasTrack=false}
+    }catch{hasTrack=!!audio?.duration}
     renderButton();
-    if(hasTrack&&userInteracted)tryPlay();
+    if(hasTrack&&userInteracted&&!actuallyPlaying())tryPlay('track-detected');
     return hasTrack;
   }
 
@@ -228,7 +264,7 @@
       const a=prepareAudio(true);
       a.pause();
       setMuted(false);
-      await tryPlay();
+      await tryPlay('upload');
     }catch(err){
       console.error('Aestra soundtrack upload failed',err);
       alert('The soundtrack could not be uploaded. Please try again.');
@@ -256,9 +292,7 @@
       const active=cinematicActive();
       fadeTo(active?CINEMATIC_VOLUME:BASE_VOLUME,active?1200:1500);
       renderButton();
-      // If autoplay is already permitted (installed PWA/media engagement/etc.),
-      // start even when the screen opened without a fresh click.
-      if((active||creatorActive())&&!muted())tryPlay();
+      if((active||creatorActive())&&!muted()&&!actuallyPlaying())tryPlay('special-screen');
     };
     const attach=()=>{
       for(const id of ['aestraOpeningCinematic','characterCreatorV2']){
@@ -276,20 +310,21 @@
   function bindFirstInteraction(){
     document.addEventListener('pointerdown',playFromGesture,{capture:true,passive:true});
     document.addEventListener('keydown',playFromGesture,{capture:true});
-    // click is a useful fallback for older keyboard/touch implementations.
-    document.addEventListener('click',e=>{if(!userInteracted)playFromGesture(e)},{capture:true});
+    document.addEventListener('click',e=>{if(!userInteracted||!actuallyPlaying())playFromGesture(e)},{capture:true});
   }
 
   document.addEventListener('visibilitychange',()=>{
     if(!audio)return;
     if(document.hidden){
-      visibilityPaused=!audio.paused;
+      visibilityPaused=actuallyPlaying();
       if(visibilityPaused)audio.pause();
     }else if(visibilityPaused&&!muted()){
       visibilityPaused=false;
-      tryPlay();
+      tryPlay('visibility');
     }
   });
+  window.addEventListener('pageshow',()=>{if(userInteracted&&!muted()&&!actuallyPlaying())tryPlay('pageshow')});
+  window.addEventListener('focus',()=>{if(userInteracted&&!muted()&&!actuallyPlaying())tryPlay('focus')});
 
   const app=$('appView');
   if(app)new MutationObserver(renderButton).observe(app,{attributes:true,attributeFilter:['class']});
@@ -297,22 +332,21 @@
   async function boot(){
     styles();
     ensureAudio();
-    // Set the public source immediately, before auth/onboarding transitions.
     prepareAudio();
     installControl();
     bindFirstInteraction();
     observeSpecialScreens();
     await Promise.all([detectGM(),detectTrack()]);
-    // Try regardless of interaction; browsers that already permit autoplay can
-    // begin immediately, while blocked browsers will be unlocked by the next tap.
-    if(hasTrack)tryPlay();
+    if(hasTrack&&!muted())tryPlay('boot');
   }
 
   boot();
   window.AESTRA_MUSIC={
-    play:tryPlay,
+    play:()=>tryPlay('api'),
     mute:()=>setMuted(true),
-    unmute:()=>{setMuted(false);return tryPlay()},
-    isMuted:muted
+    unmute:()=>{setMuted(false);return tryPlay('api-unmute')},
+    isMuted:muted,
+    isPlaying:actuallyPlaying,
+    state:()=>playbackState
   };
 })();
