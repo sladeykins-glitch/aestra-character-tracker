@@ -2,7 +2,6 @@ name: Validate Aestra Companion
 
 on:
   push:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -11,10 +10,6 @@ concurrency:
 
 jobs:
   validate:
-    # Repository edits are made as several small commits. Only validate the final
-    # commit in a change set so temporary in-between states do not generate
-    # misleading failure notifications. Manual runs always remain available.
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[validate]')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -40,6 +35,33 @@ jobs:
           python -m json.tool manifest.webmanifest >/dev/null
           python -m json.tool version.json >/dev/null
 
+      - name: Check base HTML integrity
+        shell: bash
+        run: |
+          python - <<'PY'
+          from html.parser import HTMLParser
+          from collections import Counter
+
+          class IdParser(HTMLParser):
+              def __init__(self):
+                  super().__init__()
+                  self.ids=[]
+              def handle_starttag(self, tag, attrs):
+                  for key,value in attrs:
+                      if key=='id' and value:
+                          self.ids.append(value)
+
+          p=IdParser()
+          with open('index.html',encoding='utf-8') as f:
+              p.feed(f.read())
+          duplicates=[k for k,v in Counter(p.ids).items() if v>1]
+          if duplicates:
+              raise SystemExit('Duplicate HTML ids: '+', '.join(sorted(duplicates)))
+          PY
+          grep -q 'id="insBase"' index.html
+          grep -q 'id="gmInsBase"' index.html
+          ! grep -q 'gmMpMax" type="number"/></label>' index.html
+
       - name: Check current build wiring
         shell: bash
         run: |
@@ -58,6 +80,23 @@ jobs:
           grep -q "const BUILD=$BUILD" pwa-register.js
           grep -q "aestra-v$BUILD" sw.js
           grep -q "\"version\":$BUILD" version.json
+
+      - name: Check progression consistency contract
+        shell: bash
+        run: |
+          grep -q 'function syncCharacterLevel' class-skill-level-sync.js
+          grep -q 'aestra:progression-synced' class-skill-level-sync.js
+          grep -q 'loadNewSkills' level-up-v2.js
+          grep -q 'Class Level and Character Level are derived from the Skill change' level-up-v2.js
+          ! grep -q 'lv.value=String' level-up-v2.js
+
+      - name: Check safe PWA update contract
+        shell: bash
+        run: |
+          ! grep -q 'client.navigate' sw.js
+          grep -q 'Tracker update available' pwa-register.js
+          grep -q '>Refresh<' pwa-register.js
+          grep -q '>Later<' pwa-register.js
 
       - name: Check visual alignment and atmosphere contract
         shell: bash
