@@ -1,10 +1,11 @@
-// Character Creation v2 validation hotfix — all wizard steps.
-// Keeps Continue and the validation hint synchronized with the visible creator state.
+// Character Creation v2 validation/navigation companion.
+// Keeps Continue synchronized and hands shopping off to the authoritative page navigator.
 (function(){
   if(window.__AESTRA_CC2_VALIDATION_FIX__)return;
   window.__AESTRA_CC2_VALIDATION_FIX__=true;
 
   let observedModal=null, observer=null, raf=0;
+  let shoppingNavToken=0;
   const schedule=()=>{cancelAnimationFrame(raf);raf=requestAnimationFrame(sync)};
   const text=el=>el?.textContent?.trim()||'';
 
@@ -80,11 +81,32 @@
     schedule();
   }
 
+  // Applying the starting build is asynchronous: Classes/Skills are rebuilt before
+  // the creator closes and sets its shopping flag. Wait for that transaction to
+  // finish, then use the same AESTRA_NAV service as every other Inventory link.
+  async function handOffShoppingToInventory(){
+    const token=++shoppingNavToken;
+    for(let attempt=0;attempt<100&&token===shoppingNavToken;attempt++){
+      if(sessionStorage.getItem('aestra-character-creation')==='shopping'){
+        const creator=document.getElementById('characterCreatorV2');
+        if(!creator||creator.classList.contains('hidden')){
+          const nav=window.AESTRA_NAV;
+          if(nav?.go?.('inventory',{smooth:false}))return true;
+          const fallback=document.querySelector('#grandMobileNav [data-jump="inventory"]');
+          if(fallback){fallback.click();return true}
+        }
+      }
+      await new Promise(r=>setTimeout(r,50));
+    }
+    return false;
+  }
+
   const relevant=e=>e.target?.closest?.('#characterCreatorV2');
   document.addEventListener('input',e=>{if(relevant(e))schedule()},true);
   document.addEventListener('change',e=>{if(relevant(e))schedule()},true);
   document.addEventListener('click',e=>{
     if(e.target?.closest?.('#characterCreatorBtn'))setTimeout(attach,0);
+    if(e.target?.closest?.('#cc2BeginShop'))void handOffShoppingToInventory();
     if(relevant(e))setTimeout(()=>{attach();schedule()},0);
   },true);
 
