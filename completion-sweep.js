@@ -3,7 +3,7 @@ const load=async p=>{try{return await import(p)}catch(e){console.error('Aestra c
 await load('./campaign-settings.js?v=2');
 await load('./rules-compendium-v2.js?v=1');
 await load('./character-creation-v2.js?v=1');
-await load('./character-creation-v2-identity-fix.js?v=2');
+await load('./character-creation-v2-identity-fix.js?v=3');
 await load('./aestra-session-suite.js?v=1');
 await load('./build122-stabilization.js?v=1');
 await load('./hero-console-v2.js?v=1');
@@ -14,4 +14,4 @@ await load('./build-remove-controls-final.js?v=3');
 await load('./unified-build-library-v3.js?v=2');
 await load('./class-skill-level-sync.js?v=1');
 await load('./inventory-navigation-v2.js?v=2');
-await load('./pwa-register.js?v=22');
+await load('./pwa-register.js?v=23');
