@@ -20,9 +20,11 @@
     if(section!=='classes'&&section!=='skills')return;
     const actions=body.querySelector('.build-actions');if(!actions)return;
 
-    // Remove every legacy/source-specific add control from the visible Build surface,
-    // but always preserve the dedicated Remove Class control.
+    // Remove legacy/source-specific add controls from the visible Build surface,
+    // while preserving the authoritative Remove control and unified Add control.
     [...actions.querySelectorAll('button')].forEach(btn=>{
+      if(btn.id==='buildSectionRemoveBtn')return;
+      if(btn.classList.contains('build-section-remove-final'))return;
       if(btn.classList.contains('class-remove-before-picker'))return;
       if(btn.classList.contains('build-remove-class'))return;
       if(btn.classList.contains('ubp-main-add'))return;
@@ -44,7 +46,7 @@
     };
 
     if(section==='classes'){
-      const remove=actions.querySelector('.class-remove-before-picker,.build-remove-class');
+      const remove=actions.querySelector('#buildSectionRemoveBtn,.build-section-remove-final,.class-remove-before-picker,.build-remove-class');
       if(remove&&remove.nextSibling!==add)actions.insertBefore(add,remove.nextSibling);
     }
   }
