@@ -1,5 +1,5 @@
-// Final persistent removal controls for Build & Abilities.
-// Loaded after the legacy/build refinement layers and isolated from older remove-control code.
+// Persistent removal controls for Build & Abilities.
+// Event-driven: no background polling timer.
 (function(){
   if(window.__AESTRA_BUILD_REMOVE_FINAL__)return;
   window.__AESTRA_BUILD_REMOVE_FINAL__=true;
@@ -10,7 +10,8 @@
     equipment:{editor:'equipmentEditor',button:'Remove Equipment',picker:'Remove equipment',empty:'No equipment to remove'},
     magic:{editor:'spellsEditor',button:'Remove Magic',picker:'Remove magic',empty:'No magic to remove'}
   };
-  let raf=0,menuObserver=null,observedMenu=null;
+  let raf=0,bodyObserver=null,observedBody=null;
+  const editorObservers=new WeakMap();
   const activeKey=()=>document.querySelector('.build-tab.active')?.dataset.build||'classes';
   const cfg=()=>SECTIONS[activeKey()]||SECTIONS.classes;
   const rows=()=>[...(document.getElementById(cfg().editor)?.querySelectorAll('.entry-row')||[])];
@@ -32,7 +33,7 @@
     if(!remove){alert(`Could not remove ${name}.`);return;}
     remove.click();
     closePicker();
-    queueEnsure(0,40,120,300);
+    schedule();
   }
 
   function openPicker(btn){
@@ -61,7 +62,7 @@
     const actions=document.querySelector('#buildMenuBody .build-actions');
     if(!actions)return;
 
-    // The final controller is the only controller allowed to own this slot.
+    // Remove ownership from older controllers if they rendered into this slot.
     actions.querySelectorAll('.class-remove-before-picker,.build-remove-before-picker').forEach(el=>el.remove());
 
     const key=activeKey(),c=SECTIONS[key],count=rows().length;
@@ -77,8 +78,7 @@
     const label=`− ${c.button}`;
     if(btn.textContent.trim()!==label)btn.textContent=label;
     btn.dataset.removeSection=key;
-    const disabled=count===0;
-    if(btn.disabled!==disabled)btn.disabled=disabled;
+    btn.disabled=count===0;
     btn.title=count?`${c.button} (${count} available)`:c.empty;
     btn.onclick=()=>openPicker(btn);
   }
@@ -88,20 +88,30 @@
     raf=requestAnimationFrame(ensure);
   }
 
-  function queueEnsure(...delays){
-    for(const delay of delays)setTimeout(ensure,delay);
+  function observeEditors(){
+    for(const section of Object.values(SECTIONS)){
+      const editor=document.getElementById(section.editor);
+      if(!editor||editorObservers.has(editor))continue;
+      const observer=new MutationObserver(schedule);
+      observer.observe(editor,{childList:true,subtree:false});
+      editorObservers.set(editor,observer);
+    }
   }
 
-  function watchBuildMenu(){
-    const menu=document.getElementById('buildMenu');
-    if(!menu||menu===observedMenu)return;
-    menuObserver?.disconnect();
-    observedMenu=menu;
-    menuObserver=new MutationObserver(mutations=>{
-      if(mutations.some(m=>m.type==='childList'))schedule();
+  function observeBuildBody(){
+    const body=document.getElementById('buildMenuBody');
+    if(!body||body===observedBody)return;
+    bodyObserver?.disconnect();
+    observedBody=body;
+    bodyObserver=new MutationObserver(()=>{
+      closePicker();
+      schedule();
     });
-    menuObserver.observe(menu,{childList:true,subtree:true});
+    bodyObserver.observe(body,{childList:true,subtree:false});
+    schedule();
   }
+
+  function attach(){observeEditors();observeBuildBody();schedule()}
 
   const style=document.createElement('style');
   style.id='buildRemoveFinalStyles';
@@ -122,18 +132,19 @@
   document.addEventListener('click',e=>{
     if(e.target.closest?.('.build-tab,.build-cycle')){
       closePicker();
-      // Skills can finish its own redraw a little after the tab click, so check several times.
-      queueEnsure(0,35,90,180,360,700,1200);
+      requestAnimationFrame(schedule);
     }
   },true);
   document.addEventListener('input',e=>{if(e.target.closest?.('#classesEditor,#skillsEditor,#equipmentEditor,#spellsEditor'))schedule()},true);
   document.addEventListener('change',e=>{if(e.target.closest?.('#classesEditor,#skillsEditor,#equipmentEditor,#spellsEditor'))schedule()},true);
+  document.addEventListener('aestra:build-rendered',schedule);
 
-  function start(){
-    watchBuildMenu();
-    ensure();
-    // Reattach if another layer ever replaces the Build menu itself, and keep a cheap final safety check.
-    setInterval(()=>{watchBuildMenu();ensure()},750);
-  }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
+  // Only watches for replacement/creation of the Build menu itself; unlike the old
+  // 750ms interval this sleeps completely when the DOM is idle.
+  new MutationObserver(records=>{
+    const relevant=records.some(r=>[...r.addedNodes,...r.removedNodes].some(n=>n.nodeType===1&&(n.id==='buildMenu'||n.id==='buildMenuBody'||n.querySelector?.('#buildMenu,#buildMenuBody'))));
+    if(relevant)requestAnimationFrame(attach);
+  }).observe(document.body,{childList:true,subtree:true});
+
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',attach,{once:true});else attach();
 })();
