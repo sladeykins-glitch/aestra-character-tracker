@@ -53,14 +53,14 @@
         animation:aestraMotes 16s ease-in-out infinite alternate}
 
       .aestra-dream-stage{position:relative;z-index:2;width:min(900px,92vw);height:min(520px,72vh);display:grid;place-items:center;text-align:center}
-      .aestra-dream-line{position:absolute;max-width:min(760px,88vw);padding:18px 22px;margin:0;color:rgba(237,239,233,.94);font:400 clamp(1.22rem,3vw,2.3rem)/1.42 Georgia,'Times New Roman',serif;letter-spacing:.018em;text-shadow:0 0 22px rgba(177,207,218,.09),0 3px 22px rgba(0,0,0,.72);opacity:0;filter:blur(8px);transform:translateY(7px);transition:opacity .95s ease,filter 1.15s ease,transform 1.15s ease}
+      .aestra-dream-line{position:absolute;max-width:min(760px,88vw);padding:18px 22px;margin:0;color:rgba(237,239,233,.94);font:400 clamp(1.22rem,3vw,2.3rem)/1.42 Georgia,'Times New Roman',serif;letter-spacing:.018em;text-shadow:0 0 22px rgba(177,207,218,.09),0 3px 22px rgba(0,0,0,.72);opacity:0;filter:blur(8px);transform:translateY(7px);transition:opacity 1.25s ease,filter 1.4s ease,transform 1.4s ease}
       .aestra-dream-line.show{opacity:1;filter:blur(0);transform:translateY(0)}
-      .aestra-dream-line.disturb{animation:aestraTextBreath 1.4s ease-out}
+      .aestra-dream-line.disturb{animation:aestraTextBreath 1.55s ease-out}
 
       .aestra-ripple{position:absolute;left:50%;top:57%;width:44px;height:13px;border:1px solid rgba(181,209,220,.18);border-radius:50%;transform:translate(-50%,-50%) scale(.25);pointer-events:none;opacity:0;animation:aestraRipple 3.1s cubic-bezier(.12,.58,.2,1) forwards}
       .aestra-ripple.secondary{display:none}
 
-      .aestra-awaken-wrap{position:absolute;left:50%;top:66%;transform:translate(-50%,12px);display:grid;place-items:center;gap:10px;opacity:0;transition:opacity 1s ease,transform 1s ease;pointer-events:none}
+      .aestra-awaken-wrap{position:absolute;left:50%;top:66%;transform:translate(-50%,12px);display:grid;place-items:center;gap:10px;opacity:0;transition:opacity 1.15s ease,transform 1.15s ease;pointer-events:none}
       .aestra-awaken-wrap.show{opacity:1;transform:translate(-50%,0);pointer-events:auto}
       .aestra-awaken{min-width:138px!important;min-height:44px!important;padding:9px 22px!important;border-radius:999px!important;border:1px solid rgba(215,218,204,.22)!important;background:rgba(8,13,17,.22)!important;color:rgba(237,235,218,.9)!important;font:600 .76rem Georgia,serif!important;letter-spacing:.17em!important;text-transform:uppercase!important;box-shadow:0 0 0 1px rgba(160,188,199,.025),0 0 28px rgba(157,191,204,.035)!important;backdrop-filter:blur(3px);transition:border-color .25s,color .25s,background .25s,box-shadow .25s!important}
       .aestra-awaken:hover,.aestra-awaken:focus-visible{border-color:rgba(226,220,184,.48)!important;color:#f0e7c9!important;background:rgba(18,25,29,.38)!important;box-shadow:0 0 32px rgba(190,206,201,.08)!important}
@@ -134,15 +134,15 @@
     if(token!==runToken)return false;
     const line=ensureOverlay().querySelector('.aestra-dream-line');
     line.classList.remove('show','disturb');
-    await sleep(reducedMotion?35:320);
+    await sleep(reducedMotion?35:340);
     if(token!==runToken)return false;
     line.textContent=text;
     line.classList.add('show');
-    setTimeout(()=>{if(token===runToken)spawnRipple()},reducedMotion?40:420);
+    setTimeout(()=>{if(token===runToken)spawnRipple()},reducedMotion?40:500);
     await sleep(reducedMotion?450:hold);
     if(token!==runToken)return false;
     line.classList.remove('show');
-    await sleep(reducedMotion?60:520);
+    await sleep(reducedMotion?60:950);
     return token===runToken;
   }
 
@@ -159,11 +159,11 @@
     requestAnimationFrame(()=>o.classList.add('show'));
     await sleep(reducedMotion?80:650);
     const sequence=[
-      ['Somewhere, you are dreaming.',1450],
-      ['You do not yet remember your name.',1500],
-      ['You do not remember where you came from.',1550],
-      ['But the world remembers you.',1550],
-      ['It has been waiting.',1450]
+      ['Somewhere, you are dreaming.',1750],
+      ['You do not yet remember your name.',1800],
+      ['You do not remember where you came from.',1850],
+      ['But the world remembers you.',1850],
+      ['It has been waiting.',1750]
     ];
     for(const [text,hold] of sequence){
       if(!(await showLine(text,hold,token)))return;
@@ -178,7 +178,7 @@
     line.textContent='Who will you become?';
     line.classList.add('show');
     spawnRipple();
-    await sleep(reducedMotion?120:1050);
+    await sleep(reducedMotion?120:1300);
     if(token!==runToken)return;
     o.querySelector('.aestra-awaken-wrap').classList.add('show');
     o.querySelector('.aestra-awaken').focus({preventScroll:true});
