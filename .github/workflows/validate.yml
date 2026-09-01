@@ -90,6 +90,32 @@ jobs:
           grep -q 'Class Level and Character Level are derived from the Skill change' level-up-v2.js
           ! grep -q 'lv.value=String' level-up-v2.js
 
+      - name: Check consolidated Build library contract
+        shell: bash
+        run: |
+          grep -q 'if(!e.isTrusted)return' unified-build-library-v3.js
+          grep -q "const m=document.getElementById('unifiedBuildPickerV3')" unified-build-library-v3.js
+          grep -q "if(m&&!m.classList.contains('hidden'))open(mode,classFilter)" unified-build-library-v3.js
+          grep -q 'if(!e.isTrusted)return' build-picker-normalize.js
+          ! grep -q 'build-library-startup-guard' completion-sweep.js
+          ! grep -q 'picker-navigation-fix' completion-sweep.js
+          test ! -e build-library-startup-guard.js
+          test ! -e picker-navigation-fix.js
+          ! grep -q 'techno-fantasy-picker' techno-bootstrap.js
+          ! grep -q 'techno-heroic-picker' techno-bootstrap.js
+          grep -q '__AESTRA_NATURAL_PICKER_RETIRED__' natural-fantasy-picker.js
+          grep -q '__AESTRA_NATURAL_HEROIC_PICKER_RETIRED__' natural-heroic-picker-v2.js
+          ! grep -q 'setInterval' build-remove-controls-final.js
+          ! grep -q 'setInterval' natural-heroic-picker-v2.js
+
+      - name: Check unified navigation contract
+        shell: bash
+        run: |
+          grep -q 'window.AESTRA_NAV={go}' inventory-navigation-v2.js
+          grep -q 'data-aestra-nav="inventory"' equipment-purchase.js
+          ! grep -q 'data-mobile-target="inventory"' equipment-purchase.js
+          ! grep -q 'equipment-build-shop-note button' inventory-navigation-v2.js
+
       - name: Check autoplay music contract
         shell: bash
         run: |
