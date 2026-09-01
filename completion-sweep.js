@@ -13,4 +13,4 @@ await load('./opening-cinematic-interaction-fix.js?v=1');
 await load('./ambient-music.js?v=1');
 await load('./build-remove-controls-final.js?v=2');
 await load('./picker-navigation-fix.js?v=1');
-await load('./pwa-register.js?v=13');
+await load('./pwa-register.js?v=14');
