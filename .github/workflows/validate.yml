@@ -97,6 +97,8 @@ jobs:
           grep -q "const m=document.getElementById('unifiedBuildPickerV3')" unified-build-library-v3.js
           grep -q "if(m&&!m.classList.contains('hidden'))open(mode,classFilter)" unified-build-library-v3.js
           grep -q 'if(!e.isTrusted)return' build-picker-normalize.js
+          grep -q "if(btn.id==='buildSectionRemoveBtn')return" build-picker-normalize.js
+          grep -q "if(btn.classList.contains('build-section-remove-final'))return" build-picker-normalize.js
           ! grep -q 'build-library-startup-guard' completion-sweep.js
           ! grep -q 'picker-navigation-fix' completion-sweep.js
           test ! -e build-library-startup-guard.js
@@ -107,6 +109,15 @@ jobs:
           grep -q '__AESTRA_NATURAL_HEROIC_PICKER_RETIRED__' natural-heroic-picker-v2.js
           ! grep -q 'setInterval' build-remove-controls-final.js
           ! grep -q 'setInterval' natural-heroic-picker-v2.js
+
+      - name: Check reliable remove controls
+        shell: bash
+        run: |
+          grep -q 'function isOwnPickerNode' build-remove-controls-final.js
+          grep -q "node.id==='buildSectionRemovePicker'" build-remove-controls-final.js
+          grep -q 'if(!structural)return' build-remove-controls-final.js
+          grep -q 'build-remove-controls-final.js?v=4' completion-sweep.js
+          grep -q 'build-remove-controls-final.js?v=4' sw.js
 
       - name: Check unified navigation contract
         shell: bash
