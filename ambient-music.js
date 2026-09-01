@@ -22,7 +22,7 @@
   }
   function setMuted(value){
     localStorage.setItem(MUTED_KEY,value?'1':'0');
-    if(audio)audio.muted=value;
+    if(audio){audio.muted=value;audio.autoplay=!value}
     renderButton();
     if(!value&&!actuallyPlaying())tryPlay('unmute');
   }
@@ -75,11 +75,13 @@
     audio.id='aestraAmbientAudio';
     audio.loop=true;
     audio.preload='auto';
+    audio.autoplay=!muted();
     audio.volume=BASE_VOLUME;
     audio.muted=muted();
     audio.setAttribute('playsinline','');
     audio.addEventListener('loadstart',()=>{if(!audio.paused)setPlaybackState('loading')});
-    audio.addEventListener('loadedmetadata',()=>{hasTrack=true;renderButton()});
+    audio.addEventListener('loadedmetadata',()=>{hasTrack=true;renderButton();if(!muted()&&!actuallyPlaying())void tryPlay('metadata')});
+    audio.addEventListener('canplay',()=>{if(!muted()&&!actuallyPlaying())void tryPlay('canplay')});
     audio.addEventListener('playing',()=>{hasTrack=true;setPlaybackState('playing')});
     audio.addEventListener('waiting',()=>{if(!audio.paused)setPlaybackState('loading')});
     audio.addEventListener('stalled',()=>{if(!audio.paused)setPlaybackState('loading')});
@@ -233,7 +235,7 @@
       hasTrack=r.ok;
     }catch{hasTrack=!!audio?.duration}
     renderButton();
-    if(hasTrack&&userInteracted&&!actuallyPlaying())tryPlay('track-detected');
+    if(hasTrack&&!muted()&&!actuallyPlaying())void tryPlay(userInteracted?'track-detected':'track-ready');
     return hasTrack;
   }
 
@@ -292,7 +294,7 @@
       const active=cinematicActive();
       fadeTo(active?CINEMATIC_VOLUME:BASE_VOLUME,active?1200:1500);
       renderButton();
-      if((active||creatorActive())&&!muted()&&!actuallyPlaying())tryPlay('special-screen');
+      if((active||creatorActive())&&!muted()&&!actuallyPlaying())void tryPlay('special-screen');
     };
     const attach=()=>{
       for(const id of ['aestraOpeningCinematic','characterCreatorV2']){
@@ -323,11 +325,14 @@
       tryPlay('visibility');
     }
   });
-  window.addEventListener('pageshow',()=>{if(userInteracted&&!muted()&&!actuallyPlaying())tryPlay('pageshow')});
-  window.addEventListener('focus',()=>{if(userInteracted&&!muted()&&!actuallyPlaying())tryPlay('focus')});
+  window.addEventListener('pageshow',()=>{if(!muted()&&!actuallyPlaying())void tryPlay('pageshow')});
+  window.addEventListener('focus',()=>{if(!muted()&&!actuallyPlaying())void tryPlay('focus')});
 
   const app=$('appView');
-  if(app)new MutationObserver(renderButton).observe(app,{attributes:true,attributeFilter:['class']});
+  if(app)new MutationObserver(()=>{
+    renderButton();
+    if(!app.classList.contains('hidden')&&!muted()&&!actuallyPlaying())void tryPlay('app-visible');
+  }).observe(app,{attributes:true,attributeFilter:['class']});
 
   async function boot(){
     styles();
@@ -336,8 +341,13 @@
     installControl();
     bindFirstInteraction();
     observeSpecialScreens();
-    await Promise.all([detectGM(),detectTrack()]);
-    if(hasTrack&&!muted())tryPlay('boot');
+    // Best-effort autoplay begins immediately. Browsers that allow audible
+    // autoplay start here; browsers that require activation are unlocked by
+    // the first pointer/key event already bound above.
+    if(!muted())void tryPlay('boot-immediate');
+    void detectGM();
+    await detectTrack();
+    if(hasTrack&&!muted()&&!actuallyPlaying())void tryPlay('boot');
   }
 
   boot();
