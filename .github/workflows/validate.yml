@@ -116,6 +116,15 @@ jobs:
           ! grep -q 'data-mobile-target="inventory"' equipment-purchase.js
           ! grep -q 'equipment-build-shop-note button' inventory-navigation-v2.js
 
+      - name: Check Character Creator shopping navigation
+        shell: bash
+        run: |
+          grep -q 'handOffShoppingToInventory' character-creation-v2-identity-fix.js
+          grep -q "nav?.go?.('inventory',{smooth:false})" character-creation-v2-identity-fix.js
+          grep -q "sessionStorage.getItem('aestra-character-creation')==='shopping'" character-creation-v2-identity-fix.js
+          grep -q "#cc2BeginShop" character-creation-v2-identity-fix.js
+          grep -q 'character-creation-v2-identity-fix.js?v=3' completion-sweep.js
+
       - name: Check autoplay music contract
         shell: bash
         run: |
