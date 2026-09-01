@@ -1,4 +1,4 @@
-// Removal controls shown directly before the picker buttons in every Build & Abilities section.
+// Legacy Build removal controls. The final controller loaded later owns the live UI.
 (function(){
   const SECTIONS={
     classes:{editor:'classesEditor',button:'Remove Class',picker:'Remove a class',noun:'class'},
@@ -7,6 +7,7 @@
     magic:{editor:'spellsEditor',button:'Remove Magic',picker:'Remove magic',noun:'magic entry'}
   };
   const ACTIONS='#buildMenuBody .build-actions';
+  const finalOwns=()=>window.__AESTRA_BUILD_REMOVE_FINAL__===true;
   const activeKey=()=>document.querySelector('.build-tab.active')?.dataset.build||'classes';
   const config=()=>SECTIONS[activeKey()]||SECTIONS.classes;
   const rows=()=>[...(document.getElementById(config().editor)?.querySelectorAll('.entry-row')||[])];
@@ -21,7 +22,7 @@
   function closePicker(){document.querySelector('.build-remove-picker')?.remove()}
 
   function removeRow(row){
-    const c=config(),name=title(row);
+    const name=title(row);
     if(!confirm(`Remove ${name} from this character?`))return;
     const remove=row.querySelector('.remove-entry');
     if(!remove){alert(`Could not remove ${name}.`);return;}
@@ -30,6 +31,7 @@
   }
 
   function togglePicker(anchor){
+    if(finalOwns())return;
     const existing=document.querySelector('.build-remove-picker');
     if(existing){existing.remove();return;}
     const list=rows(),c=config();
@@ -52,6 +54,11 @@
 
   function install(){
     const actions=document.querySelector(ACTIONS);
+    if(finalOwns()){
+      closePicker();
+      actions?.querySelectorAll('.build-remove-before-picker').forEach(el=>el.remove());
+      return;
+    }
     if(!actions)return;
     const c=config(),count=rows().length;
     let btn=actions.querySelector('.build-remove-before-picker');
