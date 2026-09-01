@@ -1,50 +1,54 @@
-// Reliable Build Equipment -> Inventory navigation.
+// Authoritative tracker page navigation.
 (function(){
-  if(window.__AESTRA_INVENTORY_NAV_V2__)return;
-  window.__AESTRA_INVENTORY_NAV_V2__=true;
+  if(window.__AESTRA_NAVIGATION__)return;
+  window.__AESTRA_NAVIGATION__=true;
 
-  function goInventory(){
-    const nav=document.querySelector('#grandMobileNav button[data-jump="inventory"]');
+  function directPage(pageName){
     const shell=document.getElementById('mobilePageShell');
-    const page=shell?.querySelector('.mobile-page[data-mobile-page="inventory"]');
-
-    // Keep the page shell and visible navigation state synchronized directly.
-    if(shell&&page){
-      shell.dataset.activePage='inventory';
-      shell.querySelectorAll('.mobile-page').forEach(p=>{
-        const on=p===page;
-        p.classList.toggle('mobile-page-active',on);
-        p.setAttribute('aria-hidden',String(!on));
-      });
-      document.querySelectorAll('#grandMobileNav button[data-jump]').forEach(b=>{
-        const on=b.dataset.jump==='inventory';
-        b.classList.toggle('active',on);
-        b.setAttribute('aria-current',on?'page':'false');
-      });
-    }
-
-    // Also fire the tracker's own navigation handler so any future page-side effects still run.
-    if(nav)nav.click();
-
-    const target=document.getElementById('equipmentWorkbench')||page||document.getElementById('inventoryEditor')?.closest('article.panel');
-    setTimeout(()=>target?.scrollIntoView({behavior:'smooth',block:'start'}),40);
+    const page=shell?.querySelector(`.mobile-page[data-mobile-page="${pageName}"]`);
+    if(!shell||!page)return false;
+    shell.dataset.activePage=pageName;
+    shell.querySelectorAll('.mobile-page').forEach(p=>{
+      const on=p===page;
+      p.classList.toggle('mobile-page-active',on);
+      p.setAttribute('aria-hidden',String(!on));
+    });
+    document.querySelectorAll('#grandMobileNav button[data-jump]').forEach(b=>{
+      const on=b.dataset.jump===pageName;
+      b.classList.toggle('active',on);
+      b.setAttribute('aria-current',on?'page':'false');
+    });
+    return true;
   }
 
-  function wire(){
-    const btn=document.querySelector('.equipment-build-shop-note button');
-    if(!btn||btn.dataset.inventoryNavV2==='1')return;
-    btn.dataset.inventoryNavV2='1';
-    btn.onclick=e=>{e.preventDefault();e.stopPropagation();goInventory()};
+  function scrollTarget(pageName){
+    if(pageName==='inventory')return document.getElementById('equipmentWorkbench')||document.querySelector('#mobilePageShell .mobile-page[data-mobile-page="inventory"]')||document.getElementById('inventoryEditor')?.closest('article.panel');
+    return document.querySelector(`#mobilePageShell .mobile-page[data-mobile-page="${pageName}"]`);
+  }
+
+  function go(pageName,{smooth=true}={}){
+    const name=String(pageName||'').trim();if(!name)return false;
+    const nav=document.querySelector(`#grandMobileNav button[data-jump="${CSS.escape(name)}"]`);
+    let handled=false;
+    if(nav){
+      nav.click();
+      handled=true;
+    }else handled=directPage(name);
+
+    const target=scrollTarget(name);
+    if(target)setTimeout(()=>target.scrollIntoView({behavior:smooth?'smooth':'auto',block:'start'}),40);
+    document.dispatchEvent(new CustomEvent('aestra:navigation',{detail:{page:name}}));
+    return handled||!!target;
   }
 
   document.addEventListener('click',e=>{
-    const btn=e.target.closest?.('.equipment-build-shop-note button');
-    if(!btn)return;
-    e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();goInventory();
-  },true);
+    const trigger=e.target.closest?.('[data-aestra-nav]');
+    if(!trigger)return;
+    const page=trigger.dataset.aestraNav;if(!page)return;
+    e.preventDefault();e.stopPropagation();
+    go(page);
+  });
 
-  const body=document.getElementById('buildMenuBody');
-  if(body)new MutationObserver(()=>requestAnimationFrame(wire)).observe(body,{childList:true,subtree:true});
-  wire();setTimeout(wire,250);setTimeout(wire,900);
-  window.AESTRA_GO_TO_INVENTORY=goInventory;
+  window.AESTRA_NAV={go};
+  window.AESTRA_GO_TO_INVENTORY=()=>go('inventory');
 })();
