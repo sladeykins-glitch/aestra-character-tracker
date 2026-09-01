@@ -10,11 +10,12 @@ await load('./hero-console-v2.js?v=1');
 await load('./compact-header.js?v=2');
 await load('./opening-cinematic.js?v=4');
 await load('./opening-cinematic-interaction-fix.js?v=1');
-await load('./ambient-music.js?v=2');
+// Usually already loaded by techno-bootstrap before login; kept here as a safe fallback.
+await load('./ambient-music.js?v=3');
 await load('./build-remove-controls-final.js?v=2');
 await load('./unified-build-library-v3.js?v=1');
 await load('./build-library-startup-guard.js?v=1');
 await load('./class-skill-level-sync.js?v=1');
 await load('./inventory-navigation-v2.js?v=1');
 await load('./picker-navigation-fix.js?v=1');
-await load('./pwa-register.js?v=18');
+await load('./pwa-register.js?v=19');
