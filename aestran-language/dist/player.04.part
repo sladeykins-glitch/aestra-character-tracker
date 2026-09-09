@@ -1,0 +1,97 @@
+><div class="label">${esc(x.label||'New understanding')}</div><div class="muted" style="margin-top:4px">${esc(x.description||'')}</div>${(x.echoes||[]).map(e=>`<div class="echo"><b>${esc(e.title||'Archived inscription')}</b><div>${esc(e.before||'???')}</div><div style="color:var(--gold);margin:3px 0">↓</div><div>${esc(e.after||'???')}</div></div>`).join('')}</div>`).join(''):`<div class="empty">No discoveries have been recorded yet.</div>`}
+function lexiconBubbleMetrics(count,stageWidth=0){
+  const vw=Math.max(320,window.innerWidth||1200),width=Math.max(260,stageWidth||vw-40);
+  let visual=104,hit=104,gap=10,minHeight=620,density='normal';
+  if(vw<=620){
+    visual=count<=12?64:count<=24?56:count<=40?50:46;
+    hit=Math.max(60,visual+8);gap=2;minHeight=500;density=visual<=50?'tiny':'small';
+  }else if(vw<=980){
+    visual=count<=18?86:count<=34?78:70;
+    hit=Math.max(78,visual+8);gap=8;minHeight=540;density=visual<=78?'small':'normal';
+  }
+  const cols=Math.max(vw<=620?3:4,Math.floor((width-24)/(hit+gap)));
+  const rows=Math.max(1,Math.ceil(Math.max(1,count)/cols));
+  const height=vw<=980?Math.max(minHeight,34+rows*(hit+gap)+24):minHeight;
+  return{visual,hit,gap,cols,rows,height,density,width};
+}
+function clampBubble(b){
+  const stage=$('bubbleStage'),r=stage.getBoundingClientRect(),w=Math.max(1,r.width),h=Math.max(1,r.height);
+  b.x=Math.max(.015,Math.min(Math.max(.015,1-b.hit/w-.015),b.x));
+  b.y=Math.max(.015,Math.min(Math.max(.015,1-b.hit/h-.015),b.y));
+}
+function applyBubbleSizing(b,metrics){
+  b.visual=metrics.visual;b.hit=metrics.hit;
+  b.el.style.setProperty('--bubble-visual',metrics.visual+'px');
+  b.el.style.setProperty('--bubble-hit',metrics.hit+'px');
+}
+function defaultBubblePosition(i,count,metrics,stageWidth,stageHeight){
+  const col=i%metrics.cols,row=Math.floor(i/metrics.cols),cols=Math.min(metrics.cols,Math.max(1,count)),rows=Math.max(1,Math.ceil(count/metrics.cols));
+  const padX=Math.max(12,metrics.hit*.18),padY=Math.max(14,metrics.hit*.2);
+  const availX=Math.max(0,stageWidth-metrics.hit-padX*2),availY=Math.max(0,stageHeight-metrics.hit-padY*2);
+  const x=padX+(cols===1?availX*.5:col*(availX/Math.max(1,cols-1)))+((row%2)?Math.min(8,metrics.gap):0);
+  const y=padY+(rows===1?availY*.5:row*(availY/Math.max(1,rows-1)));
+  return{x:Math.max(0,Math.min(stageWidth-metrics.hit,x))/stageWidth,y:Math.max(0,Math.min(stageHeight-metrics.hit,y))/stageHeight};
+}
+function refreshLexiconSizing(){
+  const stage=$('bubbleStage');if(!stage)return;
+  const width=stage.clientWidth||stage.getBoundingClientRect().width||window.innerWidth-40,metrics=lexiconBubbleMetrics(bubbles.length,width);
+  stage.style.height=metrics.height+'px';stage.dataset.density=metrics.density;
+  bubbles.forEach(b=>{applyBubbleSizing(b,metrics);clampBubble(b)});positionAll();
+}
+function renderLexicon(){
+  const known=[...knownRoots().map(r=>({id:r.id,type:'root'})),...knownCompounds().map(c=>({id:c.id,type:'word'}))];
+  $('lexCount').textContent=`${known.length} known`;stopBubbles();const stage=$('bubbleStage');stage.innerHTML='';
+  if(!known.length){stage.innerHTML='<div class="empty" style="position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:30px"><div><div style="font-size:32px;color:rgba(216,193,124,.28);margin-bottom:8px">◇</div><b>No signs have been understood yet.</b><div class="muted" style="margin-top:6px">The language of Aestra remains silent. Discover a glyph to begin the lexicon.</div></div></div>';}
+  const stageWidth=stage.clientWidth||stage.getBoundingClientRect().width||window.innerWidth-40,metrics=lexiconBubbleMetrics(known.length,stageWidth);stage.style.height=metrics.height+'px';stage.dataset.density=metrics.density;
+  const stageHeight=metrics.height;
+  bubbles=known.map((item,i)=>{
+    const el=document.createElement('button');el.className='bubble';el.type='button';el.dataset.id=item.id;
+    el.innerHTML=`<span class="bubble-visual">${runeSVG(item.id,Math.round(metrics.visual*.62))}<span class="bubble-name">${esc(item.id)}</span></span>`;stage.appendChild(el);
+    const saved=bubbleLayout[item.id],fallback=defaultBubblePosition(i,known.length,metrics,stageWidth,stageHeight);
+    const state={...item,el,x:saved?.x??fallback.x,y:saved?.y??fallback.y,vx:(i%2?1:-1)*0.000025*(1+i%3),vy:(i%3?1:-1)*0.00002,pinned:!!saved?.pinned,visual:metrics.visual,hit:metrics.hit};
+    applyBubbleSizing(state,metrics);clampBubble(state);el.classList.toggle('pinned',state.pinned);
+    el.onclick=()=>{if(state._moved)return;selectedGlyph=item.id;renderLexDetail();bubbles.forEach(b=>b.el.classList.toggle('active',b.id===selectedGlyph))};
+    el.onpointerdown=e=>{e.preventDefault();state._moved=false;const r=stage.getBoundingClientRect();drag={state,ox:e.clientX-(r.left+state.x*r.width),oy:e.clientY-(r.top+state.y*r.height)};el.classList.add('dragging');el.setPointerCapture(e.pointerId)};
+    el.onpointermove=e=>{if(!drag||drag.state!==state)return;const r=stage.getBoundingClientRect(),nx=(e.clientX-r.left-drag.ox)/r.width,ny=(e.clientY-r.top-drag.oy)/r.height;state.x=nx;state.y=ny;clampBubble(state);state._moved=true;positionBubble(state)};
+    el.onpointerup=()=>{if(!drag||drag.state!==state)return;el.classList.remove('dragging');if(state._moved){state.pinned=true;el.classList.add('pinned');bubbleLayout[state.id]={x:state.x,y:state.y,pinned:true};saveLayout()}setTimeout(()=>state._moved=false,0);drag=null};
+    el.onpointercancel=()=>{if(drag?.state===state)drag=null;el.classList.remove('dragging')};
+    return state;
+  });
+  positionAll();renderLexDetail();bubbles.forEach(b=>b.el.classList.toggle('active',b.id===selectedGlyph));startBubbles();
+}
+function positionBubble(b){const r=$('bubbleStage').getBoundingClientRect();b.el.style.left=(b.x*r.width)+'px';b.el.style.top=(b.y*r.height)+'px'}
+function positionAll(){bubbles.forEach(positionBubble)}
+function startBubbles(){
+  if(bubbleRAF||!$('lexicon').classList.contains('active'))return;let last=performance.now();
+  const tick=now=>{const dt=Math.min(30,now-last);last=now,stage=$('bubbleStage'),rect=stage.getBoundingClientRect(),w=Math.max(1,rect.width),h=Math.max(1,rect.height);
+    bubbles.forEach(b=>{if(b.pinned||drag?.state===b)return;b.x+=b.vx*dt;b.y+=b.vy*dt;const maxX=Math.max(.015,1-b.hit/w-.015),maxY=Math.max(.015,1-b.hit/h-.015);if(b.x<.015||b.x>maxX)b.vx*=-1;if(b.y<.015||b.y>maxY)b.vy*=-1;b.x=Math.max(.015,Math.min(maxX,b.x));b.y=Math.max(.015,Math.min(maxY,b.y))});
+    // Gentle visual collision keeps drifting fragments from piling on top of each other.
+    for(let i=0;i<bubbles.length;i++)for(let j=i+1;j<bubbles.length;j++){const a=bubbles[i],b=bubbles[j],ax=a.x*w+a.hit/2,ay=a.y*h+a.hit/2,bx=b.x*w+b.hit/2,by=b.y*h+b.hit/2,dx=bx-ax,dy=by-ay,dist=Math.hypot(dx,dy)||.001,min=(a.visual+b.visual)/2+5;if(dist<min){const nx=dx/dist,ny=dy/dist,push=(min-dist)*.52;if(!a.pinned&&drag?.state!==a){a.x-=nx*push/w;a.y-=ny*push/h;clampBubble(a)}if(!b.pinned&&drag?.state!==b){b.x+=nx*push/w;b.y+=ny*push/h;clampBubble(b)}}}
+    bubbles.forEach(positionBubble);bubbleRAF=requestAnimationFrame(tick)};bubbleRAF=requestAnimationFrame(tick)
+}
+function stopBubbles(){if(bubbleRAF)cancelAnimationFrame(bubbleRAF);bubbleRAF=null}
+function renderLexDetail(){const id=selectedGlyph||knownRoots()[0]?.id||knownCompounds()[0]?.id;if(!id){$('lexDetail').innerHTML='<div class="muted">The first discovered sign will appear here.</div>';return}selectedGlyph=id;const r=rootMap()[id],c=compoundMap()[id];let meanings=[];if(r){meanings=[...(r.meanings||[]).map(x=>[x,false]),...(r.suspected||[]).map(x=>[x,true])]}else if(c?.known)meanings=[[id.toLowerCase(),false]];$('lexDetail').innerHTML=`<div class="lexhero">${runeSVG(id,115)}</div><div style="text-align:center"><b>${esc(id)}</b><div class="muted" style="font-size:11px">${r?'Root sign':'Established word'}</div></div><div class="meanings" style="margin-top:14px">${meanings.map(([m,s])=>`<span class="meaning ${s?'sus':''}">${esc(m)}${s?' ?':''}</span>`).join('')}</div>${c?`<div class="muted" style="margin-top:14px;font-size:11px">Recognised as a conventional whole-word rune.</div>`:''}`}
+$('autoArrange').onclick=()=>{const stage=$('bubbleStage'),r=stage.getBoundingClientRect(),metrics=lexiconBubbleMetrics(bubbles.length,r.width);stage.style.height=metrics.height+'px';stage.dataset.density=metrics.density;const h=metrics.height,w=Math.max(1,r.width);bubbles.forEach((b,i)=>{applyBubbleSizing(b,metrics);const pos=defaultBubblePosition(i,bubbles.length,metrics,w,h);b.x=pos.x;b.y=pos.y;b.pinned=true;b.el.classList.add('pinned');bubbleLayout[b.id]={x:b.x,y:b.y,pinned:true};positionBubble(b)});saveLayout()};
+$('unpinAll').onclick=()=>{bubbles.forEach(b=>{b.pinned=false;b.el.classList.remove('pinned');bubbleLayout[b.id]={x:b.x,y:b.y,pinned:false}});saveLayout()};
+$('resetLayout').onclick=()=>{bubbleLayout={};saveLayout();renderLexicon()};
+let lexiconResizeTimer=null;window.addEventListener('resize',()=>{if(!$('lexicon').classList.contains('active'))return;clearTimeout(lexiconResizeTimer);lexiconResizeTimer=setTimeout(refreshLexiconSizing,120)});
+// Mobile lexicon density pass: adaptive visual bubbles with stable touch targets.
+// Drawing / recognition — player build parity with the GM Player view.
+const canvas=$('drawCanvas'),ctx=canvas.getContext('2d'),drawStage=$('drawStage');
+const inkCanvas=document.createElement('canvas'),inkCtx=inkCanvas.getContext('2d');inkCanvas.width=canvas.width;inkCanvas.height=canvas.height;
+const DRAW_GRID={cells:8,margin:60};
+let drawStrokes=[],drawHoverPoint=null,drawDragStart=null,drawPreviewPoint=null,drawPointerId=null,drawTraceAnimation=null,drawFadeAnimation=null,drawSparks=[],practiceTarget=null,practicePhase='idle',practiceTimer=null,lastRandomRuneId=null,randomReferenceTarget=null,randomReferenceActive=false,analysisInProgress=false;
+let lastAmbientFrame=0;
+const cosmicStars=Array.from({length:82},()=>({x:Math.random()*canvas.width,y:Math.random()*canvas.height,r:Math.random()*1.55+.3,drift:(Math.random()-.5)*.075,fall:(Math.random()-.5)*.04,phase:Math.random()*Math.PI*2,alpha:.25+Math.random()*.5,warm:Math.random()>.84}));
+function drawGridMetrics(){const size=Math.min(canvas.width,canvas.height)-DRAW_GRID.margin*2,step=size/DRAW_GRID.cells;return{x0:(canvas.width-size)/2,y0:(canvas.height-size)/2,size,step}}
+function snapDrawPoint(p){const g=drawGridMetrics(),gx=Math.max(0,Math.min(8,Math.round((p.x-g.x0)/g.step))),gy=Math.max(0,Math.min(8,Math.round((p.y-g.y0)/g.step)));return{x:g.x0+gx*g.step,y:g.y0+gy*g.step,gx,gy,t:p.t}}
+function canvasPos(e){const r=canvas.getBoundingClientRect();return snapDrawPoint({x:(e.clientX-r.left)*canvas.width/r.width,y:(e.clientY-r.top)*canvas.height/r.height,t:performance.now()})}
+function drawBackground(now){ctx.clearRect(0,0,canvas.width,canvas.height);const g=ctx.createLinearGradient(0,0,0,canvas.height);g.addColorStop(0,'#05070d');g.addColorStop(.55,'#09101f');g.addColorStop(1,'#04060b');ctx.fillStyle=g;ctx.fillRect(0,0,canvas.width,canvas.height);const haze=ctx.createRadialGradient(canvas.width*.52,canvas.height*.42,10,canvas.width*.52,canvas.height*.42,canvas.width*.45);haze.addColorStop(0,'rgba(31,37,66,.2)');haze.addColorStop(.5,'rgba(20,24,41,.07)');haze.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=haze;ctx.fillRect(0,0,canvas.width,canvas.height);const dg=drawGridMetrics();ctx.save();ctx.lineWidth=1;for(let i=0;i<=8;i++){const x=dg.x0+i*dg.step,y=dg.y0+i*dg.step;ctx.strokeStyle=i===4?'rgba(216,193,124,.20)':'rgba(147,173,215,.105)';ctx.beginPath();ctx.moveTo(x,dg.y0);ctx.lineTo(x,dg.y0+dg.size);ctx.stroke();ctx.beginPath();ctx.moveTo(dg.x0,y);ctx.lineTo(dg.x0+dg.size,y);ctx.stroke()}ctx.strokeStyle='rgba(216,193,124,.24)';ctx.lineWidth=1.2;ctx.strokeRect(dg.x0,dg.y0,dg.size,dg.size);for(let gy=0;gy<=8;gy++)for(let gx=0;gx<=8;gx++){const x=dg.x0+gx*dg.step,y=dg.y0+gy*dg.step,centre=gx===4||gy===4;ctx.beginPath();ctx.fillStyle=centre?'rgba(240,216,143,.62)':'rgba(195,215,242,.43)';ctx.arc(x,y,centre?2.35:1.8,0,Math.PI*2);ctx.fill()}ctx.restore();cosmicStars.forEach((s,i)=>{const x=(s.x+now*.005*s.drift*60+canvas.width)%canvas.width,y=(s.y+now*.005*s.fall*60+canvas.height)%canvas.height,tw=(Math.sin(now*.0019+s.phase)+1)/2,a=s.alpha*(.45+.75*tw);ctx.beginPath();ctx.fillStyle=s.warm?`rgba(248,221,144,${a})`:`rgba(214,225,255,${a*.9})`;ctx.arc(x,y,s.r,0,Math.PI*2);ctx.fill();if(i%14===0){ctx.strokeStyle=`rgba(255,239,180,${a*.18})`;ctx.lineWidth=.7;ctx.beginPath();ctx.moveTo(x-s.r*1.8,y);ctx.lineTo(x+s.r*1.8,y);ctx.moveTo(x,y-s.r*1.8);ctx.lineTo(x,y+s.r*1.8);ctx.stroke()}})}
+function stampBrushDot(target,x,y,r,color,blur){target.save();target.shadowColor=color;target.shadowBlur=blur;target.fillStyle=color;target.beginPath();target.arc(x,y,Math.max(.8,r),0,Math.PI*2);target.fill();target.restore()}
+function stampBrushSegment(target,a,b,layers,stepSize=1.6){const dx=b.x-a.x,dy=b.y-a.y,dist=Math.hypot(dx,dy)||1,steps=Math.max(1,Math.ceil(dist/stepSize));for(let s=0;s<=steps;s++){const t=s/steps,x=a.x+dx*t,y=a.y+dy*t,w=(a.w||7.2)+((b.w||7.2)-(a.w||7.2))*t;layers.forEach(l=>stampBrushDot(target,x,y,w*.5+l.extra,l.color,l.blur))}}
+function paintNormalDab(p){[{extra:1.25,color:'rgba(86,130,214,.14)',blur:15},{extra:.55,color:'rgba(176,219,255,.52)',blur:6.5},{extra:0,color:'rgba(235,245,255,.95)',blur:2.1}].forEach(l=>stampBrushDot(inkCtx,p.x,p.y,(p.w||7.2)*.5+l.extra,l.color,l.blur))}
+function paintNormalSegment(a,b){stampBrushSegment(inkCtx,a,b,[{extra:1.25,color:'rgba(86,130,214,.13)',blur:14},{extra:.55,color:'rgba(176,219,255,.54)',blur:6.5},{extra:0,color:'rgba(235,245,255,.96)',blur:2.2}],1.55)}
+function rebuildInkLayer(){inkCtx.clearRect(0,0,inkCanvas.width,inkCanvas.height);drawStrokes.forEach(st=>{if(st.length<2)return;paintNormalDab(st[0]);paintNormalSegment(st[0],st[1]);paintNormalDab(st[1])})}
+function renderInkLayer(alpha=1){ctx.save();ctx.globalAlpha=Math.max(0,Math.min(1,alpha));ctx.drawImage(inkCanvas,0,0);ctx.restore()}
+function drawingSegments(){return drawStrokes.filter(s=>s.length>1).map((s,i)=>({a:s[0],b:s[1],length:Math.hypot(s[1].x-s[0].x,s[1].y-s[0].y)||1,strokeIndex:i}))}
+function drawGoldLine(a,b,progress=1,alpha=1){progress=Math.max(0,Math.min(1,progress));if(progress<=0)return;const x=a.x+(b.x-a.x)*progress,y=a.y+(b.y-a.y)*progress,passes=[{w:18,c:[196,133,31],a0:.025,a1:.07,a2:.12,blur:20},{w:11,c:[238,183,65],a0:.08,a1:.22,a2:.34,blur:14},{w:6.5,c:[255,225,128],a0:.18,a1:.52,a2:.9,blur:9},{w:3.2,c:[255,248,207],a0:.28,a1:.72,a2:1,blur:3}];ctx.save();ctx.lineCap='round';ctx.lineJoin='round';for(const p of passes){const [r,g,bv]=p.c,grad=ctx.createLinearGradient(a.x,a.y,x,y);grad.addColorStop(0,`rgba(${r},${g},${bv},${p.a0*alpha})`);grad.addColorStop(.72,`rgba(${r},${g},${bv},${p.a1*alpha})`);grad.addColorStop(1,`rgba(${r},${g},${bv},${p.a2*alpha})`);ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(x,y);ctx.lineWidth=p.w;ctx.strokeStyle=grad;ctx.shadowColor=`rgba(${r},${g},${bv},${Math.max(p.a1,p.a2*.75)*alpha})`;ctx.shadowBlur=p.blur;ctx.stroke()}
