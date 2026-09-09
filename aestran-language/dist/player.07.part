@@ -1,0 +1,8 @@
+d=!knownCount;practiceBtn.title=knownCount?'Practise a known rune':'Discover a glyph before using Practice'}if(!knownCount&&practicePhase==='idle')setDrawMode('No known runes',freeDrawModeCopy(),'warn');renderArchive();renderDiscoveries();renderLexicon();drawCanvas()}
+$('snapshotFile').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{const x=JSON.parse(await f.text());if(!validSnapshot(x))throw Error('Not an Aestran player snapshot');SNAP=x;saveSnapshot();selectedGlyph=null;practiceTarget=null;practicePhase='idle';clearPracticeTimer();clearDrawing();setDrawMode('Free draw',freeDrawModeCopy(),'good');renderAll();showScreen('archive');$('snapshotStatus').textContent=`Update loaded · v${SNAP.publishedVersion||'—'}.`}catch(err){$('snapshotStatus').textContent='Could not load that snapshot.';alert('That file is not a valid Aestran player-safe snapshot.')}finally{e.target.value=''}};
+$('restoreBundled').onclick=()=>{SNAP=structuredClone(BUNDLED);saveSnapshot();selectedGlyph=null;practiceTarget=null;practicePhase='idle';clearPracticeTimer();clearDrawing();setDrawMode('Free draw',freeDrawModeCopy(),'good');renderAll();showScreen('archive')};
+renderAll();
+setTimeout(()=>initLiveSync(),40);
+})();
+</script>
+</body></html>
