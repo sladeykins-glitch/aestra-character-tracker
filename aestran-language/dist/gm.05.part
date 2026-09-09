@@ -1,0 +1,172 @@
+x;padding-bottom:14px;gap:12px}.top-actions{display:flex;max-width:100%;overflow-x:auto;flex-wrap:nowrap;padding-bottom:2px;scrollbar-width:none}.top-actions::-webkit-scrollbar{display:none}
+  .top-actions>*{flex:0 0 auto}.btn,button{min-height:40px}
+  .simple-steps{overflow-x:auto;justify-content:flex-start;scrollbar-width:none;padding-bottom:3px}.simple-steps::-webkit-scrollbar{display:none}.simple-steps span,.simple-steps i{flex:0 0 auto}
+  .saved-filter-row,.glyph-maker-tabs,.dictionary-toolbar{max-width:100%;overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none}.saved-filter-row::-webkit-scrollbar,.glyph-maker-tabs::-webkit-scrollbar,.dictionary-toolbar::-webkit-scrollbar{display:none}
+  .saved-filter-row .btn,.glyph-maker-tabs .btn,.dictionary-toolbar .btn{flex:0 0 auto;white-space:nowrap}
+  .inscription-action-row .btn{flex:1 1 150px}
+  .draw-toolbar-group.accent{width:100%}
+}
+
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">Aestran Language</div>
+    <div class="sub">Campaign decoder</div>
+    <div class="nav" id="nav"></div>
+    <div class="side-bottom">
+      <button id="roleToggle">Switch to Player Preview</button>
+      <button id="exportData">Export GM language JSON</button>
+      <div class="workspace-row"><button id="backupWorkspace">Backup workspace</button><button id="restoreWorkspace">Restore backup</button></div>
+      <button id="resetWorkspace">Reset local workspace</button>
+      <input id="workspaceRestoreInput" type="file" accept="application/json,.json">
+      <div class="workspace-save-status" id="workspaceSaveStatus">Local autosave ready</div>
+      <div class="sub" id="versionSide"></div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1 id="pageTitle">Build</h1>
+        <div class="muted" id="pageSub">Write what you want to say and let Aestran build it.</div>
+      </div>
+      <div class="top-actions"><button class="btn ghost" id="detailsToggle">Advanced tools</button><span class="pill" id="rolePill">GM</span><span class="pill live-sync-chip" id="liveSyncPill">Live sync offline</span><span class="pill" id="publishPill">Published v0.9.1</span></div>
+    </div>
+
+    <section id="translator" class="screen active">
+      <div class="gm-workspace-kicker">Fast inscription builder</div>
+      <div class="editing-inscription-banner" id="editingInscriptionBanner"><div class="edit-copy"><b id="editingInscriptionName">Editing saved inscription</b><span>Changes made here will update this saved draft instead of creating a second copy.</span></div><button class="btn ghost" id="cancelInscriptionEdit">Cancel edit</button></div>
+      <div class="simple-steps"><span class="step-now"><b>1</b> Write the English</span><i>→</i><span><b>2</b> Build Aestran</span><i>→</i><span><b>3</b> Resolve only missing words</span><i>→</i><span><b>4</b> Save</span></div>
+      <div class="stack">
+        <div class="card simple-build-card">
+          <label class="field"><span>What do you want to say?</span><textarea id="sourceText" rows="4">When the two moons become one, the old world will awaken.</textarea></label>
+          <div class="gm-build-hint"><span>Write ordinary English. Aestran will reuse existing concepts before asking you to create anything.</span><span class="pill">Meaning-first</span></div>
+          <div class="simple-build-actions">
+            <button class="btn primary" id="analyseBtn">Build Aestran</button>
+            <details class="simple-options"><summary>Options</summary><div class="simple-options-body"><label class="field"><span>Writing style</span><select id="translationStyle"><option value="natural">Natural Aestran</option><option value="literal">Literal / teaching</option><option value="prophetic">Cryptic / prophetic</option></select></label><div id="translationModeNote" class="translation-mode-note" style="margin-top:8px"></div></div></details>
+          </div>
+        </div>
+        <div class="card" id="translatorQuestionsCard">
+          <div class="simple-question-title">Aestran is unsure about these words</div>
+          <div class="simple-question-sub">Each word is handled separately. Build it if it matters, or ignore it if it does not.</div>
+          <div id="semanticRows" class="stack" style="margin-top:12px"></div>
+          <div id="clauseMap" class="clause-map"></div>
+        </div>
+        <div class="card simple-result-card">
+          <div class="simple-result-head"><div><h2>Your Aestran inscription</h2><div class="muted" id="translatorGloss" style="margin-top:4px"></div></div><div class="row"><button class="btn ghost meaning-correction-toggle" id="correctMeaningBtn">Change / ignore words</button><span class="pill good" id="translatorStatus">Ready</span></div></div>
+          <div id="meaningFirstSummary" class="meaning-first-summary"></div>
+          <div id="meaningCorrectionPanel" class="meaning-correction-panel"></div>
+          <div id="translatorGlyphs" class="glyph-grid"></div>
+          <div class="simple-player-preview"><b>Players would read</b><div id="playerTruth"></div></div>
+          <div id="gmTruth" style="display:none"></div>
+        </div>
+        <div class="simple-save-row"><button class="btn primary" id="saveInscription">Save inscription</button><button class="btn" id="jumpPlayer">See player view</button></div>
+        <div id="translatorHealth" style="display:none"></div>
+      </div>
+    </section>
+
+    <section id="glyphMaker" class="screen">
+      <div class="glyph-maker-intro"><b style="color:var(--text)">Make a reusable sign.</b> Build from existing Aestran ideas whenever possible. Only create a new basic sign when the concept is truly fundamental. New roots use the same 8 × 8 point-to-point construction rules as the player drawing tool.</div>
+      <div class="glyph-maker-tabs">
+        <button class="btn active" id="glyphMakerCompoundTab">Build from existing glyphs</button>
+        <button class="btn" id="glyphMakerRootTab">Draw a new basic sign</button>
+      </div>
+      <div id="glyphMakerBody"></div>
+    </section>
+
+    <section id="inscriptions" class="screen">
+      <div class="simple-saved-note">Everything you save is here. Find a draft, reopen it in Build, or share a finished inscription with players.</div>
+      <div class="saved-overview"><div class="saved-stat"><span>Total</span><b id="savedCountTotal">0</b></div><div class="saved-stat"><span>Editable</span><b id="savedCountEditable">0</b></div><div class="saved-stat"><span>Shared</span><b id="savedCountShared">0</b></div></div>
+      <div class="inscription-workbench">
+        <div class="card inscription-list-card">
+          <div class="row" style="justify-content:space-between;align-items:flex-start"><div><h3>Saved inscriptions</h3><div class="muted">Your working library.</div></div><button class="btn" id="newInscriptionFromTranslator">Build new</button></div>
+          <div class="saved-list-tools"><input id="inscriptionSearch" placeholder="Search saved inscriptions…"><div class="row"><div class="saved-filter-row"><button class="btn active" data-saved-filter="all">All</button><button class="btn" data-saved-filter="editable">Editable</button><button class="btn" data-saved-filter="shared">Shared</button></div><span class="saved-list-meta" id="savedListMeta"></span></div></div>
+          <div id="inscriptionList" class="inscription-list-scroll"></div>
+        </div>
+        <div id="inscriptionDetail" class="inscription-detail"></div>
+      </div>
+    </section>
+
+    <section id="language" class="screen">
+      <div class="simple-dictionary-note">Search the language. Roots are basic ideas; compounds are words built from those ideas.</div>
+      <div class="grid2">
+        <div class="two-col" style="align-items:start">
+          <div class="card">
+            <div class="dictionary-toolbar"><button class="btn" id="rootsTab">Basic signs</button><button class="btn" id="compoundsTab">Built words</button><button class="btn primary simple-new-glyph-btn" id="openGlyphMaker">+ Make glyph</button></div>
+            <input id="lexSearch" placeholder="Search the language..." style="margin-top:10px">
+            <div id="lexList" class="stack" style="margin-top:10px;max-height:620px;overflow:auto"></div>
+          </div>
+          <div class="card" id="lexEditor"></div>
+        </div>
+        <aside class="stack optional-rail">
+          <div class="card"><h3>Language health</h3><div id="langHealth" class="stack" style="margin-top:12px"></div></div>
+          <div class="card"><h3>Data model</h3><div class="muted" style="margin-top:10px">Every compound stores a semantic tree separately from its visible canonical form. Meanings, geometry and player knowledge can therefore change independently.</div><button class="btn" id="showDataModel" style="margin-top:12px">Inspect model</button></div>
+          <div class="card"><h3>Compound system</h3><div id="compoundRulesPanel" class="rules-panel" style="margin-top:12px"></div></div>
+        </aside>
+      </div>
+    </section>
+
+    <section id="glyphs" class="screen">
+      <div class="grid2 rune-review-layout">
+        <div class="stack">
+          <div class="card">
+            <div class="rune-review-head">
+              <div><h3>Rune review board</h3><div class="muted">Every canonical root and whole-word rune is shown on the same 8 × 8 construction grid. Use this view to spot symbols that are too similar, too busy, or visually weak.</div></div>
+              <div class="rune-review-controls">
+                <button class="btn" id="reviewRoots">Roots</button>
+                <button class="btn" id="reviewWords">Whole words</button>
+                <button class="btn active" id="reviewAll">All</button>
+                <button class="btn" id="reviewIssues">Issues only</button>
+              </div>
+            </div>
+            <div id="reviewSummary" class="rune-review-summary"></div>
+            <div id="auditGrid" class="rune-review-grid"></div>
+          </div>
+        </div>
+        <aside class="stack optional-rail">
+          <div class="card"><h3>Selected rune</h3><div id="auditDetail" style="margin-top:12px"></div></div>
+          <div class="card"><h3>Closest pairs</h3><div class="muted" style="margin-top:5px">High scores mean two runes share a lot of the same grid geometry.</div><div id="reviewPairs" class="review-pairs"></div></div>
+          <div class="card"><h3>What to look for</h3><div class="stack muted" style="margin-top:12px"><div>• one recognisable silhouette</div><div>• clear negative space</div><div>• not easily confused with another rune</div><div>• not overloaded with tiny segments</div><div>• readable at small sizes</div><div>• easy to reproduce on the 8 × 8 grid</div><div>• feels related to the other runes in its visual family</div></div></div>
+        </aside>
+      </div>
+    </section>
+
+    <section id="knowledge" class="screen">
+      <div class="knowledge-workbench">
+        <div class="stack">
+          <div class="card">
+            <div class="row" style="justify-content:space-between;align-items:flex-start"><div><h3>Create discovery</h3><div class="muted">Reveal one specific meaning or established compound. Nothing reaches players until you push the queue.</div></div><span class="pill">GM only</span></div>
+            <div class="knowledge-builder">
+              <label class="field"><span>Reveal type</span><select id="knowledgeType"><option value="root">Root meaning</option><option value="compound">Compound word</option></select></label>
+              <label class="field"><span>Glyph / word</span><select id="knowledgeConcept"></select></label>
+              <label class="field" id="knowledgeMeaningField"><span>Meaning</span><select id="knowledgeMeaning"></select></label>
+              <button class="btn primary" id="queueKnowledgeCustom">Queue reveal</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="row" style="justify-content:space-between;align-items:flex-start"><div><h3>Queued for players</h3><div class="muted">A staging area for discoveries you want to release together.</div></div><div class="row"><span class="pill warn" id="knowledgeQueueCount">0 queued</span><button class="btn ghost" id="clearKnowledgeQueue">Clear</button></div></div>
+            <div id="knowledgeQueue" class="knowledge-queue"></div>
+            <div id="knowledgeBatchSummary" class="knowledge-release-summary empty"></div>
+            <button class="btn primary" id="pushKnowledge" style="width:100%;margin-top:14px">Release discoveries to players</button>
+          </div>
+        </div>
+        <div class="stack">
+          <div class="card"><h3>Archive impact</h3><div class="muted" style="margin-top:4px">These existing inscriptions will gain a new reading when the queue is released.</div><div id="knowledgeImpact" style="margin-top:12px"></div></div>
+          <div class="card optional-rail"><h3>State separation</h3><div class="stack muted" style="margin-top:12px"><div><b style="color:var(--text)">Language truth</b><br>all semantic meanings and structures.</div><div><b style="color:var(--text)">Party knowledge</b><br>only discoveries explicitly released by the GM.</div><div><b style="color:var(--text)">Player notes</b><br>personal interpretations are never overwritten.</div></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="publish" class="screen">
+      <div class="grid2">
+        <div class="stack">
+          <div class="card"><h3>Draft changes</h3><div id="publishChanges" class="stack" style="margin-top:12px"></div></div>
+          <div class="card"><h3>Player impact preview</h3><div id="publishImpact" class="stack" style="margin-top:12px"></div></div>
+        </div>
+        <aside class="stack">
+          <div class="card"><h3>Publish gate</h3><div id="publishGate" class="stack" style="margin-top:12px"></div><button class="btn primary" id="publishBtn" style="width:100%;margin-top:14px">Publish revision</button><div class="muted" id="publishState" style="margin-top:8px;text-align:center"></div></div>
+          <div class="card"><h3>Version history</h3><div id="versionHistory" class="stack" style="margin-top:12px"></div></div>
+          <div class="card"><h3>Player-safe package</h3><div class="player-safe-package" style="margin-top:12px"><div class="player-safe-copy">Exports only information the party is currently allowed to know. Hidden meanings, GM truth, drafts and unrevealed word names are removed or replaced with opaque IDs.</div><div class="player-safe-summary" id="playerSafeStats"></div><div class="player-safe-audit" id="playerSafeAudit">Checking player-safe snapshot…</div><button class="btn" id="exportPlayerSnapshot" style="width:100%">Export player-safe JSON</button></div></div>
+          <div class="card"><h3>Live campaign sync</h3><div class="live-sync-card" style="margin-top:12px"><div class="player-safe-copy">Sign in with the same Supabase account used by the Aestra trac
