@@ -21,8 +21,8 @@
     #playerLexicon .lexicon-layout-tools .btn{font-size:10px;padding:6px 8px}
     #playerLexicon .lexicon-layout-status{font-size:10px;margin-top:5px}
     #playerLexicon .lexicon-mobile-toggle{display:flex;width:100%;align-items:center;justify-content:space-between}
-    #playerLexicon .player-bubble-stage{margin-top:8px!important;min-height:0!important;border-radius:17px}
-    #playerLexicon .glyph-cloud{padding:6px;min-height:0!important}
+    #playerLexicon .player-bubble-stage{margin-top:8px!important;border-radius:17px;overflow:hidden}
+    #playerLexicon .glyph-cloud{padding:6px;position:relative;overflow:visible}
     #playerLexicon .glyph-bubble{box-shadow:0 7px 16px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.07);backdrop-filter:blur(5px)}
     #playerLexicon .glyph-bubble .bubble-label{font-size:6.5px;letter-spacing:.045em;line-height:1}
     #playerLexicon .glyph-bubble svg{width:60%;height:60%}
@@ -92,9 +92,9 @@
       const cols=Math.max(4,Math.min(7,Math.floor((width-14)/(maxD+5))));
       const rows=Math.ceil(items.length/cols);
       height=Math.max(350,rows*(maxD+8)+20);
-      cloud.style.minHeight=height+'px';
+      cloud.style.height=height+'px';
       const stage=document.querySelector('#playerLexicon .player-bubble-stage');
-      if(stage)stage.style.minHeight=height+'px';
+      if(stage)stage.style.height=height+'px';
     }else height=Math.max(560,height);
     const targets=lexiconArrangeTargets(items,width,height);
     cloud.classList.add('arranging');
@@ -122,8 +122,8 @@
       cols=Math.max(4,Math.min(7,Math.floor((width-14)/(maxD+5))));
       rows=Math.max(1,Math.ceil(items.length/cols));
       height=Math.max(350,rows*(maxD+8)+20);
-      cloud.style.minHeight=height+'px';
-      stage.style.minHeight=height+'px';
+      cloud.style.height=height+'px';
+      stage.style.height=height+'px';
     }else{
       height=Math.max(560,cloud.clientHeight||rect.height||560);
       cols=Math.max(3,Math.min(5,Math.ceil(Math.sqrt(items.length))));
@@ -179,7 +179,7 @@
     const emptyTap=ev=>{
       if(!mobile)return;
       if(ev.target===cloud||ev.target===stage){
-        appState.selectedPlayerGlyph=null;updateBubbleActiveState();simItems.forEach(layoutLexiconBubble);
+        appState.selectedPlayerGlyph=null;updateBubbleActiveState();simItems.forEach(layoutLexiconBubble);const detail=document.getElementById('playerGlyphDetail');if(detail)detail.innerHTML='<div class="muted" style="padding:10px 0">Tap a glyph in the Lexicon to inspect what the party currently understands.</div>';
       }
     };
     cloud.addEventListener('pointerdown',emptyTap);
@@ -225,18 +225,19 @@
     if(!items.length){
       stopLexiconSim();cloud.innerHTML='<div class="muted">No discovered glyphs yet.</div>';detail.innerHTML='<div class="muted">Discover some glyphs first.</div>';updateLexiconLayoutStatus();return;
     }
-    const selected=items.find(x=>x.id===appState.selectedPlayerGlyph)||items[0];
-    if(!appState.selectedPlayerGlyph)appState.selectedPlayerGlyph=selected.id;
+    const selected=items.find(x=>x.id===appState.selectedPlayerGlyph)||null;
+    if(appState.selectedPlayerGlyph&&!selected)appState.selectedPlayerGlyph=null;
     const width=Math.max(260,cloud.clientWidth||window.innerWidth-44);
     const cols=Math.max(4,Math.min(7,Math.floor((width-14)/(48+5))));
     const rows=Math.ceil(items.length/cols);
     const h=Math.max(350,rows*56+20);
-    cloud.style.minHeight=h+'px';
+    cloud.style.height=h+'px';
     cloud.innerHTML=items.map(item=>{
       const size=item.type==='Compound glyph'?48:44;
       return `<button class="glyph-bubble ${appState.selectedPlayerGlyph===item.id?'active':''}" data-pglyph="${item.id}" style="width:${size}px;height:${size}px">${glyphSVG(item.id,Math.round(size*.58))}<div class="bubble-label">${item.id}</div></button>`;
     }).join('');
-    renderPlayerGlyphDetail(appState.selectedPlayerGlyph||selected.id);
+    if(appState.selectedPlayerGlyph)renderPlayerGlyphDetail(appState.selectedPlayerGlyph);
+    else if(detail)detail.innerHTML='<div class="muted" style="padding:10px 0">Tap a glyph in the Lexicon to inspect what the party currently understands.</div>';
     ensureMobileLayoutToggle();
     if(appState.role==='player'&&appState.screen==='playerLexicon')startLexiconPhysics(items);else stopLexiconSim();
   };
