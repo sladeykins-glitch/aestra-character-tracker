@@ -1,6 +1,7 @@
-/* Aestran GM Player Lexicon compact mobile mode v3 */
+/* Aestran GM Player Lexicon compact mobile mode v4 */
 (function(){
   const MOBILE_MAX=650;
+  const MOBILE_LAYOUT_VERSION='aestra-gm-mobile-lexicon-layout-v4';
   const isMobileLexicon=()=>Math.max(320,window.innerWidth||1200)<=MOBILE_MAX;
 
   const style=document.createElement('style');
@@ -28,6 +29,14 @@
     #playerLexicon .glyph-bubble svg{width:60%;height:60%}
     #playerLexicon .glyph-bubble.active{z-index:30!important}
     #playerLexicon .glyph-bubble.active .bubble-label{font-size:7.5px}
+    /* gm-mobile-v4-hard-size */
+    #playerLexicon .glyph-bubble{min-width:0!important;min-height:0!important;max-width:none!important;max-height:none!important;padding:0!important}
+    #playerLexicon .glyph-bubble[data-aestra-compact="micro"]{width:36px!important;height:36px!important}
+    #playerLexicon .glyph-bubble[data-aestra-compact="small"]{width:40px!important;height:40px!important}
+    #playerLexicon .glyph-bubble[data-aestra-compact="word"]{width:42px!important;height:42px!important}
+    #playerLexicon .glyph-bubble:not(.active){transform-origin:center center!important}
+    #playerLexicon .glyph-bubble.active{transform-origin:center center!important}
+    #playerLexicon .glyph-bubble.pinned:after{display:none!important}
     #playerLexicon .glyph-bubble.pinned:after{width:3px;height:3px}
     #playerLexicon .bubble-detail{margin-top:10px}
   }`;
@@ -51,7 +60,8 @@
   layoutLexiconBubble=function(simItem){
     const mobile=isMobileLexicon();
     const active=simItem.id===appState.selectedPlayerGlyph;
-    const scale=active?(mobile?2.05:1.05):1;
+    const dense=mobile&&(lexiconSim.items?.length||0)>48;
+    const scale=active?(mobile?(dense?1.7:1.9):1.05):1;
     simItem.el.classList.toggle('pinned',!!simItem.pinned);
     simItem.el.style.zIndex=active?'30':'2';
     simItem.el.style.transform=`translate3d(${simItem.x-simItem.r}px,${simItem.y-simItem.r}px,0) scale(${scale})`;
@@ -106,6 +116,27 @@
     saveLexiconBubblePositions();updateLexiconLayoutStatus();setTimeout(()=>cloud.classList.remove('arranging'),650);
   };
 
+  function compactMobileSize(item,count){
+    if(!isMobileLexicon())return item.type==='Compound glyph'?110:96;
+    if(count>48)return item.type==='Compound glyph'?42:36;
+    if(count>36)return item.type==='Compound glyph'?44:38;
+    if(count>24)return item.type==='Compound glyph'?46:40;
+    return item.type==='Compound glyph'?50:44;
+  }
+
+  function migrateOldMobileLexiconLayout(){
+    if(!isMobileLexicon())return;
+    try{
+      if(localStorage.getItem(MOBILE_LAYOUT_VERSION)==='1')return;
+      appState.lexiconBubblePositions={};
+      saveLexiconBubblePositions();
+      localStorage.setItem(MOBILE_LAYOUT_VERSION,'1');
+    }catch(_){
+      appState.lexiconBubblePositions={};
+      try{saveLexiconBubblePositions()}catch(__){}
+    }
+  }
+
   startLexiconPhysics=function(items){
     stopLexiconSim();
     const cloud=document.getElementById('playerGlyphCloud');
@@ -113,13 +144,14 @@
     if(!cloud||!stage)return;
 
     const mobile=isMobileLexicon();
+    if(mobile)migrateOldMobileLexiconLayout();
     const rect=cloud.getBoundingClientRect();
     const width=Math.max(mobile?260:320,cloud.clientWidth||rect.width||600);
 
     let cols,rows,height;
     if(mobile){
-      const maxD=48;
-      cols=Math.max(4,Math.min(7,Math.floor((width-14)/(maxD+5))));
+      const maxD=Math.max(36,...items.map(it=>compactMobileSize(it,items.length)));
+      cols=Math.max(5,Math.min(7,Math.floor((width-12)/(maxD+5))));
       rows=Math.max(1,Math.ceil(items.length/cols));
       height=Math.max(350,rows*(maxD+8)+20);
       cloud.style.height=height+'px';cloud.style.minHeight=height+'px';
@@ -133,9 +165,10 @@
     lexiconSim.cloud=cloud;lexiconSim.stage=stage;
     const simItems=[...cloud.querySelectorAll('[data-pglyph]')].map((el,i)=>{
       const item=items[i],col=i%cols,row=Math.floor(i/cols);
-      const size=mobile?(item.type==='Compound glyph'?48:44):(item.type==='Compound glyph'?110+(i%3)*8:92+(i%4)*10);
+      const size=mobile?compactMobileSize(item,items.length):(item.type==='Compound glyph'?110+(i%3)*8:92+(i%4)*10);
       el.style.width=size+'px';el.style.height=size+'px';
-      const fallback=lexiconArrangeTargets(Array.from({length:items.length},(_,j)=>({r:(mobile?(items[j]?.type==='Compound glyph'?24:22):50),size})),width,height)[i];
+      if(mobile)el.dataset.aestraCompact=item.type==='Compound glyph'?'word':(items.length>48?'micro':'small');
+      const fallback=lexiconArrangeTargets(Array.from({length:items.length},(_,j)=>{const s=mobile?compactMobileSize(items[j],items.length):100;return {r:s/2,size:s}}),width,height)[i];
       const saved=appState.lexiconBubblePositions?.[item.id];
       const x=saved?Math.max(size/2,Math.min(width-size/2,saved.x*width)):fallback.x;
       const y=saved?Math.max(size/2,Math.min(height-size/2,saved.y*height)):fallback.y;
@@ -228,14 +261,17 @@
     const selected=items.find(x=>x.id===appState.selectedPlayerGlyph)||null;
     if(appState.selectedPlayerGlyph&&!selected)appState.selectedPlayerGlyph=null;
     const width=Math.max(260,cloud.clientWidth||window.innerWidth-44);
-    const cols=Math.max(4,Math.min(7,Math.floor((width-14)/(48+5))));
+    migrateOldMobileLexiconLayout();
+    const maxD=Math.max(36,...items.map(it=>compactMobileSize(it,items.length)));
+    const cols=Math.max(5,Math.min(7,Math.floor((width-12)/(maxD+5))));
     const rows=Math.ceil(items.length/cols);
-    const h=Math.max(350,rows*56+20);
+    const h=Math.max(320,rows*(maxD+7)+18);
     cloud.style.height=h+'px';cloud.style.minHeight=h+'px';
     const stage=document.querySelector('#playerLexicon .player-bubble-stage');if(stage){stage.style.height=h+'px';stage.style.minHeight=h+'px';}
     cloud.innerHTML=items.map(item=>{
-      const size=item.type==='Compound glyph'?48:44;
-      return `<button class="glyph-bubble ${appState.selectedPlayerGlyph===item.id?'active':''}" data-pglyph="${item.id}" style="width:${size}px;height:${size}px">${glyphSVG(item.id,Math.round(size*.58))}<div class="bubble-label">${item.id}</div></button>`;
+      const size=compactMobileSize(item,items.length);
+      const density=item.type==='Compound glyph'?'word':(items.length>48?'micro':'small');
+      return `<button class="glyph-bubble ${appState.selectedPlayerGlyph===item.id?'active':''}" data-pglyph="${item.id}" data-aestra-compact="${density}" style="width:${size}px!important;height:${size}px!important">${glyphSVG(item.id,Math.round(size*.58))}<div class="bubble-label">${item.id}</div></button>`;
     }).join('');
     if(appState.selectedPlayerGlyph)renderPlayerGlyphDetail(appState.selectedPlayerGlyph);
     else if(detail)detail.innerHTML='<div class="muted" style="padding:10px 0">Tap a glyph in the Lexicon to inspect what the party currently understands.</div>';
