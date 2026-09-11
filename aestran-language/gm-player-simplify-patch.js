@@ -334,7 +334,206 @@
     body.player-minimal #playerLexicon .lexicon-layout-status{display:none!important}
     body.player-minimal #playerGlyphDetail{font-size:14px}
   }
-  @media(prefers-reduced-motion:reduce){
+
+  /* aestraFancyFieldGuide */
+  body.player-minimal:after{
+    content:'';
+    position:fixed;
+    inset:-18%;
+    pointer-events:none;
+    z-index:-1;
+    opacity:.55;
+    background:
+      conic-gradient(from 180deg at 50% 50%,transparent 0 22%,rgba(216,193,124,.025) 30%,transparent 42% 68%,rgba(83,101,145,.035) 78%,transparent 90%),
+      radial-gradient(circle at 50% 50%,rgba(216,193,124,.025),transparent 56%);
+    filter:blur(26px);
+    animation:aestraAtmosphereDrift 18s ease-in-out infinite alternate;
+  }
+  body.player-minimal .topbar h1{
+    text-shadow:0 0 18px rgba(216,193,124,.06);
+    animation:aestraPlayerTitleIn .34s cubic-bezier(.2,.72,.25,1) both,aestraTitleBreath 5.5s ease-in-out .5s infinite;
+  }
+  body.player-minimal .topbar{
+    position:relative;
+  }
+  body.player-minimal .topbar:after{
+    content:'';
+    position:absolute;
+    left:0;
+    bottom:-1px;
+    width:clamp(70px,18vw,190px);
+    height:1px;
+    background:linear-gradient(90deg,transparent,rgba(216,193,124,.65),transparent);
+    filter:drop-shadow(0 0 5px rgba(216,193,124,.24));
+    animation:aestraHeaderSweep 6s ease-in-out infinite;
+  }
+
+  body.player-minimal #playerLexicon .player-bubble-stage{
+    position:relative;
+    overflow:hidden;
+    box-shadow:inset 0 0 42px rgba(35,48,72,.16),0 14px 45px rgba(0,0,0,.18)!important;
+  }
+  body.player-minimal #playerLexicon .player-bubble-stage:before{
+    content:'';
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+    z-index:0;
+    opacity:.34;
+    background-image:
+      radial-gradient(circle,rgba(244,221,151,.7) 0 1px,transparent 1.35px),
+      radial-gradient(circle,rgba(145,167,220,.52) 0 .8px,transparent 1.2px);
+    background-size:137px 137px,211px 211px;
+    background-position:18px 28px,80px 120px;
+    animation:aestraStarsDrift 22s linear infinite;
+  }
+  body.player-minimal #playerLexicon .player-bubble-stage:after{
+    content:'';
+    position:absolute;
+    inset:-30%;
+    pointer-events:none;
+    z-index:0;
+    opacity:.42;
+    background:radial-gradient(ellipse at center,rgba(216,193,124,.07),transparent 54%);
+    animation:aestraLexiconAura 7s ease-in-out infinite;
+  }
+  body.player-minimal #playerLexicon .glyph-cloud{position:relative;z-index:1}
+  body.player-minimal #playerLexicon .glyph-bubble:not(.active):not(.dragging){
+    animation:aestraRuneBreathe 4.8s ease-in-out infinite;
+  }
+  body.player-minimal #playerLexicon .glyph-bubble:nth-child(3n){animation-delay:-1.3s}
+  body.player-minimal #playerLexicon .glyph-bubble:nth-child(4n){animation-delay:-2.4s}
+  body.player-minimal #playerLexicon .glyph-bubble:nth-child(5n){animation-delay:-3.1s}
+  body.player-minimal #playerLexicon .glyph-bubble svg{
+    filter:drop-shadow(0 0 5px rgba(236,223,183,.08));
+  }
+  body.player-minimal #playerLexicon .glyph-bubble.active{
+    animation:aestraGlyphFocus .38s cubic-bezier(.2,.8,.2,1) both,aestraSelectedRunePulse 2.7s ease-in-out .38s infinite!important;
+  }
+  body.player-minimal #playerLexicon .glyph-bubble.active svg{
+    animation:aestraRuneInkPulse 2.7s ease-in-out infinite;
+  }
+
+  body.player-minimal #playerGlyphDetail .card,
+  body.player-minimal #playerGlyphDetail>.card{
+    position:relative;
+    overflow:hidden;
+    animation:aestraDetailBorder 4.5s ease-in-out infinite;
+  }
+  body.player-minimal #playerGlyphDetail .card:before,
+  body.player-minimal #playerGlyphDetail>.card:before{
+    content:'';
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+    background:linear-gradient(115deg,transparent 18%,rgba(216,193,124,.055) 47%,transparent 69%);
+    transform:translateX(-120%);
+    animation:aestraCardSheen 7s ease-in-out 1.2s infinite;
+  }
+
+  body.player-minimal #playerArchiveList>*{
+    position:relative;
+    overflow:hidden;
+    transition:transform .24s ease,border-color .24s ease,background .24s ease!important;
+  }
+  body.player-minimal #playerArchiveList>*:hover{
+    transform:translateY(-2px);
+    border-color:rgba(216,193,124,.22)!important;
+    background:rgba(22,29,38,.62)!important;
+  }
+  body.player-minimal #playerArchiveList>*:after{
+    content:'';
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+    background:linear-gradient(110deg,transparent 28%,rgba(216,193,124,.035) 48%,transparent 68%);
+    transform:translateX(-120%);
+    animation:aestraCardSheen 10s ease-in-out infinite;
+  }
+
+  body.player-minimal #playerDiscoveryTimeline>*{
+    position:relative;
+    overflow:visible;
+  }
+  body.player-minimal #playerDiscoveryTimeline>*:before{
+    box-shadow:0 0 0 0 rgba(216,193,124,.26);
+    animation:aestraDiscoveryPulse 2.8s ease-out infinite;
+  }
+  body.player-minimal .discovery-reveal-rune{
+    animation:aestraRevealRune 2.2s ease-in-out infinite;
+  }
+
+  body.player-minimal #draw .draw-stage{
+    position:relative;
+    animation:aestraDrawChamber 4.8s ease-in-out infinite;
+  }
+  body.player-minimal #draw .draw-stage:before{
+    animation:aestraDrawMist 9s ease-in-out infinite alternate;
+  }
+
+  body.player-minimal .btn:hover{
+    border-color:rgba(216,193,124,.28)!important;
+    box-shadow:0 0 16px rgba(216,193,124,.045)!important;
+  }
+
+  @keyframes aestraAtmosphereDrift{
+    0%{transform:translate3d(-2%,-1%,0) rotate(-2deg) scale(1)}
+    100%{transform:translate3d(3%,2%,0) rotate(3deg) scale(1.08)}
+  }
+  @keyframes aestraTitleBreath{
+    0%,100%{text-shadow:0 0 16px rgba(216,193,124,.045)}
+    50%{text-shadow:0 0 24px rgba(216,193,124,.13)}
+  }
+  @keyframes aestraHeaderSweep{
+    0%,100%{opacity:.35;transform:translateX(0) scaleX(.55);transform-origin:left}
+    50%{opacity:1;transform:translateX(10px) scaleX(1);transform-origin:left}
+  }
+  @keyframes aestraStarsDrift{
+    from{background-position:18px 28px,80px 120px}
+    to{background-position:155px 165px,-131px 331px}
+  }
+  @keyframes aestraLexiconAura{
+    0%,100%{transform:translate(-4%,-2%) scale(.92);opacity:.22}
+    50%{transform:translate(5%,3%) scale(1.12);opacity:.48}
+  }
+  @keyframes aestraRuneBreathe{
+    0%,100%{filter:brightness(.96);opacity:.92}
+    50%{filter:brightness(1.09);opacity:1}
+  }
+  @keyframes aestraSelectedRunePulse{
+    0%,100%{filter:brightness(1.03);box-shadow:0 0 0 1px rgba(216,193,124,.12),0 12px 34px rgba(0,0,0,.32),0 0 13px rgba(216,193,124,.05)}
+    50%{filter:brightness(1.14);box-shadow:0 0 0 1px rgba(216,193,124,.34),0 12px 34px rgba(0,0,0,.32),0 0 28px rgba(216,193,124,.18)}
+  }
+  @keyframes aestraRuneInkPulse{
+    0%,100%{filter:drop-shadow(0 0 4px rgba(238,224,183,.12))}
+    50%{filter:drop-shadow(0 0 10px rgba(240,217,145,.34))}
+  }
+  @keyframes aestraDetailBorder{
+    0%,100%{border-color:rgba(210,220,232,.10)}
+    50%{border-color:rgba(216,193,124,.22)}
+  }
+  @keyframes aestraCardSheen{
+    0%,72%{transform:translateX(-125%);opacity:0}
+    82%{opacity:1}
+    100%{transform:translateX(125%);opacity:0}
+  }
+  @keyframes aestraDiscoveryPulse{
+    0%{box-shadow:0 0 0 0 rgba(216,193,124,.30)}
+    70%,100%{box-shadow:0 0 0 12px rgba(216,193,124,0)}
+  }
+  @keyframes aestraRevealRune{
+    0%,100%{transform:translateY(0) scale(1);filter:drop-shadow(0 0 12px rgba(216,193,124,.15))}
+    50%{transform:translateY(-3px) scale(1.025);filter:drop-shadow(0 0 24px rgba(216,193,124,.36))}
+  }
+  @keyframes aestraDrawChamber{
+    0%,100%{box-shadow:0 20px 48px rgba(0,0,0,.30),0 0 0 1px rgba(216,193,124,.08)}
+    50%{box-shadow:0 22px 52px rgba(0,0,0,.34),0 0 0 1px rgba(216,193,124,.18),0 0 30px rgba(216,193,124,.06)}
+  }
+  @keyframes aestraDrawMist{
+    from{opacity:.65;transform:translateX(-2%) scale(1)}
+    to{opacity:1;transform:translateX(2%) scale(1.04)}
+  }
+    @media(prefers-reduced-motion:reduce){
     body.player-minimal *,
     body.player-minimal *:before,
     body.player-minimal *:after{
