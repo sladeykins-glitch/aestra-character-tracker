@@ -276,7 +276,176 @@
     .reading{font-size:13px}
     .meaning{font-size:10px!important}
   }
-  @media(prefers-reduced-motion:reduce){
+
+  /* aestraFancyFieldGuide */
+  body:after{
+    content:'';
+    position:fixed;
+    inset:-18%;
+    pointer-events:none;
+    z-index:-1;
+    opacity:.56;
+    background:
+      conic-gradient(from 175deg at 50% 50%,transparent 0 24%,rgba(216,193,124,.027) 31%,transparent 43% 69%,rgba(83,101,145,.038) 79%,transparent 91%),
+      radial-gradient(circle at 50% 50%,rgba(216,193,124,.025),transparent 58%);
+    filter:blur(26px);
+    animation:aestraSAtmosphereDrift 18s ease-in-out infinite alternate;
+  }
+  .topbar{position:relative}
+  .topbar h1{
+    text-shadow:0 0 18px rgba(216,193,124,.06);
+    animation:aestraStandaloneTitleIn .34s cubic-bezier(.2,.72,.25,1) both,aestraSTitleBreath 5.5s ease-in-out .5s infinite;
+  }
+  .topbar:after{
+    content:'';
+    position:absolute;
+    left:0;
+    bottom:-1px;
+    width:clamp(70px,18vw,190px);
+    height:1px;
+    background:linear-gradient(90deg,transparent,rgba(216,193,124,.65),transparent);
+    filter:drop-shadow(0 0 5px rgba(216,193,124,.24));
+    animation:aestraSHeaderSweep 6s ease-in-out infinite;
+  }
+
+  .bubble-stage{
+    position:relative;
+    overflow:hidden;
+    box-shadow:inset 0 0 42px rgba(35,48,72,.16),0 14px 45px rgba(0,0,0,.18)!important;
+  }
+  .bubble-stage:before{
+    content:'';
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+    z-index:0;
+    opacity:.34;
+    background-image:
+      radial-gradient(circle,rgba(244,221,151,.7) 0 1px,transparent 1.35px),
+      radial-gradient(circle,rgba(145,167,220,.52) 0 .8px,transparent 1.2px);
+    background-size:137px 137px,211px 211px;
+    background-position:18px 28px,80px 120px;
+    animation:aestraSStarsDrift 22s linear infinite;
+  }
+  .bubble-stage:after{
+    content:'';
+    position:absolute;
+    inset:-30%;
+    pointer-events:none;
+    z-index:0;
+    opacity:.42;
+    background:radial-gradient(ellipse at center,rgba(216,193,124,.07),transparent 54%);
+    animation:aestraSLexiconAura 7s ease-in-out infinite;
+  }
+  .bubble{z-index:2}
+  .bubble:not(.active):not(.dragging) .bubble-visual{
+    animation:aestraSRuneBreathe 4.8s ease-in-out infinite;
+  }
+  .bubble:nth-child(3n) .bubble-visual{animation-delay:-1.3s}
+  .bubble:nth-child(4n) .bubble-visual{animation-delay:-2.4s}
+  .bubble:nth-child(5n) .bubble-visual{animation-delay:-3.1s}
+  .bubble svg{filter:drop-shadow(0 0 5px rgba(236,223,183,.08))}
+  .bubble.active .bubble-visual{
+    animation:aestraStandaloneGlyphFocus .38s cubic-bezier(.2,.8,.2,1) both,aestraSSelectedRunePulse 2.7s ease-in-out .38s infinite!important;
+  }
+  .bubble.active svg{animation:aestraSRuneInkPulse 2.7s ease-in-out infinite}
+
+  .lexdetail{
+    position:relative;
+    overflow:hidden;
+    animation:aestraSDetailBorder 4.5s ease-in-out infinite;
+  }
+  .lexdetail:before{
+    content:'';
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+    background:linear-gradient(115deg,transparent 18%,rgba(216,193,124,.055) 47%,transparent 69%);
+    transform:translateX(-120%);
+    animation:aestraSCardSheen 7s ease-in-out 1.2s infinite;
+  }
+
+  .archive-item{
+    position:relative;
+    overflow:hidden;
+    transition:transform .24s ease,border-color .24s ease,background .24s ease!important;
+  }
+  .archive-item:hover{
+    transform:translateY(-2px);
+    border-color:rgba(216,193,124,.22)!important;
+    background:rgba(22,29,38,.62)!important;
+  }
+  .archive-item:before{
+    content:'';
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+    background:linear-gradient(110deg,transparent 28%,rgba(216,193,124,.035) 48%,transparent 68%);
+    transform:translateX(-120%);
+    animation:aestraSCardSheen 10s ease-in-out infinite;
+  }
+
+  .discovery:before{
+    animation:aestraSDiscoveryPulse 2.8s ease-out infinite!important;
+  }
+  .draw-stage{
+    animation:aestraSDrawChamber 4.8s ease-in-out infinite;
+  }
+  .btn:hover{
+    border-color:rgba(216,193,124,.28)!important;
+    box-shadow:0 0 16px rgba(216,193,124,.045)!important;
+  }
+
+  @keyframes aestraSAtmosphereDrift{
+    0%{transform:translate3d(-2%,-1%,0) rotate(-2deg) scale(1)}
+    100%{transform:translate3d(3%,2%,0) rotate(3deg) scale(1.08)}
+  }
+  @keyframes aestraSTitleBreath{
+    0%,100%{text-shadow:0 0 16px rgba(216,193,124,.045)}
+    50%{text-shadow:0 0 24px rgba(216,193,124,.13)}
+  }
+  @keyframes aestraSHeaderSweep{
+    0%,100%{opacity:.35;transform:translateX(0) scaleX(.55);transform-origin:left}
+    50%{opacity:1;transform:translateX(10px) scaleX(1);transform-origin:left}
+  }
+  @keyframes aestraSStarsDrift{
+    from{background-position:18px 28px,80px 120px}
+    to{background-position:155px 165px,-131px 331px}
+  }
+  @keyframes aestraSLexiconAura{
+    0%,100%{transform:translate(-4%,-2%) scale(.92);opacity:.22}
+    50%{transform:translate(5%,3%) scale(1.12);opacity:.48}
+  }
+  @keyframes aestraSRuneBreathe{
+    0%,100%{filter:brightness(.96)}
+    50%{filter:brightness(1.09)}
+  }
+  @keyframes aestraSSelectedRunePulse{
+    0%,100%{filter:brightness(1.03);box-shadow:0 10px 30px rgba(0,0,0,.30),0 0 0 1px rgba(216,193,124,.08),0 0 12px rgba(216,193,124,.06)}
+    50%{filter:brightness(1.15);box-shadow:0 10px 30px rgba(0,0,0,.30),0 0 0 1px rgba(216,193,124,.32),0 0 28px rgba(216,193,124,.20)}
+  }
+  @keyframes aestraSRuneInkPulse{
+    0%,100%{filter:drop-shadow(0 0 4px rgba(238,224,183,.12))}
+    50%{filter:drop-shadow(0 0 10px rgba(240,217,145,.34))}
+  }
+  @keyframes aestraSDetailBorder{
+    0%,100%{border-color:rgba(210,220,232,.10)}
+    50%{border-color:rgba(216,193,124,.22)}
+  }
+  @keyframes aestraSCardSheen{
+    0%,72%{transform:translateX(-125%);opacity:0}
+    82%{opacity:1}
+    100%{transform:translateX(125%);opacity:0}
+  }
+  @keyframes aestraSDiscoveryPulse{
+    0%{box-shadow:0 0 0 0 rgba(216,193,124,.30)}
+    70%,100%{box-shadow:0 0 0 12px rgba(216,193,124,0)}
+  }
+  @keyframes aestraSDrawChamber{
+    0%,100%{box-shadow:0 20px 48px rgba(0,0,0,.30),0 0 0 1px rgba(216,193,124,.08)}
+    50%{box-shadow:0 22px 52px rgba(0,0,0,.34),0 0 0 1px rgba(216,193,124,.18),0 0 30px rgba(216,193,124,.06)}
+  }
+    @media(prefers-reduced-motion:reduce){
     *,*:before,*:after{
       animation-duration:.001ms!important;
       animation-iteration-count:1!important;
