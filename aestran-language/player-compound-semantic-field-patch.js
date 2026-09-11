@@ -1,0 +1,10 @@
+/* Aestran Player compound semantic fields v1 */
+(function(){
+  function compoundHasMeaning(c){return !!c&&(((c.meanings||[]).length)||((c.suspected||[]).length))}
+  function compoundReading(c,id){if(!c)return '???';if((c.meanings||[]).length)return c.meanings[0];if((c.suspected||[]).length)return c.suspected[0]+' ?';if(c.known)return String(id||c.id||'').toLowerCase();return c.tree?treeReading(c.tree):'???'}
+  knownCompounds=function(){return SNAP.compounds.filter(c=>c.known||compoundHasMeaning(c))};
+  treeReading=function(node){if(typeof node==='string'){const c=compoundMap()[node];if(c)return compoundReading(c,node);const r=rootMap()[node];if(r)return rootReading(node);return '???'}if(!node||typeof node!=='object'||!node.rel)return '???';return `${treeReading(node.a)} ${REL[node.rel]||node.rel} ${treeReading(node.b)}`};
+  conceptReading=function(id){const r=rootMap()[id];if(r)return rootReading(id);return compoundReading(compoundMap()[id],id)};
+  renderLexDetail=function(){const id=selectedGlyph||knownRoots()[0]?.id||knownCompounds()[0]?.id;if(!id){$('lexDetail').innerHTML='<div class="muted">No known signs yet.</div>';return}selectedGlyph=id;const r=rootMap()[id],c=compoundMap()[id];let meanings=[];if(r)meanings=[...(r.meanings||[]).map(x=>[x,false]),...(r.suspected||[]).map(x=>[x,true])];else if(c){meanings=[...(c.meanings||[]).map(x=>[x,false]),...(c.suspected||[]).map(x=>[x,true])];if(!meanings.length&&c.known)meanings=[[id.toLowerCase(),false]]}$('lexDetail').innerHTML=`<div class="lexhero">${runeSVG(id,115)}</div><div style="text-align:center"><b>${esc(id)}</b><div class="muted" style="font-size:11px">${r?'Root sign':'Built Word'}</div></div><div class="meanings" style="margin-top:14px">${meanings.map(([m,s])=>`<span class="meaning ${s?'sus':''}">${esc(m)}${s?' ?':''}</span>`).join('')}</div>${c?`<div class="muted" style="margin-top:14px;font-size:11px">${c.known?'Recognised as an established Built Word.':'The party has learned a meaning associated with this Built Word.'}</div>`:''}`};
+  renderAll();
+})();
