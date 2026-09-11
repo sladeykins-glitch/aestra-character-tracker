@@ -232,6 +232,120 @@
   }`;
   document.head.appendChild(style);
 
+  const fxStyle=document.createElement('style');
+  fxStyle.textContent=`
+  body.player-minimal{
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+  }
+  body.player-minimal:before{
+    content:'';
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+    z-index:-1;
+    background:
+      radial-gradient(circle at 18% 8%,rgba(216,193,124,.035),transparent 26%),
+      radial-gradient(circle at 84% 24%,rgba(83,101,145,.045),transparent 31%);
+  }
+  body.player-minimal .muted{
+    color:#909aa6!important;
+    line-height:1.58;
+  }
+  body.player-minimal p,
+  body.player-minimal .reading,
+  body.player-minimal .archive-reading,
+  body.player-minimal .discovery-copy{
+    line-height:1.65!important;
+  }
+  body.player-minimal .screen.active{
+    animation:aestraPlayerPageIn .28s cubic-bezier(.2,.72,.25,1) both;
+  }
+  body.player-minimal .topbar h1{
+    animation:aestraPlayerTitleIn .34s cubic-bezier(.2,.72,.25,1) both;
+  }
+  body.player-minimal .btn,
+  body.player-minimal .nav button{
+    transition:background-color .18s ease,border-color .18s ease,color .18s ease,transform .18s ease,box-shadow .18s ease!important;
+  }
+  body.player-minimal .btn:active,
+  body.player-minimal .nav button:active{
+    transform:translateY(1px) scale(.985);
+  }
+  body.player-minimal #playerLexicon .glyph-bubble{
+    transition:border-color .2s ease,box-shadow .22s ease,filter .2s ease!important;
+  }
+  body.player-minimal #playerLexicon .glyph-bubble:hover{
+    filter:brightness(1.07);
+  }
+  body.player-minimal #playerLexicon .glyph-bubble.active{
+    animation:aestraGlyphFocus .38s cubic-bezier(.2,.8,.2,1) both;
+  }
+  body.player-minimal #playerGlyphDetail>*{
+    animation:aestraDetailIn .24s ease-out both;
+  }
+  body.player-minimal #playerArchiveList>*{
+    animation:aestraListIn .3s ease-out both;
+  }
+  body.player-minimal #playerArchiveList>*:nth-child(2){animation-delay:.035s}
+  body.player-minimal #playerArchiveList>*:nth-child(3){animation-delay:.07s}
+  body.player-minimal #playerArchiveList>*:nth-child(4){animation-delay:.105s}
+  body.player-minimal #playerDiscoveryTimeline>*{
+    animation:aestraListIn .3s ease-out both;
+  }
+  body.player-minimal #playerDiscoveryTimeline>*:nth-child(2){animation-delay:.04s}
+  body.player-minimal #playerDiscoveryTimeline>*:nth-child(3){animation-delay:.08s}
+  body.player-minimal .discovery-reveal-rune{
+    filter:drop-shadow(0 0 14px rgba(216,193,124,.18));
+  }
+  body.player-minimal input,
+  body.player-minimal textarea,
+  body.player-minimal select{
+    line-height:1.5!important;
+  }
+  body.player-minimal .meaning,
+  body.player-minimal .pill{
+    letter-spacing:.01em;
+  }
+  @keyframes aestraPlayerPageIn{
+    from{opacity:0;transform:translateY(7px)}
+    to{opacity:1;transform:none}
+  }
+  @keyframes aestraPlayerTitleIn{
+    from{opacity:.35;transform:translateY(4px)}
+    to{opacity:1;transform:none}
+  }
+  @keyframes aestraGlyphFocus{
+    0%{filter:brightness(1);box-shadow:0 0 0 rgba(216,193,124,0)}
+    55%{filter:brightness(1.11);box-shadow:0 0 24px rgba(216,193,124,.11)}
+    100%{filter:brightness(1.04)}
+  }
+  @keyframes aestraDetailIn{
+    from{opacity:0;transform:translateY(5px)}
+    to{opacity:1;transform:none}
+  }
+  @keyframes aestraListIn{
+    from{opacity:0;transform:translateY(7px)}
+    to{opacity:1;transform:none}
+  }
+  @media(max-width:650px){
+    body.player-minimal .muted{line-height:1.5}
+    body.player-minimal .btn{min-height:38px}
+    body.player-minimal #playerLexicon .lexicon-layout-status{display:none!important}
+    body.player-minimal #playerGlyphDetail{font-size:14px}
+  }
+  @media(prefers-reduced-motion:reduce){
+    body.player-minimal *,
+    body.player-minimal *:before,
+    body.player-minimal *:after{
+      animation-duration:.001ms!important;
+      animation-iteration-count:1!important;
+      transition-duration:.001ms!important;
+      scroll-behavior:auto!important;
+    }
+  }`;
+  document.head.appendChild(fxStyle);
+
   const pageCopy={
     playerArchive:['Archive','Recovered inscriptions and your notes.'],
     playerDiscoveries:['Discoveries','What the party has learned.'],
