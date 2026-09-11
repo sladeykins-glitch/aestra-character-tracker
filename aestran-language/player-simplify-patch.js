@@ -193,6 +193,99 @@
   }`;
   document.head.appendChild(style);
 
+  const fxStyle=document.createElement('style');
+  fxStyle.textContent=`
+  body{
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+  }
+  body:before{
+    content:'';
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+    z-index:-1;
+    background:
+      radial-gradient(circle at 16% 7%,rgba(216,193,124,.035),transparent 26%),
+      radial-gradient(circle at 86% 25%,rgba(81,98,140,.045),transparent 31%);
+  }
+  .muted{color:#909aa6!important;line-height:1.58}
+  p,.reading,.archive-item,.discovery{line-height:1.62}
+  .screen.active{animation:aestraStandalonePageIn .28s cubic-bezier(.2,.72,.25,1) both}
+  .topbar h1{animation:aestraStandaloneTitleIn .34s cubic-bezier(.2,.72,.25,1) both}
+  .nav button,.btn{
+    transition:background-color .18s ease,border-color .18s ease,color .18s ease,transform .18s ease,box-shadow .18s ease!important;
+  }
+  .nav button:active,.btn:active{transform:translateY(1px) scale(.985)}
+  .nav button.active{position:relative}
+  .nav button.active:after{
+    content:'';
+    position:absolute;
+    left:28%;
+    right:28%;
+    bottom:3px;
+    height:1px;
+    border-radius:999px;
+    background:rgba(216,193,124,.48);
+    animation:aestraNavLine .24s ease-out both;
+  }
+  .bubble-visual{
+    transition:transform .22s cubic-bezier(.2,.8,.2,1),border-color .2s ease,box-shadow .22s ease,filter .2s ease!important;
+  }
+  .bubble:hover .bubble-visual{filter:brightness(1.07)}
+  .bubble.active .bubble-visual{animation:aestraStandaloneGlyphFocus .38s cubic-bezier(.2,.8,.2,1) both}
+  .lexdetail>*{animation:aestraStandaloneDetailIn .24s ease-out both}
+  .archive-item{animation:aestraStandaloneListIn .3s ease-out both}
+  .archive-item:nth-child(2){animation-delay:.035s}
+  .archive-item:nth-child(3){animation-delay:.07s}
+  .archive-item:nth-child(4){animation-delay:.105s}
+  .discovery{animation:aestraStandaloneListIn .3s ease-out both}
+  .discovery:nth-child(2){animation-delay:.04s}
+  .discovery:nth-child(3){animation-delay:.08s}
+  .meaning{line-height:1.25}
+  textarea,input,select{line-height:1.5!important}
+  @keyframes aestraStandalonePageIn{
+    from{opacity:0;transform:translateY(7px)}
+    to{opacity:1;transform:none}
+  }
+  @keyframes aestraStandaloneTitleIn{
+    from{opacity:.35;transform:translateY(4px)}
+    to{opacity:1;transform:none}
+  }
+  @keyframes aestraStandaloneGlyphFocus{
+    0%{filter:brightness(1)}
+    55%{filter:brightness(1.12);box-shadow:0 0 24px rgba(216,193,124,.11)}
+    100%{filter:brightness(1.04)}
+  }
+  @keyframes aestraStandaloneDetailIn{
+    from{opacity:0;transform:translateY(5px)}
+    to{opacity:1;transform:none}
+  }
+  @keyframes aestraStandaloneListIn{
+    from{opacity:0;transform:translateY(7px)}
+    to{opacity:1;transform:none}
+  }
+  @keyframes aestraNavLine{
+    from{opacity:0;transform:scaleX(.25)}
+    to{opacity:1;transform:scaleX(1)}
+  }
+  @media(max-width:620px){
+    .muted{line-height:1.5}
+    .btn{min-height:38px}
+    .archive-item{padding:15px!important}
+    .reading{font-size:13px}
+    .meaning{font-size:10px!important}
+  }
+  @media(prefers-reduced-motion:reduce){
+    *,*:before,*:after{
+      animation-duration:.001ms!important;
+      animation-iteration-count:1!important;
+      transition-duration:.001ms!important;
+      scroll-behavior:auto!important;
+    }
+  }`;
+  document.head.appendChild(fxStyle);
+
   // Shorter labels and copy make the player build feel less like a dashboard.
   document.querySelectorAll('.nav button').forEach(btn=>{
     const t=(btn.textContent||'').trim().toLowerCase();
