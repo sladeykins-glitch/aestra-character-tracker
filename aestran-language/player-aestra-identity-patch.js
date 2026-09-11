@@ -22,7 +22,17 @@
   function rareGhost(){const marks=['◇','⟡','⌁','⋔','✧','⟐'];ghost.textContent=marks[Math.floor(Math.random()*marks.length)];ghost.classList.remove('show');void ghost.offsetWidth;ghost.classList.add('show')}
   function scheduleFlicker(){setTimeout(()=>{document.body.classList.add('aestra-relic-flicker');setTimeout(()=>document.body.classList.remove('aestra-relic-flicker'),80+Math.random()*110);if(Math.random()<.38)rareGhost();scheduleFlicker()},11000+Math.random()*17000)}
   function energyCycle(){document.documentElement.style.setProperty('--aestra-energy',(.48+Math.random()*.38).toFixed(2));setTimeout(energyCycle,6000+Math.random()*7000)}
-  function boot(){if(sessionStorage.getItem('aestra-player-boot-v1'))return;sessionStorage.setItem('aestra-player-boot-v1','1');const b=document.createElement('div');b.className='aestra-boot';b.innerHTML='<div class="aestra-boot-core"><div class="aestra-boot-rune">◇</div><div class="aestra-boot-title">Aestran Decoder</div><div class="aestra-boot-sub">Relic archive · restoring crystal lattice</div><div class="aestra-boot-line"></div></div>';document.body.appendChild(b);setTimeout(()=>b.classList.add('hidden'),1450);setTimeout(()=>b.remove(),2300)}
+  function boot(){
+    if(sessionStorage.getItem('aestra-player-boot-v1'))return;
+    sessionStorage.setItem('aestra-player-boot-v1','1');
+    const b=document.createElement('div');b.className='aestra-boot';
+    b.innerHTML='<div class="aestra-boot-core"><div class="aestra-boot-rune">◇</div><div class="aestra-boot-title">Aestran Decoder</div><div class="aestra-boot-sub">Relic archive · restoring crystal lattice</div><div class="aestra-boot-line"></div></div>';
+    document.body.appendChild(b);
+    const dismiss=()=>{if(!b.isConnected)return;b.classList.add('hidden');setTimeout(()=>{if(b.isConnected)b.remove()},760)};
+    b.onclick=dismiss;
+    setTimeout(dismiss,1450);
+    setTimeout(()=>{if(b.isConnected)b.remove()},2600);
+  }
 
   const oldShow=typeof showScreen==='function'?showScreen:null;
   if(oldShow)showScreen=function(id){const r=oldShow.apply(this,arguments);requestAnimationFrame(()=>{refreshRibbon();markRegions();if(id==='lexicon')wakeField()});return r};
