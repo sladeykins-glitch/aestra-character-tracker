@@ -34,7 +34,15 @@
   };
 
   const previousMaps=playerSafeIdMaps;
-  playerSafeIdMaps=function(){normaliseAllCompoundSemantics();const maps=previousMaps();let wordN=1;DATA.compounds.forEach(c=>{maps.compoundIds[c.id]=(c.known||compoundHasPlayerMeaning(c))?c.id:'WORD_'+String(wordN++).padStart(3,'0')});return maps};
+  playerSafeIdMaps=function(){
+    normaliseAllCompoundSemantics();
+    const maps=previousMaps();
+    let wordN=1;
+    // A revealed meaning must NOT reveal the established Built Word name.
+    // The real ID is public only when the separate "Players know this word name" state is on.
+    DATA.compounds.forEach(c=>{maps.compoundIds[c.id]=c.known?c.id:'WORD_'+String(wordN++).padStart(3,'0')});
+    return maps;
+  };
   const previousBuildSnapshot=buildPlayerSafeSnapshot;
   buildPlayerSafeSnapshot=function(){normaliseAllCompoundSemantics();const snap=previousBuildSnapshot(),source=DATA.compounds.filter(c=>!c.transient);(snap.compounds||[]).forEach((out,i)=>{const c=source[i];if(!c)return;normaliseCompoundSemantics(c);out.meanings=[...(c.knowledge.confirmed||[])];out.suspected=[...(c.knowledge.suspected||[])];if(out.meanings.length||out.suspected.length)out.writeOrderRule=c.writeOrderRule||out.writeOrderRule||''});return snap};
 
