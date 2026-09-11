@@ -177,8 +177,12 @@
   }
   @media(max-width:620px){
     .sidebar{padding-top:8px!important;padding-bottom:8px!important}
-    .nav{justify-content:space-between!important}
-    .nav button{flex:1 0 auto!important;text-align:center!important;padding:8px 8px!important}
+    .nav{justify-content:space-between!important;overflow:visible!important;gap:4px!important;width:100%!important}
+    .nav button{flex:1 1 0!important;min-width:0!important;text-align:center!important;padding:8px 3px!important;font-size:10px!important}
+    .bubble-stage[data-density=micro] .bubble-name{font-size:6.5px!important;letter-spacing:.025em!important;bottom:4%!important}
+    .bubble-stage[data-density=micro] .bubble svg{width:58%!important;height:58%!important}
+    .bubble-stage[data-density=micro] .bubble.active .bubble-visual{transform:scale(1.42)!important}
+    .bubble-stage[data-density=micro] .bubble.pinned .bubble-visual:after{display:none!important}
     .topbar{display:block!important;margin-bottom:16px!important;padding-bottom:13px!important}
     .topbar h1{font-size:29px!important}
     .topbar .muted{display:none!important}
@@ -458,7 +462,7 @@
   // Shorter labels and copy make the player build feel less like a dashboard.
   document.querySelectorAll('.nav button').forEach(btn=>{
     const t=(btn.textContent||'').trim().toLowerCase();
-    if(t==='draw glyph')btn.textContent='Draw';
+    if(t.includes('draw')&&t.includes('glyph'))btn.textContent='Draw';
   });
   const pageSub=document.getElementById('pageSub');
   const shortCopy={
