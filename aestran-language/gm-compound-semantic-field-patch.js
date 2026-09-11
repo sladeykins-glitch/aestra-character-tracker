@@ -3,7 +3,7 @@
   function uniqueMeanings(values){const out=[];(values||[]).forEach(v=>{const s=String(v||'').trim();if(s&&!out.some(x=>x.toLowerCase()===s.toLowerCase()))out.push(s)});return out;}
   function normaliseCompoundSemantics(c){
     if(!c)return c;const legacy=String(c.gloss||'').trim();
-    c.semanticField=uniqueMeanings(Array.isArray(c.semanticField)?c.semanticField:(legacy?[legacy]:[]));
+    const legacyMeanings=legacy?legacy.split(/\\s*[,;]\\s*/).filter(Boolean):[];c.semanticField=uniqueMeanings(Array.isArray(c.semanticField)?c.semanticField:legacyMeanings);
     if(!c.knowledge||typeof c.knowledge!=='object')c.knowledge={confirmed:[],suspected:[],hidden:[]};
     ['confirmed','suspected','hidden'].forEach(k=>c.knowledge[k]=uniqueMeanings(Array.isArray(c.knowledge[k])?c.knowledge[k]:[]).filter(m=>c.semanticField.some(x=>x.toLowerCase()===m.toLowerCase())));
     c.semanticField.forEach(m=>{const placed=['confirmed','suspected','hidden'].some(k=>c.knowledge[k].some(x=>x.toLowerCase()===m.toLowerCase()));if(!placed)c.knowledge.hidden.push(m)});
