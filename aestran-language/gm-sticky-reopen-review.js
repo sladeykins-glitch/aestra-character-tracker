@@ -1,7 +1,7 @@
-/* Aestran GM sticky Reopen & Review control v1 */
+/* Aestran GM sticky Reopen & Review control v2 */
 (function(){
-  if(window.__aestraStickyReopenReview)return;
-  window.__aestraStickyReopenReview=true;
+  if(window.__aestraStickyReopenReviewV2)return;
+  window.__aestraStickyReopenReviewV2=true;
 
   const style=document.createElement('style');
   style.textContent=`
@@ -16,55 +16,33 @@
       padding:9px;
       border:1px solid rgba(216,193,124,.24);
       border-radius:16px;
-      background:rgba(10,14,20,.92);
+      background:rgba(10,14,20,.94);
       box-shadow:0 16px 42px rgba(0,0,0,.38),0 0 0 1px rgba(255,255,255,.025) inset;
       backdrop-filter:blur(12px);
       -webkit-backdrop-filter:blur(12px);
     }
     #aestraStickyReopenReview.show{display:flex}
-    #aestraStickyReopenReview .sticky-copy{
-      padding:0 5px 0 4px;
-      max-width:180px;
-    }
-    #aestraStickyReopenReview .sticky-kicker{
-      font-size:9px;
-      letter-spacing:.18em;
-      text-transform:uppercase;
-      color:#7f8996;
-      margin-bottom:2px;
-    }
-    #aestraStickyReopenReview .sticky-name{
-      font-size:11px;
-      color:#e7e3d7;
-      overflow:hidden;
-      text-overflow:ellipsis;
-      white-space:nowrap;
-    }
-    #aestraStickyReopenReview button{
-      white-space:nowrap;
-      min-height:38px;
-    }
+    #aestraStickyReopenReview .sticky-copy{padding:0 5px 0 4px;max-width:190px}
+    #aestraStickyReopenReview .sticky-kicker{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:#7f8996;margin-bottom:2px}
+    #aestraStickyReopenReview .sticky-name{font-size:11px;color:#e7e3d7;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    #aestraStickyReopenReview button{white-space:nowrap;min-height:38px}
     @media(max-width:650px){
-      #aestraStickyReopenReview{
-        left:10px;
-        right:10px;
-        bottom:10px;
-        justify-content:space-between;
-        border-radius:14px;
-        padding:8px 9px;
-      }
+      #aestraStickyReopenReview{left:10px;right:10px;bottom:10px;justify-content:space-between;border-radius:14px;padding:8px 9px}
       #aestraStickyReopenReview .sticky-copy{max-width:45vw}
       #aestraStickyReopenReview button{flex:0 0 auto}
     }
   `;
   document.head.appendChild(style);
 
+  const old=document.getElementById('aestraStickyReopenReview');
+  if(old)old.remove();
+
   const dock=document.createElement('div');
   dock.id='aestraStickyReopenReview';
   dock.innerHTML=
     '<div class="sticky-copy">'+
       '<div class="sticky-kicker">Glyph review</div>'+
-      '<div class="sticky-name" id="aestraStickyReviewName">Current glyph</div>'+
+      '<div class="sticky-name" id="aestraStickyReviewName">Glyph design</div>'+
     '</div>'+
     '<button type="button" class="btn primary" id="aestraStickyReviewButton">Reopen &amp; Review</button>';
   document.body.appendChild(dock);
@@ -73,39 +51,83 @@
   const nameEl=dock.querySelector('#aestraStickyReviewName');
   let target=null;
 
-  function cleanText(el){return String(el?.textContent||'').replace(/\s+/g,' ').trim()}
+  function text(el){
+    return String(el?.innerText||el?.textContent||el?.value||'').replace(/\s+/g,' ').trim();
+  }
 
-  function isTargetButton(btn){
-    if(!btn||btn===proxy||dock.contains(btn))return false;
-    const text=cleanText(btn).toLowerCase();
-    return /reopen/.test(text)&&/review/.test(text);
+  function descriptor(el){
+    const parts=[
+      text(el),
+      el?.getAttribute?.('aria-label'),
+      el?.getAttribute?.('title'),
+      el?.getAttribute?.('name'),
+      el?.id,
+      el?.className
+    ];
+    try{
+      for(const a of [...(el?.attributes||[])]){
+        if(/review|reopen/i.test(a.name)||/review|reopen/i.test(a.value))parts.push(a.name,a.value);
+      }
+    }catch(_){}
+    return parts.filter(Boolean).join(' ').toLowerCase();
+  }
+
+  function matchesReview(el){
+    if(!el||dock.contains(el))return false;
+    const d=descriptor(el);
+    return d.includes('review')&&d.includes('reopen');
+  }
+
+  function clickable(el){
+    if(!el)return null;
+    if(el.matches?.('button,a,[role="button"],summary,input[type="button"],input[type="submit"],[onclick],.btn'))return el;
+    return el.closest?.('button,a,[role="button"],summary,[onclick],.btn')||el;
   }
 
   function findTarget(){
-    const buttons=[...document.querySelectorAll('button,a.btn,[role="button"]')];
-    const visible=buttons.filter(isTargetButton);
-    if(!visible.length)return null;
-    return visible.find(el=>{
-      const r=el.getBoundingClientRect();
-      return r.width>0&&r.height>0;
-    })||visible[0];
+    const likely=[...document.querySelectorAll(
+      'button,a,[role="button"],summary,input[type="button"],input[type="submit"],[onclick],[data-action],[data-review],[class*="review"],[id*="review"],[class*="reopen"],[id*="reopen"]'
+    )];
+
+    for(const el of likely){
+      if(matchesReview(el))return clickable(el);
+    }
+
+    // Fallback for custom clickable containers whose visible label is the only clue.
+    const all=[...document.querySelectorAll('body *')];
+    for(const el of all){
+      if(dock.contains(el))continue;
+      const t=text(el);
+      if(t.length>90)return false;
+      if(/reopen/i.test(t)&&/review/i.test(t))return clickable(el);
+    }
+    return null;
   }
 
-  function nearbyGlyphName(btn){
-    if(!btn)return 'Current glyph';
-    const scopes=[
-      btn.closest('.card'),
-      btn.closest('section'),
-      btn.closest('[class*="review"]'),
-      btn.parentElement?.parentElement
-    ].filter(Boolean);
+  function glyphDesignActive(){
+    const active=[...document.querySelectorAll('.active,[aria-current="page"],[aria-selected="true"]')];
+    if(active.some(el=>/glyph\s*design/i.test(text(el))))return true;
+    try{
+      if(appState?.screen&&/glyph/i.test(String(appState.screen)))return true;
+    }catch(_){}
+    return [...document.querySelectorAll('nav button,aside button,.nav button')].some(el=>
+      /glyph\s*design/i.test(text(el))&&el.classList.contains('active')
+    );
+  }
+
+  function targetOnScreen(el){
+    if(!el||!el.isConnected)return false;
+    const r=el.getBoundingClientRect();
+    return r.bottom>=0&&r.top<=window.innerHeight&&r.right>=0&&r.left<=window.innerWidth&&r.width>0&&r.height>0;
+  }
+
+  function nearbyName(el){
+    if(!el)return 'Glyph design';
+    const scopes=[el.closest?.('.card'),el.closest?.('section'),el.parentElement?.parentElement].filter(Boolean);
     for(const scope of scopes){
-      const candidates=[...scope.querySelectorAll('h1,h2,h3,h4,b,strong,.title,.glyph-name')];
-      for(const el of candidates){
-        const text=cleanText(el);
-        if(!text)continue;
-        if(/reopen|review/i.test(text))continue;
-        if(text.length<=80)return text;
+      for(const n of [...scope.querySelectorAll('h1,h2,h3,h4,b,strong,.title')]){
+        const s=text(n);
+        if(s&&s.length<=80&&!/reopen|review/i.test(s))return s;
       }
     }
     try{
@@ -113,51 +135,45 @@
       if(appState?.selectedLex)return String(appState.selectedLex);
       if(appState?.selectedAudit)return String(appState.selectedAudit);
     }catch(_){}
-    return 'Current glyph';
-  }
-
-  function targetOnScreen(btn){
-    if(!btn||!btn.isConnected)return false;
-    const r=btn.getBoundingClientRect();
-    return r.bottom>=0&&r.top<=window.innerHeight&&r.width>0&&r.height>0;
+    return 'Glyph design';
   }
 
   function refresh(){
     target=findTarget();
+
     if(!target){
       dock.classList.remove('show');
       return;
     }
 
-    const disabled=!!target.disabled||target.getAttribute('aria-disabled')==='true';
-    proxy.disabled=disabled;
-    proxy.textContent=cleanText(target)||'Reopen & Review';
-    nameEl.textContent=nearbyGlyphName(target);
+    proxy.disabled=!!target.disabled||target.getAttribute?.('aria-disabled')==='true';
+    proxy.textContent=text(target)||'Reopen & Review';
+    nameEl.textContent=nearbyName(target);
 
-    // Only float the action after the original has scrolled off-screen.
-    dock.classList.toggle('show',!targetOnScreen(target));
+    // On Glyph design keep it available whenever the original control is not on screen.
+    dock.classList.toggle('show',glyphDesignActive()&&!targetOnScreen(target));
   }
 
-  proxy.addEventListener('click',()=>{
+  proxy.onclick=()=>{
     if(!target||!target.isConnected)target=findTarget();
     if(!target||target.disabled)return;
-    target.click();
+    try{target.click();}catch(_){target.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window}));}
     setTimeout(refresh,0);
-  });
+  };
 
-  let scheduled=false;
+  let queued=false;
   function schedule(){
-    if(scheduled)return;
-    scheduled=true;
-    requestAnimationFrame(()=>{scheduled=false;refresh()});
+    if(queued)return;
+    queued=true;
+    requestAnimationFrame(()=>{queued=false;refresh()});
   }
 
-  window.addEventListener('scroll',schedule,{passive:true});
-  window.addEventListener('resize',schedule,{passive:true});
+  addEventListener('scroll',schedule,{passive:true});
+  addEventListener('resize',schedule,{passive:true});
   document.addEventListener('click',()=>setTimeout(refresh,0),true);
 
   const observer=new MutationObserver(schedule);
-  observer.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['class','disabled','aria-disabled']});
+  observer.observe(document.documentElement,{subtree:true,childList:true,attributes:true});
 
   try{
     if(typeof renderAll==='function'){
