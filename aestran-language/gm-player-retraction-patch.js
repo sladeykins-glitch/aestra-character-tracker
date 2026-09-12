@@ -50,10 +50,25 @@
     workspaceBootstrap?.state?.playerRetractions||appState.playerRetractions||emptyRetractions()
   );
 
+  function pruneOrphanedInscriptionRetractions(){
+    const liveIds=new Set((appState.inscriptions||[]).map(i=>i.id));
+    const hidden=appState.playerRetractions?.inscriptions||{};
+    let changed=false;
+    Object.keys(hidden).forEach(id=>{
+      if(!liveIds.has(id)){
+        delete hidden[id];
+        changed=true;
+      }
+    });
+    return changed;
+  }
+
   const resetApplied=resetPlayerFacingStateOnce();
+  const orphanRetractionsPruned=pruneOrphanedInscriptionRetractions();
 
   const previousWorkspaceSnapshot=workspaceSnapshot;
   workspaceSnapshot=function(){
+    pruneOrphanedInscriptionRetractions();
     const snap=previousWorkspaceSnapshot();
     if(!snap.state)snap.state={};
     snap.state.playerRetractions=clone(appState.playerRetractions);
@@ -247,6 +262,7 @@
   }
 
   function retractionRows(){
+    pruneOrphanedInscriptionRetractions();
     const rows=[];
     Object.values(appState.playerRetractions.roots||{}).forEach(r=>rows.push({kind:'root',id:r.id,title:r.id,copy:'Basic Sign · '+[...(r.confirmed||[]),...(r.suspected||[])].join(' · ')}));
     Object.values(appState.playerRetractions.compounds||{}).forEach(r=>rows.push({kind:'compound',id:r.id,title:r.id,copy:'Built Word'+(r.known?' · word name':'')}));
@@ -280,5 +296,5 @@
   const previousRenderPublish=renderPublish;
   renderPublish=function(){const r=previousRenderPublish.apply(this,arguments);queueMicrotask(ensurePublishRetractions);return r};
 
-  queueMicrotask(()=>{if(resetApplied){renderAll();saveWorkspaceNow({force:true})}ensureKnowledgeRetractionPanel();ensureInscriptionRetractionControl();ensurePublishRetractions()});
+  queueMicrotask(()=>{if(resetApplied||orphanRetractionsPruned){renderAll();saveWorkspaceNow({force:true})}ensureKnowledgeRetractionPanel();ensureInscriptionRetractionControl();ensurePublishRetractions()});
 })();
