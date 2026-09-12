@@ -41,6 +41,18 @@
   if(oldRender)renderAll=function(){const r=oldRender.apply(this,arguments);requestAnimationFrame(()=>{refreshRibbon();markRegions();aestraDetectKnowledge()});return r};
 
 
+
+  function aestraShowPathReconstruction(detail){
+    const path=String(detail?.path||'').trim();if(!path)return;
+    const safePath=path.replace(/[&"'<>]/g,'');
+    const el=document.createElement('div');el.className='aestra-reconstruct';
+    const label=String(detail?.label||'A NEW READING EMERGES').replace(/[<>&]/g,'');
+    el.innerHTML='<div class="aestra-reconstruct-core"><div class="aestra-reconstruct-frag f1"></div><div class="aestra-reconstruct-frag f2"></div><div class="aestra-reconstruct-frag f3"></div><div class="aestra-reconstruct-frag f4"></div><div class="aestra-reconstruct-rune"><svg viewBox="0 0 100 100" style="width:124px;height:124px"><path d="'+safePath+'"/></svg></div><div class="aestra-reconstruct-copy"><div class="aestra-reconstruct-kicker">The relic remembers</div><div class="aestra-reconstruct-title">'+label+'</div></div></div>';
+    document.querySelectorAll('.aestra-reconstruct[data-live-reveal="1"]').forEach(x=>x.remove());
+    el.dataset.liveReveal='1';document.body.appendChild(el);setTimeout(()=>el.remove(),2800);
+  }
+  window.addEventListener('aestra-player-reveal',e=>aestraShowPathReconstruction(e.detail||{}));
+
   /* aestra-reconstruction-v1 */
   let aestraKnowledgeReady=false;
   let aestraKnownBefore=new Set();
