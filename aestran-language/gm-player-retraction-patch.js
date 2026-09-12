@@ -261,6 +261,28 @@
     }
   }
 
+  window.deletePlayerRetraction=function(kind,id){
+    const bucket=kind==='root'
+      ? appState.playerRetractions.roots
+      : kind==='compound'
+        ? appState.playerRetractions.compounds
+        : appState.playerRetractions.inscriptions;
+    const rec=bucket&&bucket[id];
+    if(!rec)return;
+
+    const title=rec.title||rec.id||id;
+    const copy=kind==='inscription'
+      ? 'The inscription will remain saved on the GM side and hidden from players.'
+      : 'The GM dictionary entry will remain intact and hidden from players.';
+    if(!confirm('Delete “'+title+'” from Retracted from Players?\n\n'+copy+' The saved restore record will be discarded, so this old reveal can no longer be republished from this panel.'))return;
+
+    delete bucket[id];
+    try{saveWorkspaceNow({force:true});}
+    catch(_){if(typeof scheduleWorkspaceSave==='function')scheduleWorkspaceSave();}
+    try{renderPublish();}catch(_){renderAll();}
+    if(typeof liveSyncStatus==='function')liveSyncStatus(title+' removed from the republish list. GM content was kept.','good');
+  };
+
   function retractionRows(){
     pruneOrphanedInscriptionRetractions();
     const rows=[];
@@ -278,12 +300,15 @@
       impact.closest('.card')?.insertAdjacentElement('afterend',card);
     }
     const rows=retractionRows();
-    card.innerHTML='<div class="row" style="justify-content:space-between;align-items:flex-start"><div><h3>Retracted from Players</h3><div class="muted">GM content kept safely here. Republish restores it and generates a brand-new player reveal.</div></div><span class="pill">'+rows.length+' retracted</span></div><div class="stack" style="margin-top:12px">'+(rows.length?rows.map(r=>'<div class="meaning-row row" style="justify-content:space-between;gap:10px"><div><b>'+escapeHTML(r.title)+'</b><div class="muted" style="font-size:10px">'+escapeHTML(r.copy)+'</div></div><button class="btn" data-republish-kind="'+r.kind+'" data-republish-id="'+escapeHTML(r.id)+'">'+(r.kind==='inscription'?'Reveal':'Republish')+'</button></div>').join(''):'<div class="muted">Nothing is currently retracted.</div>')+'</div>';
+    card.innerHTML='<div class="row" style="justify-content:space-between;align-items:flex-start"><div><h3>Retracted from Players</h3><div class="muted">GM content kept safely here. Republish restores it and generates a brand-new player reveal.</div></div><span class="pill">'+rows.length+' retracted</span></div><div class="stack" style="margin-top:12px">'+(rows.length?rows.map(r=>'<div class="meaning-row row" style="justify-content:space-between;gap:10px"><div><b>'+escapeHTML(r.title)+'</b><div class="muted" style="font-size:10px">'+escapeHTML(r.copy)+'</div></div><div class="row" style="gap:8px;flex:0 0 auto"><button class="btn" data-republish-kind="'+r.kind+'" data-republish-id="'+escapeHTML(r.id)+'">'+(r.kind==='inscription'?'Reveal':'Republish')+'</button><button class="btn ghost" data-delete-retraction-kind="'+r.kind+'" data-delete-retraction-id="'+escapeHTML(r.id)+'">Delete</button></div></div>').join(''):'<div class="muted">Nothing is currently retracted.</div>')+'</div>';
     card.querySelectorAll('[data-republish-kind]').forEach(b=>b.onclick=()=>{
       const kind=b.dataset.republishKind,id=b.dataset.republishId;
       if(kind==='root')republishPlayerRoot(id);
       else if(kind==='compound')republishPlayerCompound(id);
       else republishPlayerInscription(id);
+    });
+    card.querySelectorAll('[data-delete-retraction-kind]').forEach(b=>b.onclick=()=>{
+      deletePlayerRetraction(b.dataset.deleteRetractionKind,b.dataset.deleteRetractionId);
     });
   }
 
