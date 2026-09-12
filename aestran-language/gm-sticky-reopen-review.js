@@ -1,7 +1,7 @@
-/* Aestran GM sticky Reopen & Review control v2 */
+/* Aestran GM sticky Reopen & Review control v3 */
 (function(){
-  if(window.__aestraStickyReopenReviewV2)return;
-  window.__aestraStickyReopenReviewV2=true;
+  if(window.__aestraStickyReopenReviewV3)return;
+  window.__aestraStickyReopenReviewV3=true;
 
   const style=document.createElement('style');
   style.textContent=`
@@ -141,6 +141,15 @@
   }
 
   function refresh(){
+    // The floating review control belongs only to the Glyph Design screen.
+    // The real review button can remain mounted in the DOM after navigating away,
+    // so page state must be checked before looking for that button.
+    if(!glyphDesignActive()){
+      target=null;
+      dock.classList.remove('show');
+      return;
+    }
+
     target=findTarget();
 
     if(!target){
