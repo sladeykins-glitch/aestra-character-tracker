@@ -1,4 +1,4 @@
-/* Aestran GM retract / republish player content v1 */
+/* Aestran GM retract / republish player content v2 — inscription hide / reveal UX */
 (function(){
   if(window.__aestraPlayerRetractions)return;
   window.__aestraPlayerRetractions=true;
@@ -142,10 +142,10 @@
 
   window.retractPlayerInscription=async function(id){
     const i=(appState.inscriptions||[]).find(x=>x.id===id);if(!i||!i.published)return;
-    if(!confirm('Retract “'+(i.title||'this inscription')+'” from players?\n\nIt will disappear from their Archive, but it stays saved on the GM side.'))return;
+    if(!confirm('Hide “'+(i.title||'this inscription')+'” from players?\n\nIt will disappear from their Archive, but stay saved on the GM side. You can reveal it again at any time.'))return;
     appState.playerRetractions.inscriptions[id]={id,title:i.title||'Recovered inscription',ready:!!i.ready,retractedAt:new Date().toISOString()};
     i.published=false;i.ready=false;
-    await pushCurrentPlayerState('Retracted '+(i.title||'inscription')+' from players.');
+    await pushCurrentPlayerState('Hidden '+(i.title||'inscription')+' from players.');
   };
 
   window.republishPlayerRoot=async function(id){
@@ -194,7 +194,7 @@
     const rec=appState.playerRetractions.inscriptions[id],i=(appState.inscriptions||[]).find(x=>x.id===id);if(!rec||!i)return;
     i.published=true;i.ready=false;
     delete appState.playerRetractions.inscriptions[id];
-    await pushCurrentPlayerState('Republished '+(i.title||'inscription')+' to the Player Archive.');
+    await pushCurrentPlayerState('Revealed '+(i.title||'inscription')+' to the Player Archive.');
   };
 
   function knownPlayerItems(){
@@ -237,9 +237,9 @@
     host.querySelectorAll('[data-player-inscription-action]').forEach(x=>x.remove());
     const rec=appState.playerRetractions.inscriptions[id];
     if(i.published){
-      const btn=document.createElement('button');btn.className='btn ghost';btn.dataset.playerInscriptionAction='retract';btn.textContent='Retract from Players';btn.style.marginTop='8px';btn.onclick=()=>retractPlayerInscription(id);host.appendChild(btn);
+      const btn=document.createElement('button');btn.className='btn ghost';btn.dataset.playerInscriptionAction='hide';btn.textContent='Hide from Players';btn.style.marginTop='8px';btn.onclick=()=>retractPlayerInscription(id);host.appendChild(btn);
     }else if(rec){
-      const btn=document.createElement('button');btn.className='btn';btn.dataset.playerInscriptionAction='republish';btn.textContent='Republish to Players';btn.style.marginTop='8px';btn.onclick=()=>republishPlayerInscription(id);host.appendChild(btn);
+      const btn=document.createElement('button');btn.className='btn';btn.dataset.playerInscriptionAction='reveal';btn.textContent='Reveal to Players';btn.style.marginTop='8px';btn.onclick=()=>republishPlayerInscription(id);host.appendChild(btn);
     }
   }
 
@@ -247,7 +247,7 @@
     const rows=[];
     Object.values(appState.playerRetractions.roots||{}).forEach(r=>rows.push({kind:'root',id:r.id,title:r.id,copy:'Basic Sign · '+[...(r.confirmed||[]),...(r.suspected||[])].join(' · ')}));
     Object.values(appState.playerRetractions.compounds||{}).forEach(r=>rows.push({kind:'compound',id:r.id,title:r.id,copy:'Built Word'+(r.known?' · word name':'')}));
-    Object.values(appState.playerRetractions.inscriptions||{}).forEach(r=>rows.push({kind:'inscription',id:r.id,title:r.title||r.id,copy:'Saved inscription'}));
+    Object.values(appState.playerRetractions.inscriptions||{}).forEach(r=>rows.push({kind:'inscription',id:r.id,title:r.title||r.id,copy:'Hidden inscription · kept in GM archive'}));
     return rows;
   }
 
@@ -259,7 +259,7 @@
       impact.closest('.card')?.insertAdjacentElement('afterend',card);
     }
     const rows=retractionRows();
-    card.innerHTML='<div class="row" style="justify-content:space-between;align-items:flex-start"><div><h3>Retracted from Players</h3><div class="muted">GM content kept safely here. Republish restores it and generates a brand-new player reveal.</div></div><span class="pill">'+rows.length+' retracted</span></div><div class="stack" style="margin-top:12px">'+(rows.length?rows.map(r=>'<div class="meaning-row row" style="justify-content:space-between;gap:10px"><div><b>'+escapeHTML(r.title)+'</b><div class="muted" style="font-size:10px">'+escapeHTML(r.copy)+'</div></div><button class="btn" data-republish-kind="'+r.kind+'" data-republish-id="'+escapeHTML(r.id)+'">Republish</button></div>').join(''):'<div class="muted">Nothing is currently retracted.</div>')+'</div>';
+    card.innerHTML='<div class="row" style="justify-content:space-between;align-items:flex-start"><div><h3>Retracted from Players</h3><div class="muted">GM content kept safely here. Republish restores it and generates a brand-new player reveal.</div></div><span class="pill">'+rows.length+' retracted</span></div><div class="stack" style="margin-top:12px">'+(rows.length?rows.map(r=>'<div class="meaning-row row" style="justify-content:space-between;gap:10px"><div><b>'+escapeHTML(r.title)+'</b><div class="muted" style="font-size:10px">'+escapeHTML(r.copy)+'</div></div><button class="btn" data-republish-kind="'+r.kind+'" data-republish-id="'+escapeHTML(r.id)+'">'+(r.kind==='inscription'?'Reveal':'Republish')+'</button></div>').join(''):'<div class="muted">Nothing is currently retracted.</div>')+'</div>';
     card.querySelectorAll('[data-republish-kind]').forEach(b=>b.onclick=()=>{
       const kind=b.dataset.republishKind,id=b.dataset.republishId;
       if(kind==='root')republishPlayerRoot(id);
