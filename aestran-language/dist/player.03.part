@@ -1,17 +1,29 @@
-Array(x.inscriptions)}
+se,"svgPath":"M 23 59 L 41 32 L 59 32 L 77 59 M 32 68 L 50 50 L 68 68","writeOrder":[[1,5,3,2],[3,2,5,2],[5,2,7,5],[2,6,4,4],[4,4,6,6]],"writeOrderRule":""},{"id":"ROOT_052","kind":"root","meanings":[],"suspected":[],"discovered":false,"svgPath":"M 23 23 L 77 23 L 77 77 L 32 77 L 32 41 L 59 41 L 59 59 L 50 59","writeOrder":[[1,1,7,1],[7,1,7,7],[7,7,2,7],[2,7,2,3],[2,3,5,3],[5,3,5,5],[5,5,4,5]],"writeOrderRule":""},{"id":"ROOT_053","kind":"root","meanings":[],"suspected":[],"discovered":false,"svgPath":"M 50 23 L 59 41 L 77 41 L 59 59 L 50 77 L 41 59 L 23 41 L 41 41 Z","writeOrder":[[4,1,5,3],[5,3,7,3],[7,3,5,5],[5,5,4,7],[4,7,3,5],[3,5,1,3],[1,3,3,3],[3,3,4,1]],"writeOrderRule":""}],"compounds":[{"id":"WORD_001","kind":"compound","known":false,"tree":{"rel":"inside","a":"ROOT_013","b":"ROOT_017"},"canonicalPath":"M 50 23 L 68 50 L 50 77 L 32 50 Z M 32 50 L 50 59 L 68 50","writeOrder":[[4,1,6,4],[6,4,4,7],[4,7,2,4],[2,4,4,1],[2,4,4,5],[4,5,6,4]],"writeOrderRule":""},{"id":"WORD_002","kind":"compound","known":false,"tree":{"rel":"inside","a":"ROOT_013","b":"ROOT_009"},"canonicalPath":"M 50 14 L 68 32 L 59 77 L 41 77 L 32 32 Z M 41 50 L 59 50","writeOrder":[[4,0,6,2],[6,2,5,7],[5,7,3,7],[3,7,2,2],[2,2,4,0],[3,4,5,4]],"writeOrderRule":""},{"id":"WORD_003","kind":"compound","known":false,"tree":{"rel":"inside","a":"ROOT_023","b":"ROOT_009"},"canonicalPath":"M 32 23 L 68 23 L 68 77 L 32 77 L 23 59 L 23 41 Z M 41 41 L 59 50 L 41 59","writeOrder":[[2,1,6,1],[6,1,6,7],[6,7,2,7],[2,7,1,5],[1,5,1,3],[1,3,2,1],[3,3,5,4],[5,4,3,5]],"writeOrderRule":""},{"id":"WORD_004","kind":"compound","known":false,"tree":{"rel":"inside","a":"ROOT_022","b":"ROOT_017"},"canonicalPath":"M 50 14 L 77 50 L 50 86 L 23 50 Z M 50 32 L 50 68 M 41 50 L 59 50","writeOrder":[[4,0,7,4],[7,4,4,8],[4,8,1,4],[1,4,4,0],[4,2,4,6],[3,4,5,4]],"writeOrderRule":""},{"id":"WORD_005","kind":"compound","known":false,"tree":{"rel":"inside","a":"ROOT_008","b":"ROOT_007"},"canonicalPath":"M 23 32 L 50 23 L 77 32 M 23 68 L 50 77 L 77 68 M 32 41 L 68 59 M 68 41 L 32 59","writeOrder":[[1,2,4,1],[4,1,7,2],[1,6,4,7],[4,7,7,6],[2,3,6,5],[6,3,2,5]],"writeOrderRule":""},{"id":"WORD_006","kind":"compound","known":false,"tree":{"rel":"inside","a":{"rel":"inside","a":"ROOT_013","b":"ROOT_014"},"b":"ROOT_051"},"canonicalPath":"M 59 23 L 32 32 L 23 50 L 32 68 L 59 77 M 50 32 L 68 50 L 50 68","writeOrder":[[5,1,2,2],[2,2,1,4],[1,4,2,6],[2,6,5,7],[4,2,6,4],[6,4,4,6]],"writeOrderRule":""},{"id":"WORD_007","kind":"compound","known":false,"tree":{"rel":"joined","a":"WORD_001","b":"ROOT_033"},"canonicalPath":"M 32 77 L 32 50 L 50 32 L 68 50 L 68 77 M 50 32 L 50 23","writeOrder":[[2,7,2,4],[2,4,4,2],[4,2,6,4],[6,4,6,7],[4,2,4,1]],"writeOrderRule":""},{"id":"WORD_008","kind":"compound","known":false,"tree":{"rel":"below","a":"WORD_001","b":"ROOT_008"},"canonicalPath":"M 23 50 L 77 50 M 50 50 L 41 59 L 50 77 L 59 59 Z","writeOrder":[[1,4,7,4],[4,4,3,5],[3,5,4,7],[4,7,5,5],[5,5,4,4]],"writeOrderRule":""},{"id":"WORD_009","kind":"compound","known":false,"tree":{"rel":"joined","a":"ROOT_024","b":"ROOT_048"},"canonicalPath":"M 23 32 L 50 50 L 77 32 M 23 68 L 50 50 L 77 68 M 50 23 L 50 77","writeOrder":[[1,2,4,4],[4,4,7,2],[1,6,4,4],[4,4,7,6],[4,1,4,7]],"writeOrderRule":""},{"id":"WORD_010","kind":"compound","known":false,"tree":{"rel":"inside","a":"ROOT_014","b":"ROOT_022"},"canonicalPath":"M 23 23 L 41 32 L 59 23 L 77 32 M 32 59 L 50 41 L 68 59 L 50 77 Z","writeOrder":[[1,1,3,2],[3,2,5,1],[5,1,7,2],[2,5,4,3],[4,3,6,5],[6,5,4,7],[4,7,2,5]],"writeOrderRule":""}],"relationships":[{"id":"inside","reading":"A within B","layout":"host/guest","collisionAllowed":false},{"id":"surround","reading":"A surrounds B","layout":"outer/inner","collisionAllowed":false},{"id":"above","reading":"A above B","layout":"vertical bands","collisionAllowed":false},{"id":"below","reading":"A below B","layout":"vertical bands","collisionAllowed":false},{"id":"joined","reading":"A joined to B","layout":"left/right + connector","collisionAllowed":false},{"id":"fused","reading":"A fused with B","layout":"shared strokes","collisionAllowed":true},{"id":"mirrored","reading":"A mirrored with B","layout":"balanced halves","collisionAllowed":false},{"id":"crossed","reading":"A crosses B","layout":"designated crossing","collisionAllowed":true}],"modifiers":["NEGATE","PAST","FUTURE","ONGOING","MANY","INTENSE","WEAKENED","CAUSE","FROM","TOWARD"],"inscriptions":[{"id":"rub-fragment","title":"Rübenberg Fragment","units":["WORD_006","ROOT_005","WORD_005","WORD_007"],"style":"natural","playerNote":"","published":true},{"id":"relic-chamber","title":"Relic Chamber Inscription","units":["ROOT_023","WORD_002"],"style":"natural","playerNote":"","published":true}],"discoveries":[],"knowledgeEpoch":1}</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0"></script>
+<script>
+(()=>{
+const LIVE_CONFIG={url:'https://pbsfiwzwdseslvnprcph.supabase.co',publishableKey:'sb_publishable_uE7LjZhZf2dXuza1vpGtSQ_CZaR7xFH',campaignId:'00000000-0000-0000-0000-000000000001'};
+const BUNDLED=JSON.parse(document.getElementById('bundledSnapshot').textContent);
+const STORE='aestra-player-build-v2',NOTE_STORE='aestra-player-notes-v1',LAYOUT_STORE='aestra-player-lexicon-layout-v1';
+let SNAP=loadSavedSnapshot()||structuredClone(BUNDLED),notes=readJSON(NOTE_STORE,{})||{},bubbleLayout=readJSON(LAYOUT_STORE,{})||{};
+let selectedGlyph=null,bubbleRAF=null,bubbles=[],drag=null;
+let liveClient=null,liveSession=null,liveChannel=null,liveJoined=false,pendingInvite=new URLSearchParams(location.search).get('invite')||'',liveAuthSubscription=null,liveToastTimer=null;
+const remoteNoteTimers=new Map();
+const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function readJSON(k,fallback){try{return JSON.parse(localStorage.getItem(k))??fallback}catch{return fallback}}
+function loadSavedSnapshot(){const x=readJSON(STORE,null);return validSnapshot(x)&&x.knowledgeEpoch===1?x:null}
+function validSnapshot(x){return !!x&&x.kind==='aestra-player-snapshot'&&Array.isArray(x.roots)&&Array.isArray(x.compounds)&&Array.isArray(x.inscriptions)}
 function saveSnapshot(){try{localStorage.setItem(STORE,JSON.stringify(SNAP))}catch{}}
 function saveNotes(){try{localStorage.setItem(NOTE_STORE,JSON.stringify(notes))}catch{}}
 function saveLayout(){try{localStorage.setItem(LAYOUT_STORE,JSON.stringify(bubbleLayout))}catch{}}
 function liveStatus(message,tone=''){
   const status=$('liveSyncStatus');if(status){status.textContent=message;status.className='live-status'+(tone?' '+tone:'')}
-  const pill=$('liveSyncPill');if(pill){pill.textContent=liveSession?(liveJoined?'Live':'Signed in'):'Offline';pill.className='pill live-pill'+(liveJoined?' online':liveSession?' warn':'')}
+  const pill=$('liveSyncPill');if(pill){pill.textContent=liveJoined?'Live':'Connecting';pill.className='pill live-pill'+(liveJoined?' online':' warn')}
 }
 function openLiveModal(){const m=$('liveSyncModal');if(m){m.classList.add('open');m.setAttribute('aria-hidden','false')}}
 function closeLiveModal(){const m=$('liveSyncModal');if(m){m.classList.remove('open');m.setAttribute('aria-hidden','true')}}
 function renderLiveIdentity(){
-  const signed=!!liveSession;$('liveSignedOut').style.display=signed?'none':'block';$('liveSignedIn').style.display=signed?'block':'none';
-  if(signed)$('liveIdentity').innerHTML=`<b>${esc(liveSession.user.email||'Signed-in player')}</b><div class="muted" style="margin-top:3px">${liveJoined?'Joined to Aestra · automatic updates active':'Signed in · not joined to Aestra yet'}</div>`;
-  liveStatus(signed?(liveJoined?'Connected to Aestra. New releases will arrive automatically.':pendingInvite?'Invite ready. Joining Aestra…':'Signed in, but this account has not joined Aestra.'):'Offline. Manual snapshot loading still works.',signed?(liveJoined?'good':'warn'):'');
+  liveStatus(liveJoined?'Connected to Aestra · new releases arrive automatically.':'Connecting to the shared Aestra archive…',liveJoined?'good':'warn');
 }
 function discoveryKey(x,i=0){return String(x?.id||x?.key||`${x?.label||'discovery'}|${x?.description||''}|${i}`)}
 function showLiveToast({discoveries=0,inscriptions=0}={}){
@@ -38,38 +50,33 @@ async function joinPendingInvite(){
   return true;
 }
 async function fetchRemoteSnapshot({quiet=false}={}){
-  if(!liveClient||!liveSession)return false;
+  if(!liveClient)return false;
   const {data,error}=await liveClient.from('aestran_language_public').select('published_version,public_state,updated_at').eq('campaign_id',LIVE_CONFIG.campaignId).maybeSingle();
-  if(error){liveJoined=false;if(!quiet)liveStatus('Could not read the Aestra player snapshot: '+error.message,'warn');renderLiveIdentity();return false}
-  if(!data||!validSnapshot(data.public_state)){liveJoined=false;if(!quiet)liveStatus('Signed in, but this account has not joined Aestra. Open the GM invite link with this account.','warn');renderLiveIdentity();return false}
-  liveJoined=true;applyRemoteSnapshot(data.public_state);renderLiveIdentity();if(!quiet)$('snapshotStatus').textContent=`Live snapshot loaded · v${SNAP.publishedVersion||data.published_version||'—'}.`;return true;
+  if(error){liveJoined=false;if(!quiet)liveStatus('Could not reach the Aestra archive. Using the last saved copy on this device.','warn');renderLiveIdentity();return false}
+  if(!data||!validSnapshot(data.public_state)){liveJoined=false;if(!quiet)liveStatus('The Aestra archive is not available yet.','warn');renderLiveIdentity();return false}
+  liveJoined=true;applyRemoteSnapshot(data.public_state);renderLiveIdentity();
+  if(!quiet)$('snapshotStatus').textContent=`Live snapshot loaded · v${SNAP.publishedVersion||data.published_version||'—'}.`;
+  return true;
 }
-async function loadRemoteNotes(){
-  if(!liveClient||!liveSession||!liveJoined)return;
-  const {data,error}=await liveClient.from('aestran_language_notes').select('inscription_id,note,updated_at').eq('campaign_id',LIVE_CONFIG.campaignId).eq('user_id',liveSession.user.id);
-  if(error){liveStatus('Snapshot is live, but private notes could not sync: '+error.message,'warn');return}
-  (data||[]).forEach(r=>{notes[r.inscription_id]=r.note});saveNotes();renderArchive();
-}
-async function saveRemoteNote(inscriptionId,note){
-  if(!liveClient||!liveSession||!liveJoined)return;
-  const row={campaign_id:LIVE_CONFIG.campaignId,user_id:liveSession.user.id,inscription_id:inscriptionId,note,updated_at:new Date().toISOString()};
-  const {error}=await liveClient.from('aestran_language_notes').upsert(row,{onConflict:'campaign_id,user_id,inscription_id'});
-  const marker=document.querySelector(`[data-note-sync="${CSS.escape(inscriptionId)}"]`);if(marker)marker.textContent=error?'Saved locally · cloud retry later':'Saved privately';
-  if(error)liveStatus('Your note is safe locally, but cloud note sync failed: '+error.message,'warn');
-}
-function scheduleRemoteNote(inscriptionId,note){
-  clearTimeout(remoteNoteTimers.get(inscriptionId));if(!liveJoined)return;const timer=setTimeout(()=>{remoteNoteTimers.delete(inscriptionId);saveRemoteNote(inscriptionId,note)},650);remoteNoteTimers.set(inscriptionId,timer)
-}
+async function loadRemoteNotes(){return}
+async function saveRemoteNote(inscriptionId,note){return}
+function scheduleRemoteNote(inscriptionId,note){return}
 function stopLiveChannel(){if(liveClient&&liveChannel)liveClient.removeChannel(liveChannel);liveChannel=null}
 function subscribeLiveUpdates(){
-  stopLiveChannel();if(!liveClient||!liveSession||!liveJoined)return;
-  liveChannel=liveClient.channel('aestran-player-'+LIVE_CONFIG.campaignId).on('postgres_changes',{event:'*',schema:'public',table:'aestran_language_public',filter:'campaign_id=eq.'+LIVE_CONFIG.campaignId},payload=>{
-    const next=payload.new?.public_state;if(validSnapshot(next)){applyRemoteSnapshot(next,{realtime:true});liveStatus('Aestra updated just now.','good')}
-  }).subscribe(status=>{if(status==='SUBSCRIBED')liveStatus('Connected to Aestra · listening for new releases.','good');else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT')liveStatus('Live updates paused. Use Sync now to retry.','warn')})
+  stopLiveChannel();if(!liveClient||!liveJoined)return;
+  liveChannel=liveClient.channel('aestran-player-shared-'+LIVE_CONFIG.campaignId).on('postgres_changes',{event:'*',schema:'public',table:'aestran_language_public',filter:'campaign_id=eq.'+LIVE_CONFIG.campaignId},payload=>{
+    const next=payload.new?.public_state;
+    if(validSnapshot(next)){applyRemoteSnapshot(next,{realtime:true});liveStatus('Aestra updated just now.','good')}
+  }).subscribe(status=>{
+    if(status==='SUBSCRIBED')liveStatus('Connected to Aestra · new releases arrive automatically.','good');
+    else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT')liveStatus('Live updates paused. Tap Sync now to retry.','warn')
+  })
 }
 async function connectLiveCampaign(){
-  if(!liveSession)return false;if(pendingInvite){const ok=await joinPendingInvite();if(!ok){renderLiveIdentity();return false}}
-  const ok=await fetchRemoteSnapshot();if(ok){await loadRemoteNotes();subscribeLiveUpdates()}renderLiveIdentity();return ok
+  const ok=await fetchRemoteSnapshot();
+  if(ok)subscribeLiveUpdates();
+  renderLiveIdentity();
+  return ok;
 }
 async function handleLiveSession(session){
   liveSession=session||null;liveJoined=false;stopLiveChannel();renderLiveIdentity();if(liveSession)await connectLiveCampaign();
@@ -81,36 +88,7 @@ async function liveSignUp(){
   if(!liveClient)return;const email=$('liveEmail').value.trim(),password=$('livePassword').value;if(!email||password.length<6){liveStatus('Enter an email and a password of at least 6 characters.','warn');return}liveStatus('Creating account…');const {data,error}=await liveClient.auth.signUp({email,password});if(error)liveStatus('Account creation failed: '+error.message,'warn');else if(!data.session)liveStatus('Account created. Confirm the email if Supabase asks you to, then return to this invite link and sign in.','good')
 }
 async function initLiveSync(){
-  $('openLiveSync').onclick=openLiveModal;$('closeLiveSync').onclick=closeLiveModal;$('liveSyncModal').onclick=e=>{if(e.target===$('liveSyncModal'))closeLiveModal()};document.addEventListener('keydown',e=>{if(e.key==='Escape')closeLiveModal()});$('liveToastDismiss').onclick=()=>$('liveToast').classList.remove('show');$('liveToastOpen').onclick=()=>{$('liveToast').classList.remove('show');showScreen($('liveToastOpen').dataset.target||'discoveries')};
-  if(!window.supabase?.createClient){liveStatus('Live sync library could not load. Manual snapshot loading remains available.','warn');return}
-  liveClient=window.supabase.createClient(LIVE_CONFIG.url,LIVE_CONFIG.publishableKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
-  $('liveSignIn').onclick=liveSignIn;$('liveSignUp').onclick=liveSignUp;$('liveSignOut').onclick=()=>liveClient.auth.signOut();$('liveRefresh').onclick=async()=>{liveStatus('Refreshing Aestra…');const ok=await connectLiveCampaign();if(ok)$('snapshotStatus').textContent=`Live sync refreshed · v${SNAP.publishedVersion||'—'}.`};
-  const {data:{session}}=await liveClient.auth.getSession();await handleLiveSession(session);
-  const sub=liveClient.auth.onAuthStateChange((_event,session)=>setTimeout(()=>handleLiveSession(session),0));liveAuthSubscription=sub.data?.subscription||null;
-  if(pendingInvite)openLiveModal();
-}
-const rootMap=()=>Object.fromEntries(SNAP.roots.map(x=>[x.id,x])),compoundMap=()=>Object.fromEntries(SNAP.compounds.map(x=>[x.id,x]));
-function knownRoots(){return SNAP.roots.filter(r=>r.discovered!==false&&((r.meanings||[]).length||(r.suspected||[]).length))}
-function knownCompounds(){return SNAP.compounds.filter(c=>c.known)}
-function runePath(id){return rootMap()[id]?.svgPath||compoundMap()[id]?.canonicalPath||''}
-function runeSVG(id,size=72){const p=runePath(id);return `<svg viewBox="0 0 100 100" style="width:${size}px;height:${size}px" aria-label="${esc(id)} glyph"><path d="${esc(p)}"/></svg>`}
-function rootReading(id){const r=rootMap()[id];if(!r)return '???';if((r.meanings||[]).length)return r.meanings[0];if((r.suspected||[]).length)return r.suspected[0]+' ?';return '???'}
-const REL={inside:'inside',surrounding:'around',above:'above',below:'below',joined:'joined',fused:'fused with',crossed:'crossing',mirrored:'mirrored with',repeated:'repeated with'};
-function treeReading(node){if(typeof node==='string'){const c=compoundMap()[node];if(c?.known)return node.toLowerCase();const r=rootMap()[node];if(r)return rootReading(node);if(c)return treeReading(c.tree);return '???'}if(!node||typeof node!=='object'||!node.rel)return '???';return `${treeReading(node.a)} ${REL[node.rel]||node.rel} ${treeReading(node.b)}`}
-function conceptReading(id){const r=rootMap()[id];if(r)return rootReading(id);const c=compoundMap()[id];if(!c)return '???';return c.known?id.toLowerCase():treeReading(c.tree)}
-function renderUnits(units){return `<div class="glyphline">${(units||[]).map(id=>`<div class="glyphcard">${runeSVG(id,72)}</div>`).join('')}</div>`}
-function showScreen(id){
-  const meta={archive:['Inscription archive','Recovered inscriptions change as your understanding grows.'],discoveries:['Discoveries','The language remembers each moment of understanding.'],lexicon:['Party lexicon','Every sign the party can currently recognise.'],draw:['Glyph analysis','Draw, analyse and practise known Aestran signs.']}[id];
-  if(!meta)return;
-  if(id!=='draw'&&typeof cancelGoldRetrace==='function'){
-    clearPracticeTimer();
-    if(randomReferenceActive){randomReferenceActive=false;randomReferenceTarget=null;resetDrawingState();setDrawMode('Free draw',freeDrawModeCopy(),'good');$('drawResult').innerHTML='Draw something first.';$('drawResultCard').classList.remove('answered')}
-    else if(practicePhase==='demo'){practicePhase='idle';practiceTarget=null;setPracticeDemoControls(false);resetDrawingState();setDrawMode('Free draw',freeDrawModeCopy(),'good');$('drawResult').innerHTML='Draw something first.';$('drawResultCard').classList.remove('answered')}
-    else if(analysisInProgress){analysisInProgress=false;cancelGoldRetrace();if(practicePhase==='draw'&&practiceTarget)setDrawMode('Practice · Your turn','Keep refining <b>'+esc(practiceTarget.id)+'</b>, then analyse again when you are ready.','good');else setDrawMode('Free draw',freeDrawModeCopy(),'good')}
-    else cancelGoldRetrace();
-  }
-  document.querySelectorAll('.screen').forEach(x=>x.classList.toggle('active',x.id===id));document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('active',x.dataset.screen===id));$('pageTitle').textContent=meta[0];$('pageSub').textContent=meta[1];if(id==='lexicon')startBubbles();else stopBubbles();window.scrollTo({top:0,behavior:'smooth'})
-}
-document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>showScreen(b.dataset.screen));
-function renderArchive(){const list=$('archiveList'),items=SNAP.inscriptions||[];$('archiveCount').textContent=`${items.length} inscription${items.length===1?'':'s'}`;list.innerHTML=items.length?items.map(i=>`<article class="archive-item"><div class="archive-head"><div><div class="archive-title">${esc(i.title||'Recovered inscription')}</div><div class="muted" style="font-size:11px">${esc(i.style||'natural')}</div></div><span class="pill">${(i.units||[]).length} signs</span></div>${renderUnits(i.units)}<div class="reading"><h3>Decoder reading</h3><div style="margin-top:5px">${(i.units||[]).map(x=>`<span class="${conceptReading(x)==='???'?'unknown':''}">${esc(conceptReading(x))}</span>`).join(' · ')}</div></div><div class="note"><h3>Your interpretation</h3><textarea rows="2" data-note="${esc(i.id)}" placeholder="Write your interpretation…">${esc(notes[i.id]??i.playerNote??'')}</textarea><span class="note-sync" data-note-sync="${esc(i.id)}">${liveJoined?'Private sync ready':'Saved locally'}</span></div></article>`).join(''):`<div class="empty" style="margin-top:16px">No inscriptions have been released to the party yet.</div>`;list.querySelectorAll('[data-note]').forEach(t=>t.oninput=()=>{notes[t.dataset.note]=t.value;saveNotes();const marker=document.querySelector(`[data-note-sync="${CSS.escape(t.dataset.note)}"]`);if(marker)marker.textContent=liveJoined?'Saving privately…':'Saved locally';scheduleRemoteNote(t.dataset.note,t.value)})}
-function renderDiscoveries(){const d=[...(SNAP.discoveries||[])].reverse();$('discoveryCount').textContent=`${d.length} discover${d.length===1?'y':'ies'}`;$('timeline').innerHTML=d.length?d.map(x=>`<div class="discovery"
+  $('liveToastDismiss').onclick=()=>$('liveToast').classList.remove('show');
+  $('liveToastOpen').onclick=()=>{$('liveToast').classList.remove('show');showScreen($('liveToastOpen').dataset.target||'discoveries')};
+  $('openLiveSync').onclick=async()=>{
+    liveStatus
