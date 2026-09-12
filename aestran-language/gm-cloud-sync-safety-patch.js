@@ -22,6 +22,18 @@
     const ms=value?Date.parse(value):0;
     return Number.isFinite(ms)?ms:0;
   }
+  function workspaceRichness(snap){
+    if(!snap||typeof snap!=='object')return {roots:0,customRoots:0,customCompounds:0,inscriptions:0};
+    const fullRoots=Array.isArray(snap.fullRoots)?snap.fullRoots.length:0;
+    const customRoots=Array.isArray(snap.customRoots)?snap.customRoots.length:0;
+    const customCompounds=Array.isArray(snap.customCompounds)?snap.customCompounds.length:0;
+    const inscriptions=Array.isArray(snap.state?.inscriptions)?snap.state.inscriptions.length:0;
+    return {roots:fullRoots,customRoots,customCompounds,inscriptions};
+  }
+  function isStructurallyRicher(local,cloud){
+    const a=workspaceRichness(local),b=workspaceRichness(cloud);
+    return a.roots>b.roots||a.customRoots>b.customRoots||a.customCompounds>b.customCompounds||a.inscriptions>b.inscriptions;
+  }
   function stampCloudWorkspace(row){
     const snap=clone(row.private_state);
     snap.savedAt=row.updated_at||snap.savedAt||new Date().toISOString();
@@ -55,6 +67,14 @@
       const threshold=2500;
 
       if(row?.private_state&&row.private_state.state){
+        const localSnap=parsedLocalWorkspace()||workspaceBootstrap||workspaceSnapshot();
+        if(isStructurallyRicher(localSnap,row.private_state)){
+          syncResolved=true;
+          liveSyncStatus('This browser contains additional GM content not present in the cloud copy. Keeping the richer browser workspace and repairing the private cloud backup…','good');
+          await originalSaveLiveDraft(workspaceSnapshot(),{quiet:true});
+          liveSyncStatus('Connected · richer browser workspace preserved and backed up privately to cloud.','good');
+          return true;
+        }
         if(cloudMs>localMs+threshold){
           const cloudSnap=stampCloudWorkspace(row);
           localStorage.setItem(WORKSPACE_STORAGE_KEY,JSON.stringify(cloudSnap));
