@@ -85,21 +85,20 @@
   }
 
   function findTarget(){
+    // This is the actual Glyph design revision control created by renderAuditDetail().
+    const exact=document.getElementById('toggleRuneReviewed');
+    if(exact&&!dock.contains(exact))return exact;
+
+    // Fallbacks for older/newer builds where the id may change.
     const likely=[...document.querySelectorAll(
       'button,a,[role="button"],summary,input[type="button"],input[type="submit"],[onclick],[data-action],[data-review],[class*="review"],[id*="review"],[class*="reopen"],[id*="reopen"]'
     )];
 
     for(const el of likely){
-      if(matchesReview(el))return clickable(el);
-    }
-
-    // Fallback for custom clickable containers whose visible label is the only clue.
-    const all=[...document.querySelectorAll('body *')];
-    for(const el of all){
       if(dock.contains(el))continue;
-      const t=text(el);
-      if(t.length>90)continue;
-      if(/reopen/i.test(t)&&/review/i.test(t))return clickable(el);
+      const t=text(el).toLowerCase();
+      if(t==='mark looks good'||t.includes('re-open review')||t.includes('reopen review'))return clickable(el);
+      if(matchesReview(el))return clickable(el);
     }
     return null;
   }
@@ -133,6 +132,9 @@
     try{
       if(typeof lexSelected!=='undefined'&&lexSelected)return String(lexSelected);
       if(appState?.selectedLex)return String(appState.selectedLex);
+      if(appState?.selectedAudit)return String(appState.selectedAudit);
+    }catch(_){}
+    try{
       if(appState?.selectedAudit)return String(appState.selectedAudit);
     }catch(_){}
     return 'Glyph design';
