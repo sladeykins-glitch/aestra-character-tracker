@@ -32,15 +32,17 @@ html,body{height:100%;margin:0;background:#0b0f15;color:#f0eee7;font-family:syst
       }
       localStorage.removeItem('aestra-player-preview-build-v1');
     }else{
-      localStorage.removeItem('aestra-player-build-v2');
+      localStorage.removeItem('aestra-player-build-v2');localStorage.removeItem('aestra-player-build-v4');
     }
 
     const names=['dist/player.00.part','dist/player.01.part','dist/player.02.part','dist/player.03.part','dist/player.04.part','dist/player.05.part','dist/player.06.part','dist/player.07.part'];
-    let html=(await Promise.all(names.map(n=>fetch(n+'?v=20260912-shared-v1',{cache:'no-store'}).then(r=>{if(!r.ok)throw Error(n+' '+r.status);return r.text()})))).join('');
+    let html=(await Promise.all(names.map(n=>fetch(n+'?v=20260912-retract-v2',{cache:'no-store'}).then(r=>{if(!r.ok)throw Error(n+' '+r.status);return r.text()})))).join('');
 
     html=html.replace("LAYOUT_STORE='aestra-player-lexicon-layout-v1'","LAYOUT_STORE='"+(PREVIEW?'aestra-gm-player-preview-layout-v1':'aestra-player-lexicon-layout-v2')+"'");
     html=html.replace("NOTE_STORE='aestra-player-notes-v1'","NOTE_STORE='"+(PREVIEW?'aestra-gm-player-preview-notes-v1':'aestra-player-notes-v1')+"'");
     html=html.replace(/function lexiconBubbleMetrics\(count,stageWidth=0\)\{[\s\S]*?return\{visual,hit,gap,cols,rows,height,density,width\};\n\}/,"function lexiconBubbleMetrics(count,stageWidth=0){\n  const vw=Math.max(320,window.innerWidth||1200),width=Math.max(260,stageWidth||vw-40);\n  let visual=104,hit=104,gap=10,minHeight=620,density='normal';\n  if(vw<=620){\n    visual=count<=12?58:count<=24?50:count<=40?44:38;\n    hit=Math.max(46,visual+8);gap=4;minHeight=420;density=visual<=44?'micro':'small';\n  }else if(vw<=980){\n    visual=count<=18?86:count<=34?78:70;\n    hit=Math.max(78,visual+8);gap=8;minHeight=540;density=visual<=78?'small':'normal';\n  }\n  let cols=Math.max(vw<=620?5:4,Math.floor((width-(vw<=620?18:24))/(hit+gap)));\n  if(vw<=620)cols=Math.min(7,cols);\n  const rows=Math.max(1,Math.ceil(Math.max(1,count)/cols));\n  const height=vw<=620?Math.max(minHeight,26+rows*(hit+gap)+18):vw<=980?Math.max(minHeight,34+rows*(hit+gap)+24):minHeight;\n  return{visual,hit,gap,cols,rows,height,density,width};\n}");
+
+    html=html.replace("if(realtime&&(newDiscoveries.length||newInscriptions.length))showLiveToast({discoveries:newDiscoveries.length,inscriptions:newInscriptions.length});","if(realtime&&(newDiscoveries.length||newInscriptions.length)){showLiveToast({discoveries:newDiscoveries.length,inscriptions:newInscriptions.length});newDiscoveries.forEach((d,i)=>setTimeout(()=>{const gid=d.glyphId||'';const path=gid?runePath(gid):'';if(path)window.dispatchEvent(new CustomEvent('aestra-player-reveal',{detail:{id:d.id,glyphId:gid,label:d.label||'A NEW READING EMERGES',kind:d.kind||'',path}}))},i*520));}");
 
     html=html.replace(/(<script id="bundledSnapshot" type="application\/json">)([\s\S]*?)(<\/script>)/,(all,a,j,b)=>{
       if(PREVIEW)return a+JSON.stringify(previewSnapshot)+b;
@@ -62,7 +64,7 @@ html,body{height:100%;margin:0;background:#0b0f15;color:#f0eee7;font-family:syst
       html=html.replace('<button class="btn" id="openLiveSync">Sync now</button>','');
     }
 
-    html=html.replace('</body>','<script src="player-publish-hardening-patch.js?v=20260912-shared-v1"><\/script><script src="player-compound-semantic-field-patch.js?v=20260911-semantic-v1"><\/script><script src="player-simplify-patch.js?v=20260912-shared-v1"><\/script><script src="player-aestra-identity-patch.js?v=20260912-shared-v1"><\/script></body>');
+    html=html.replace('</body>','<script src="player-publish-hardening-patch.js?v=20260912-retract-v2"><\/script><script src="player-compound-semantic-field-patch.js?v=20260911-semantic-v1"><\/script><script src="player-simplify-patch.js?v=20260912-retract-v2"><\/script><script src="player-aestra-identity-patch.js?v=20260912-reveal-v2"><\/script></body>');
 
     document.open();
     document.write(html);
