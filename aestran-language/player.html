@@ -36,7 +36,7 @@ html,body{height:100%;margin:0;background:#0b0f15;color:#f0eee7;font-family:syst
     }
 
     const names=['dist/player.00.part','dist/player.01.part','dist/player.02.part','dist/player.03.part','dist/player.04.part','dist/player.05.part','dist/player.06.part','dist/player.07.part'];
-    let html=(await Promise.all(names.map(n=>fetch(n+'?v=20260911-pipeline',{cache:'no-store'}).then(r=>{if(!r.ok)throw Error(n+' '+r.status);return r.text()})))).join('');
+    let html=(await Promise.all(names.map(n=>fetch(n+'?v=20260912-shared-v1',{cache:'no-store'}).then(r=>{if(!r.ok)throw Error(n+' '+r.status);return r.text()})))).join('');
 
     html=html.replace("LAYOUT_STORE='aestra-player-lexicon-layout-v1'","LAYOUT_STORE='"+(PREVIEW?'aestra-gm-player-preview-layout-v1':'aestra-player-lexicon-layout-v2')+"'");
     html=html.replace("NOTE_STORE='aestra-player-notes-v1'","NOTE_STORE='"+(PREVIEW?'aestra-gm-player-preview-notes-v1':'aestra-player-notes-v1')+"'");
@@ -57,10 +57,12 @@ html,body{height:100%;margin:0;background:#0b0f15;color:#f0eee7;font-family:syst
 
     html=html.replace("const STORE='aestra-player-build-v2'","const STORE='"+(PREVIEW?'aestra-player-preview-build-v1':'aestra-player-build-v3')+"'");
     if(PREVIEW){
-      html=html.replace("setTimeout(()=>initLiveSync(),40);","/* GM preview uses the GM-safe snapshot; live sync intentionally disabled. */");
+      html=html.replace("setTimeout(()=>initLiveSync(),40);","/* GM preview uses the GM-safe snapshot; shared live feed intentionally disabled. */");
+      html=html.replace('<span class="pill live-pill online" id="liveSyncPill">Connecting</span>','');
+      html=html.replace('<button class="btn" id="openLiveSync">Sync now</button>','');
     }
 
-    html=html.replace('</body>','<script src="player-publish-hardening-patch.js?v=20260911-pipeline"><\/script><script src="player-compound-semantic-field-patch.js?v=20260911-semantic-v1"><\/script><script src="player-simplify-patch.js?v=20260912-mobilelex-v1"><\/script><script src="player-aestra-identity-patch.js?v=20260912-preview-v1"><\/script></body>');
+    html=html.replace('</body>','<script src="player-publish-hardening-patch.js?v=20260912-shared-v1"><\/script><script src="player-compound-semantic-field-patch.js?v=20260911-semantic-v1"><\/script><script src="player-simplify-patch.js?v=20260912-shared-v1"><\/script><script src="player-aestra-identity-patch.js?v=20260912-shared-v1"><\/script></body>');
 
     document.open();
     document.write(html);
