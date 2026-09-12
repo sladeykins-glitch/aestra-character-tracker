@@ -98,7 +98,7 @@
     for(const el of all){
       if(dock.contains(el))continue;
       const t=text(el);
-      if(t.length>90)return false;
+      if(t.length>90)continue;
       if(/reopen/i.test(t)&&/review/i.test(t))return clickable(el);
     }
     return null;
