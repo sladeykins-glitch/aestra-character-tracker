@@ -150,8 +150,8 @@
     proxy.textContent=text(target)||'Reopen & Review';
     nameEl.textContent=nearbyName(target);
 
-    // On Glyph design keep it available whenever the original control is not on screen.
-    dock.classList.toggle('show',glyphDesignActive()&&!targetOnScreen(target));
+    // Whenever the real review control exists but has scrolled away, keep a floating copy available.
+    dock.classList.toggle('show',!targetOnScreen(target));
   }
 
   proxy.onclick=()=>{
