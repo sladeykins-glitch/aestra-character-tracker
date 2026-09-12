@@ -3,7 +3,35 @@
   if(window.__aestraPlayerRetractions)return;
   window.__aestraPlayerRetractions=true;
 
+  const PLAYER_RESET_EPOCH='2026-09-12-fresh-slate-v1';
   function emptyRetractions(){return {roots:{},compounds:{},inscriptions:{}}}
+  function resetPlayerFacingStateOnce(){
+    const already=workspaceBootstrap?.state?.playerKnowledgeResetEpoch||appState.playerKnowledgeResetEpoch;
+    if(already===PLAYER_RESET_EPOCH){appState.playerKnowledgeResetEpoch=PLAYER_RESET_EPOCH;return false;}
+    DATA.roots.forEach(r=>{
+      const k=r.knowledge||{confirmed:[],suspected:[],hidden:[]};
+      k.hidden=unique([...(k.hidden||[]),...(k.confirmed||[]),...(k.suspected||[])]);
+      k.confirmed=[];k.suspected=[];r.knowledge=k;
+    });
+    DATA.compounds.forEach(comp=>{
+      comp.known=false;
+      if(window.normaliseCompoundSemantics)window.normaliseCompoundSemantics(comp);
+      if(comp.knowledge){
+        comp.knowledge.hidden=unique([...(comp.knowledge.hidden||[]),...(comp.knowledge.confirmed||[]),...(comp.knowledge.suspected||[])]);
+        comp.knowledge.confirmed=[];comp.knowledge.suspected=[];
+      }
+    });
+    (appState.inscriptions||[]).forEach(i=>{i.published=false;i.ready=false});
+    appState.pendingKnowledge=[];
+    appState.lastKnowledgePush=[];
+    appState.discoveryLog=[];
+    appState.pendingDiscoveryRevealIds=[];
+    appState.lastDiscoveryBatchIds=[];
+    appState.selectedPlayerGlyph=null;
+    appState.playerRetractions=emptyRetractions();
+    appState.playerKnowledgeResetEpoch=PLAYER_RESET_EPOCH;
+    return true;
+  }
   function unique(values){
     const out=[];
     (values||[]).forEach(v=>{const s=String(v||'').trim();if(s&&!out.some(x=>x.toLowerCase()===s.toLowerCase()))out.push(s)});
@@ -22,11 +50,14 @@
     workspaceBootstrap?.state?.playerRetractions||appState.playerRetractions||emptyRetractions()
   );
 
+  const resetApplied=resetPlayerFacingStateOnce();
+
   const previousWorkspaceSnapshot=workspaceSnapshot;
   workspaceSnapshot=function(){
     const snap=previousWorkspaceSnapshot();
     if(!snap.state)snap.state={};
     snap.state.playerRetractions=clone(appState.playerRetractions);
+    snap.state.playerKnowledgeResetEpoch=appState.playerKnowledgeResetEpoch||PLAYER_RESET_EPOCH;
     return snap;
   };
 
@@ -246,5 +277,5 @@
   const previousRenderPublish=renderPublish;
   renderPublish=function(){const r=previousRenderPublish.apply(this,arguments);queueMicrotask(ensurePublishRetractions);return r};
 
-  queueMicrotask(()=>{ensureKnowledgeRetractionPanel();ensureInscriptionRetractionControl();ensurePublishRetractions()});
+  queueMicrotask(()=>{if(resetApplied){renderAll();saveWorkspaceNow({force:true})}ensureKnowledgeRetractionPanel();ensureInscriptionRetractionControl();ensurePublishRetractions()});
 })();
