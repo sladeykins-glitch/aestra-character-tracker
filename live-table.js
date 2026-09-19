@@ -315,7 +315,12 @@ async function mountInteractiveMap(asset,role='player'){
 
 function sendMapStateToFrame(){
   if(!mapState?.state||!els.worldMapFrame?.contentWindow)return;
-  els.worldMapFrame.contentWindow.postMessage({type:'aestra-map-state-apply',state:mapState.state},'*');
+  const stored=mapState.state;
+  if(stored?.version===2&&stored?.data){
+    els.worldMapFrame.contentWindow.postMessage({type:'aestra-map-mirror-apply',mirror:stored},'*');
+  }else{
+    els.worldMapFrame.contentWindow.postMessage({type:'aestra-map-state-apply',state:stored},'*');
+  }
 }
 
 async function persistMapState(nextState){
@@ -329,13 +334,58 @@ async function persistMapState(nextState){
   const {data,error}=await supabase.from('live_table_map_state').upsert(payload,{onConflict:'campaign_id'}).select().single();
   if(error){console.error('Map sync save failed',error);return}
   mapState=data;
-  if(els.mapImportStatus)els.mapImportStatus.textContent='GM map control is live — player display synced.';
+  if(els.mapImportStatus)els.mapImportStatus.textContent='Full GM map mirror is live — player display synced.';
 }
 
 function queueMapStateSave(nextState){
   if(!isGM||DISPLAY_QUERY||!nextState)return;
   clearTimeout(mapStateSaveTimer);
-  mapStateSaveTimer=setTimeout(()=>persistMapState(nextState),260);
+  mapStateSaveTimer=setTimeout(()=>persistMapState(nextState),320);
+}
+
+function applyMapMirrorToPlayer(mirror){
+  if(!(DISPLAY_QUERY||!isGM)||!mirror)return;
+  els.worldMapFrame?.contentWindow?.postMessage({
+    type:'aestra-map-mirror-apply',
+    mirror
+  },'*');
+}
+
+function sendMapMirror(mirror){
+  if(!isGM||DISPLAY_QUERY||!mirror)return;
+
+  mapState={
+    campaign_id:CAMPAIGN_ID,
+    state:mirror,
+    updated_by:user.id,
+    updated_at:new Date().toISOString()
+  };
+
+  // Same-browser/tabletop path: no server round-trip.
+  try{
+    browserMapMotionChannel?.postMessage({kind:'mirror',mirror});
+  }catch(err){
+    console.warn('Local map mirror failed',err);
+  }
+
+  // Cross-device path. Keep large mirrors off Broadcast if they approach
+  // lower-plan payload limits; the persisted state remains the fallback.
+  if(mapMotionReady&&mapMotionChannel){
+    try{
+      const serialized=JSON.stringify(mirror);
+      if(serialized.length<230000){
+        mapMotionChannel.send({
+          type:'broadcast',
+          event:'map-mirror',
+          payload:{mirror}
+        }).catch(err=>console.warn('Realtime map mirror failed',err));
+      }
+    }catch(err){
+      console.warn('Could not serialize map mirror',err);
+    }
+  }
+
+  queueMapStateSave(mirror);
 }
 
 function applyPartyMotionToPlayer(x,y){
@@ -356,16 +406,11 @@ function sendPartyMotion(x,y){
   const now=performance.now();
   if(now-lastMapMotionSentAt<35)return;
   lastMapMotionSentAt=now;
-
-  // Fast path for the usual tabletop setup: GM and Player Display are
-  // separate windows/tabs on the same browser/computer.
   try{
-    browserMapMotionChannel?.postMessage({x:nx,y:ny});
+    browserMapMotionChannel?.postMessage({kind:'party-motion',x:nx,y:ny});
   }catch(err){
     console.warn('Local party motion broadcast failed',err);
   }
-
-  // Realtime path for player displays running on another browser/device.
   if(mapMotionReady&&mapMotionChannel){
     mapMotionChannel.send({
       type:'broadcast',
@@ -384,8 +429,12 @@ function handleMapBridgeMessage(event){
     if(els.mapImportStatus&&state?.mode==='map'){
       els.mapImportStatus.textContent=(DISPLAY_QUERY||!isGM)
         ? 'Player map connected.'
-        : 'GM map control is live — changes sync to the player display.';
+        : 'Full GM map mirror is live — drawings, layers, routes and view sync to players.';
     }
+    return;
+  }
+  if(message.type==='aestra-map-mirror'&&isGM&&!DISPLAY_QUERY&&message.mirror){
+    sendMapMirror(message.mirror);
     return;
   }
   if(message.type==='aestra-map-party-motion'&&isGM&&!DISPLAY_QUERY){
@@ -767,10 +816,12 @@ async function subscribeRealtime(){
       browserMapMotionChannel=new BroadcastChannel('aestra-map-motion-'+CAMPAIGN_ID);
       browserMapMotionChannel.addEventListener('message',event=>{
         const p=event.data||{};
-        applyPartyMotionToPlayer(p.x,p.y);
+        if(p.kind==='mirror'&&p.mirror)applyMapMirrorToPlayer(p.mirror);
+        else if(p.kind==='party-motion')applyPartyMotionToPlayer(p.x,p.y);
+        else if(Number.isFinite(Number(p.x))&&Number.isFinite(Number(p.y)))applyPartyMotionToPlayer(p.x,p.y);
       });
     }catch(err){
-      console.warn('Browser party motion channel unavailable',err);
+      console.warn('Browser map mirror channel unavailable',err);
     }
   }
 
@@ -781,9 +832,13 @@ async function subscribeRealtime(){
       const p=payload?.payload||{};
       applyPartyMotionToPlayer(p.x,p.y);
     })
+    .on('broadcast',{event:'map-mirror'},payload=>{
+      const p=payload?.payload||{};
+      if(p.mirror)applyMapMirrorToPlayer(p.mirror);
+    })
     .subscribe((status,err)=>{
       mapMotionReady=status==='SUBSCRIBED';
-      if(err)console.warn('Realtime party motion channel error',err);
+      if(err)console.warn('Realtime map mirror channel error',err);
     });
   supabase.channel('aestra-live-state')
     .on('postgres_changes',{event:'*',schema:'public',table:'live_table_state',filter:'campaign_id=eq.'+CAMPAIGN_ID},payload=>{if(payload.new){state=payload.new;renderAll()}})
