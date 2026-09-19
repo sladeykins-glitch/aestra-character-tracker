@@ -46,3 +46,13 @@ body:not(.display-only) .world-map-frame{pointer-events:none}
 .interactive-map-thumb{display:grid;place-items:center;align-content:center;gap:5px;background:radial-gradient(circle at 50% 42%,rgba(118,184,221,.18),transparent 42%),linear-gradient(145deg,#16222c,#0b1117);border:1px solid rgba(216,182,102,.22);color:#dec779;text-align:center}
 .interactive-map-thumb span{font-size:24px;text-shadow:0 0 16px rgba(118,184,221,.38)}
 .interactive-map-thumb b{font:700 8px/1.2 Georgia,serif;letter-spacing:.14em}
+
+.ai-box{display:grid;gap:8px}
+.ai-box label{display:grid;gap:5px;color:#d7dbe0;font-size:9px;letter-spacing:.03em}
+.ai-box input,.ai-box textarea,.ai-box select{width:100%;border:1px solid var(--line);border-radius:9px;background:#0b1117;color:var(--text);padding:9px 10px;font:11px/1.4 Inter,system-ui,sans-serif;outline:none}
+.ai-box textarea{resize:vertical;min-height:92px}
+.ai-box input:focus,.ai-box textarea:focus,.ai-box select:focus{border-color:#8aaec4;box-shadow:0 0 0 3px rgba(118,184,221,.1)}
+.ai-prompt-chips{display:flex;gap:5px;flex-wrap:wrap}
+.ai-prompt-chips button{min-height:28px!important;padding:0 8px!important;border-radius:999px!important;font-size:8px!important}
+.ai-status{min-height:28px;margin:0;color:var(--muted);font-size:9px;line-height:1.45}
+.ai-box #generateBackdropBtn{width:100%}
