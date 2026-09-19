@@ -763,3 +763,118 @@ body:not(.display-only) .player-display.map-live::before{content:'GM MAP CONTROL
 .transition-fx{position:absolute;inset:0;z-index:34;pointer-events:none;overflow:hidden}
 .transition-fx-canvas{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none}
 @media(max-width:640px){.cue-transition-grid{grid-template-columns:1fr}}
+
+
+/* Cleaner player reveal presentation */
+.reveal-layer{
+  position:absolute;
+  z-index:10;
+  inset:0;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  padding:24px;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  backdrop-filter:none;
+  pointer-events:none;
+}
+
+.reveal-layer img{
+  display:block;
+  width:auto;
+  height:auto;
+  max-width:min(56vw,760px);
+  max-height:64vh;
+  object-fit:contain;
+  border-radius:8px;
+  border:1px solid rgba(238,225,194,.14);
+  box-shadow:
+    0 10px 26px rgba(0,0,0,.28),
+    0 0 18px rgba(219,191,119,.035);
+  background:transparent;
+}
+
+.reveal-copy{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  text-align:center;
+  gap:2px;
+  max-width:min(70vw,760px);
+  padding:0;
+  background:transparent;
+  border:0;
+  text-shadow:0 2px 12px rgba(0,0,0,.72);
+}
+
+.reveal-copy span{
+  font-size:8px;
+  letter-spacing:.2em;
+  color:#d5b968;
+  text-transform:uppercase;
+}
+
+.reveal-copy strong{
+  display:block;
+  margin-top:2px;
+  font:700 clamp(16px,2vw,26px)/1.1 Georgia,serif;
+}
+
+.reveal-copy small{
+  display:block;
+  margin-top:2px;
+  color:#c2c7cf;
+  font-size:9px;
+}
+
+/* Items and clues should feel intimate, not poster-sized */
+.reveal-layer[data-kind="item"] img,
+.reveal-layer[data-kind="clue"] img{
+  max-width:min(34vw,420px);
+  max-height:46vh;
+}
+
+/* NPCs / creatures: readable portrait scale */
+.reveal-layer[data-kind="npc"] img,
+.reveal-layer[data-kind="creature"] img{
+  max-width:min(48vw,620px);
+  max-height:62vh;
+}
+
+/* Maps / handouts can use more screen without becoming a framed panel */
+.reveal-layer[data-kind="map"] img,
+.reveal-layer[data-kind="handout"] img{
+  max-width:min(72vw,1040px);
+  max-height:72vh;
+}
+
+/* Location details / uncategorised art sit between portrait and map scale */
+.reveal-layer[data-kind="location_detail"] img,
+.reveal-layer[data-kind="other"] img{
+  max-width:min(54vw,720px);
+  max-height:64vh;
+}
+
+@media(max-width:700px){
+  .reveal-layer{padding:16px}
+  .reveal-layer img,
+  .reveal-layer[data-kind="npc"] img,
+  .reveal-layer[data-kind="creature"] img{
+    max-width:78vw;
+    max-height:58vh;
+  }
+  .reveal-layer[data-kind="item"] img,
+  .reveal-layer[data-kind="clue"] img{
+    max-width:62vw;
+    max-height:42vh;
+  }
+  .reveal-layer[data-kind="map"] img,
+  .reveal-layer[data-kind="handout"] img{
+    max-width:88vw;
+    max-height:68vh;
+  }
+}
