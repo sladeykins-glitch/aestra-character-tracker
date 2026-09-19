@@ -153,13 +153,15 @@ function sceneCard(asset){
   return '<article class="scene-card'+(active?' active':'')+'" data-scene-id="'+asset.id+'">'+
     '<div class="scene-thumb" style="background-image:url(\''+esc(asset.image_url)+'\')"></div>'+
     '<div><strong>'+esc(asset.name)+'</strong><small>'+esc(asset.subtitle||'Scene backdrop')+'</small></div>'+
-    '<button type="button">'+(active?'LIVE':'GO')+'</button></article>';
+    '<div class="scene-actions"><button type="button" data-scene-go="'+asset.id+'">'+(active?'LIVE':'GO')+'</button><button type="button" data-remove="'+asset.id+'">REMOVE</button><button type="button" class="danger" data-delete="'+asset.id+'">DELETE</button></div></article>';
 }
 
 function renderScenes(){
   const scenes=assets.filter(a=>a.kind==='scene');
   els.sceneStrip.innerHTML=scenes.length?scenes.map(sceneCard).join(''):'<p class="muted">No scene backdrops yet. Press + to upload one.</p>';
-  els.sceneStrip.querySelectorAll('[data-scene-id]').forEach(card=>card.querySelector('button').addEventListener('click',()=>activateScene(card.dataset.sceneId)));
+  els.sceneStrip.querySelectorAll('[data-scene-go]').forEach(b=>b.addEventListener('click',()=>activateScene(b.dataset.sceneGo)));
+  els.sceneStrip.querySelectorAll('[data-remove]').forEach(b=>b.addEventListener('click',()=>removeAssetFromDisplay(b.dataset.remove)));
+  els.sceneStrip.querySelectorAll('[data-delete]').forEach(b=>b.addEventListener('click',()=>deleteAsset(b.dataset.delete)));
 }
 
 function revealCard(asset){
@@ -168,7 +170,7 @@ function revealCard(asset){
     : '<button type="button" data-pin="'+asset.id+'">PIN</button>';
   return '<article class="reveal-card" data-kind="'+esc(asset.kind)+'"><div class="reveal-thumb" style="background-image:url(\''+esc(asset.image_url)+'\')"></div>'+
     '<strong>'+esc(asset.name)+'</strong><small>'+esc(asset.subtitle||asset.kind.replace('_',' '))+'</small>'+
-    '<div class="card-actions"><button type="button" data-show="'+asset.id+'">SHOW</button>'+mapAction+'</div></article>';
+    '<div class="card-actions"><button type="button" data-show="'+asset.id+'">SHOW</button>'+mapAction+'<button type="button" data-remove="'+asset.id+'">REMOVE</button><button type="button" class="danger" data-delete="'+asset.id+'">DELETE</button></div></article>';
 }
 
 function renderRevealGrid(){
@@ -177,6 +179,8 @@ function renderRevealGrid(){
   els.revealGrid.querySelectorAll('[data-show]').forEach(b=>b.addEventListener('click',()=>showReveal(b.dataset.show)));
   els.revealGrid.querySelectorAll('[data-pin]').forEach(b=>b.addEventListener('click',()=>pinAsset(b.dataset.pin)));
   els.revealGrid.querySelectorAll('[data-map]').forEach(b=>b.addEventListener('click',()=>setWorldMap(b.dataset.map)));
+  els.revealGrid.querySelectorAll('[data-remove]').forEach(b=>b.addEventListener('click',()=>removeAssetFromDisplay(b.dataset.remove)));
+  els.revealGrid.querySelectorAll('[data-delete]').forEach(b=>b.addEventListener('click',()=>deleteAsset(b.dataset.delete)));
 }
 
 function renderRecent(){
@@ -213,6 +217,45 @@ async function pinAsset(id){
   if(!left)await patchState({pinned_left_id:id});
   else if(!right)await patchState({pinned_right_id:id});
   else await patchState({pinned_left_id:id,pinned_right_id:null});
+}
+
+async function removeAssetFromDisplay(id){
+  if(!state||!isGM)return;
+  const patch={};
+  if(state.active_scene_id===id){
+    patch.active_scene_id=null;
+    patch.location_title='';
+    patch.location_subtitle='';
+    if(state.mode==='scene')patch.mode='title';
+  }
+  if(state.active_reveal_id===id){
+    patch.active_reveal_id=null;
+    if(state.mode==='reveal')patch.mode=state.active_scene_id?'scene':'title';
+  }
+  if(state.map_asset_id===id){
+    patch.map_asset_id=null;
+    if(state.mode==='map')patch.mode=state.active_scene_id?'scene':'title';
+  }
+  if(state.pinned_left_id===id)patch.pinned_left_id=null;
+  if(state.pinned_right_id===id)patch.pinned_right_id=null;
+  if(Object.keys(patch).length)await patchState(patch);
+}
+
+async function deleteAsset(id){
+  if(!isGM)return;
+  const asset=byId(id);
+  if(!asset)return;
+  if(!confirm('Delete "'+asset.name+'" permanently? This removes it from the Live Table library and deletes its uploaded image.'))return;
+  await removeAssetFromDisplay(id);
+  const del=await supabase.from('live_table_assets').delete().eq('id',id);
+  if(del.error){alert(del.error.message);return}
+  if(asset.storage_path){
+    const storageDelete=await supabase.storage.from('live-table').remove([asset.storage_path]);
+    if(storageDelete.error)console.warn('Could not remove storage file',storageDelete.error);
+  }
+  assets=assets.filter(a=>a.id!==id);
+  recent=recent.filter(x=>x!==id);
+  renderAll();
 }
 
 async function setWorldMap(id){
