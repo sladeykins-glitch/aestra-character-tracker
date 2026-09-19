@@ -6,7 +6,7 @@ let supabase=null,user=null,isGM=false,state=null,assets=[],party=[],recent=[],f
 const IS_PLAYER_DISPLAY=DISPLAY_QUERY;
 const canGMControl=()=>isGM&&!IS_PLAYER_DISPLAY;
 const shouldReceivePlayerMap=()=>IS_PLAYER_DISPLAY||!isGM;
-let displayInitialized=false,lastDisplaySignature='',displayTransitionTimer=null,lastDisplayMode='scene';
+let displayInitialized=false,lastDisplaySignature='',displayTransitionTimer=null,lastDisplayMode='scene',lastRenderedSceneId='',lastRenderedTransitionNonce=0;
 const interactiveMapCache=new Map();
 let interactiveMapLoadToken=0;
 let mapState=null,mapStateSaveTimer=null,mapBridgeReady=false;
@@ -966,9 +966,13 @@ function playDisplayTransition(config=transitionState()){
 function renderTransitionControls(){
   if(!state)return;
   const cfg=transitionState();
+  const sceneOnly=state?.mode!=='scene';
   if(els.transitionStyle)els.transitionStyle.value=cfg.style;
   if(els.transitionDuration)els.transitionDuration.value=String(cfg.duration_ms);
-  if(els.transitionStatus)els.transitionStatus.textContent=transitionLabel(cfg.style)+' · '+(cfg.duration_ms/1000).toFixed(cfg.duration_ms%1000?2:0)+'s';
+  if(els.previewTransitionBtn)els.previewTransitionBtn.disabled=sceneOnly;
+  if(els.transitionStatus){
+    els.transitionStatus.textContent=transitionLabel(cfg.style)+' · '+(cfg.duration_ms/1000).toFixed(cfg.duration_ms%1000?2:0)+'s'+(sceneOnly?' · Scene only':'');
+  }
 }
 
 async function setTransitionSetting(key,value){
@@ -981,7 +985,7 @@ async function setTransitionSetting(key,value){
 }
 
 async function previewTransition(){
-  if(!canGMControl())return;
+  if(!canGMControl()||state?.mode!=='scene')return;
   const cfg=transitionState();
   await patchState({transition_state:{...cfg,nonce:nextTransitionNonce()}});
 }
@@ -2069,7 +2073,11 @@ function renderDisplay(){
   const reveal=byId(state.active_reveal_id);
   const mode=state.mode||'scene';
   const signature=displaySignature(state);
-  if(displayInitialized&&signature!==lastDisplaySignature){
+  const currentSceneId=state.active_scene_id||'';
+  const currentTransitionNonce=transitionNonce();
+  const sceneChanged=mode==='scene'&&(lastDisplayMode!=='scene'||currentSceneId!==lastRenderedSceneId);
+  const sceneCueTriggered=mode==='scene'&&currentTransitionNonce!==lastRenderedTransitionNonce;
+  if(displayInitialized&&(sceneChanged||sceneCueTriggered)){
     getTransitionCanvasRenderer()?.preparePreviousMode(lastDisplayMode);
     playDisplayTransition(state?.transition_state);
   }
@@ -2119,6 +2127,8 @@ function renderDisplay(){
   els.partyHud.classList.toggle('hidden',mode==='map'||state.hud_visible===false);
   lastDisplaySignature=signature;
   lastDisplayMode=mode;
+  lastRenderedSceneId=currentSceneId;
+  lastRenderedTransitionNonce=currentTransitionNonce;
   displayInitialized=true;
 }
 
