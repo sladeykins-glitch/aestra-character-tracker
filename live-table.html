@@ -84,6 +84,14 @@
 
         <div id="blackoutLayer" class="blackout-layer hidden"></div>
         <div id="partyHud" class="party-hud"></div>
+
+        <div id="transitionFx" class="transition-fx" aria-hidden="true">
+          <div class="transition-wash"></div>
+          <div class="transition-flash"></div>
+          <div class="transition-shards"></div>
+          <div class="transition-scan"></div>
+        </div>
+
         <div id="audioUnlock" class="audio-unlock hidden">
           <button id="audioUnlockBtn" type="button">♫ CLICK TO ENABLE AUDIO</button>
         </div>
@@ -195,6 +203,42 @@
 
           <p id="audioStatus" class="audio-status">No cue audio selected.</p>
           <div id="audioLibraryList" class="audio-library-list"></div>
+        </div>
+
+        <div id="cueTransitionPanel" class="cue-transition-panel">
+          <div class="cue-transition-head">
+            <div>
+              <p class="eyebrow">Cue Transition</p>
+              <h3>Visual Transition</h3>
+            </div>
+            <button id="previewTransitionBtn" type="button">Preview</button>
+          </div>
+
+          <div class="cue-transition-grid">
+            <label>
+              <span>Style</span>
+              <select id="transitionStyle">
+                <option value="soft-fade">Soft Fade</option>
+                <option value="dream">Dream</option>
+                <option value="crystal-flash">Crystal Flash</option>
+                <option value="relic-glitch">Relic Glitch</option>
+                <option value="darkness">Darkness</option>
+                <option value="memory">Memory</option>
+                <option value="impact">Impact</option>
+              </select>
+            </label>
+            <label>
+              <span>Duration</span>
+              <select id="transitionDuration">
+                <option value="800">Quick · 0.8s</option>
+                <option value="1250" selected>Standard · 1.25s</option>
+                <option value="1800">Slow · 1.8s</option>
+                <option value="3000">Cinematic · 3s</option>
+              </select>
+            </label>
+          </div>
+
+          <p id="transitionStatus" class="transition-status">Soft Fade · 1.25s</p>
         </div>
 
         <div id="cueSequencePanel" class="cue-sequence-panel">
