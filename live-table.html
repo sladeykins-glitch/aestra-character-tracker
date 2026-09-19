@@ -84,6 +84,9 @@
 
         <div id="blackoutLayer" class="blackout-layer hidden"></div>
         <div id="partyHud" class="party-hud"></div>
+        <div id="audioUnlock" class="audio-unlock hidden">
+          <button id="audioUnlockBtn" type="button">♫ CLICK TO ENABLE AUDIO</button>
+        </div>
       </div>
 
       <div id="gmQuickControls" class="quick-controls">
@@ -144,6 +147,54 @@
             </label>
           </div>
           <p id="sceneFxStatus" class="scene-fx-status">No scene effects active.</p>
+        </div>
+
+        <div id="cueAudioPanel" class="cue-audio-panel">
+          <div class="cue-audio-head">
+            <div>
+              <p class="eyebrow">Cue Audio</p>
+              <h3>Music & Ambience</h3>
+            </div>
+            <button id="audioEmergencyBtn" type="button" class="audio-emergency">Fade Out</button>
+          </div>
+
+          <div class="audio-master-row">
+            <label>
+              <span>Master</span>
+              <input id="audioMasterVolume" type="range" min="0" max="100" step="1" value="100" />
+            </label>
+            <button id="audioMuteBtn" type="button">Mute</button>
+          </div>
+
+          <div class="audio-channel-grid">
+            <div class="audio-channel-card">
+              <div class="audio-channel-title"><span>♫</span><strong>Music</strong></div>
+              <select id="musicTrackSelect"></select>
+              <label><span>Volume</span><input id="musicVolume" type="range" min="0" max="100" step="1" value="65" /></label>
+            </div>
+            <div class="audio-channel-card">
+              <div class="audio-channel-title"><span>≋</span><strong>Ambience</strong></div>
+              <select id="ambienceTrackSelect"></select>
+              <label><span>Volume</span><input id="ambienceVolume" type="range" min="0" max="100" step="1" value="55" /></label>
+            </div>
+          </div>
+
+          <div class="audio-settings-row">
+            <label>
+              <span>Crossfade</span>
+              <select id="audioFadeMs">
+                <option value="800">Quick · 0.8s</option>
+                <option value="1800" selected>Smooth · 1.8s</option>
+                <option value="3000">Slow · 3s</option>
+                <option value="5000">Cinematic · 5s</option>
+              </select>
+            </label>
+            <button id="addAudioTrackBtn" type="button" class="primary">＋ Add Track</button>
+            <input id="audioTrackFile" type="file" accept="audio/mpeg,audio/mp4,audio/ogg,audio/wav,audio/x-wav,.mp3,.m4a,.ogg,.wav" hidden />
+          </div>
+
+          <p id="audioStatus" class="audio-status">No cue audio selected.</p>
+          <div id="audioLibraryList" class="audio-library-list"></div>
         </div>
 
         <div id="cueSequencePanel" class="cue-sequence-panel">
