@@ -8,6 +8,7 @@ const interactiveMapCache=new Map();
 let interactiveMapLoadToken=0;
 let mapState=null,mapStateSaveTimer=null,mapBridgeReady=false;
 let mapMotionChannel=null,mapMotionReady=false,lastMapMotionSentAt=0;
+let browserMapMotionChannel=null;
 
 const esc=s=>String(s??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const byId=id=>assets.find(a=>a.id===id)||null;
@@ -250,16 +251,41 @@ function queueMapStateSave(nextState){
   mapStateSaveTimer=setTimeout(()=>persistMapState(nextState),260);
 }
 
+function applyPartyMotionToPlayer(x,y){
+  if(!(DISPLAY_QUERY||!isGM))return;
+  const nx=Number(x),ny=Number(y);
+  if(!Number.isFinite(nx)||!Number.isFinite(ny))return;
+  els.worldMapFrame?.contentWindow?.postMessage({
+    type:'aestra-map-party-motion-apply',
+    x:nx,
+    y:ny
+  },'*');
+}
+
 function sendPartyMotion(x,y){
-  if(!mapMotionReady||!mapMotionChannel||!isGM||DISPLAY_QUERY)return;
+  if(!isGM||DISPLAY_QUERY)return;
+  const nx=Number(x),ny=Number(y);
+  if(!Number.isFinite(nx)||!Number.isFinite(ny))return;
   const now=performance.now();
-  if(now-lastMapMotionSentAt<45)return;
+  if(now-lastMapMotionSentAt<35)return;
   lastMapMotionSentAt=now;
-  mapMotionChannel.send({
-    type:'broadcast',
-    event:'party-motion',
-    payload:{x:Number(x),y:Number(y)}
-  }).catch(err=>console.warn('Party motion broadcast failed',err));
+
+  // Fast path for the usual tabletop setup: GM and Player Display are
+  // separate windows/tabs on the same browser/computer.
+  try{
+    browserMapMotionChannel?.postMessage({x:nx,y:ny});
+  }catch(err){
+    console.warn('Local party motion broadcast failed',err);
+  }
+
+  // Realtime path for player displays running on another browser/device.
+  if(mapMotionReady&&mapMotionChannel){
+    mapMotionChannel.send({
+      type:'broadcast',
+      event:'party-motion',
+      payload:{x:nx,y:ny}
+    }).catch(err=>console.warn('Party motion broadcast failed',err));
+  }
 }
 
 function handleMapBridgeMessage(event){
@@ -649,20 +675,29 @@ function addAiPromptChip(value){
 }
 
 async function subscribeRealtime(){
+  if('BroadcastChannel' in window){
+    try{
+      browserMapMotionChannel=new BroadcastChannel('aestra-map-motion-'+CAMPAIGN_ID);
+      browserMapMotionChannel.addEventListener('message',event=>{
+        const p=event.data||{};
+        applyPartyMotionToPlayer(p.x,p.y);
+      });
+    }catch(err){
+      console.warn('Browser party motion channel unavailable',err);
+    }
+  }
+
   await supabase.realtime.setAuth();
   mapMotionChannel=supabase.channel('aestra-map-motion:'+CAMPAIGN_ID,{config:{private:true}});
   mapMotionChannel
     .on('broadcast',{event:'party-motion'},payload=>{
       const p=payload?.payload||{};
-      if((DISPLAY_QUERY||!isGM)&&Number.isFinite(Number(p.x))&&Number.isFinite(Number(p.y))){
-        els.worldMapFrame?.contentWindow?.postMessage({
-          type:'aestra-map-party-motion-apply',
-          x:Number(p.x),
-          y:Number(p.y)
-        },'*');
-      }
+      applyPartyMotionToPlayer(p.x,p.y);
     })
-    .subscribe(status=>{mapMotionReady=status==='SUBSCRIBED'});
+    .subscribe((status,err)=>{
+      mapMotionReady=status==='SUBSCRIBED';
+      if(err)console.warn('Realtime party motion channel error',err);
+    });
   supabase.channel('aestra-live-state')
     .on('postgres_changes',{event:'*',schema:'public',table:'live_table_state',filter:'campaign_id=eq.'+CAMPAIGN_ID},payload=>{if(payload.new){state=payload.new;renderAll()}})
     .subscribe();
