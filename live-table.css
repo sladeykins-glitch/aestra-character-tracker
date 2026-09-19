@@ -266,3 +266,253 @@ body:not(.display-only) .player-display.map-live::before{content:'GM MAP CONTROL
   .resource-bar{height:4px}
   .player-display .pin-left{left:auto;right:8px}
 }
+
+
+/* Scene-only Live Table atmosphere */
+.scene-effects{
+  --scene-fx-fade:900ms;
+  --scene-fx-strength:.72;
+  position:absolute;
+  inset:0;
+  z-index:4;
+  overflow:hidden;
+  pointer-events:none;
+  opacity:0;
+  transition:opacity var(--scene-fx-fade) ease;
+}
+.scene-effects.intensity-1{--scene-fx-strength:.42}
+.scene-effects.intensity-2{--scene-fx-strength:.72}
+.scene-effects.intensity-3{--scene-fx-strength:1}
+.scene-effects.active{opacity:1}
+.scene-fx{
+  position:absolute;
+  inset:-12%;
+  opacity:0;
+  transition:opacity var(--scene-fx-fade) ease;
+  will-change:transform,opacity;
+}
+.scene-effects.fx-rain .scene-fx-rain,
+.scene-effects.fx-storm .scene-fx-rain{
+  opacity:calc(var(--scene-fx-strength) * .72);
+  background:
+    repeating-linear-gradient(106deg,
+      transparent 0 18px,
+      rgba(199,222,230,.34) 19px,
+      transparent 20px 34px);
+  background-size:170% 210%;
+  filter:blur(.15px);
+  animation:sceneRain .46s linear infinite;
+}
+.scene-effects.fx-storm .scene-fx-rain{
+  opacity:calc(var(--scene-fx-strength) * .92);
+  animation-duration:.31s;
+}
+.scene-effects.fx-storm .scene-fx-storm{
+  opacity:calc(var(--scene-fx-strength) * .58);
+  inset:0;
+  background:
+    linear-gradient(180deg,rgba(18,28,38,.46),rgba(3,7,11,.18)),
+    radial-gradient(circle at 72% 8%,rgba(207,227,240,.13),transparent 28%);
+  animation:sceneStormPulse 8s ease-in-out infinite;
+}
+.scene-effects.fx-mist .scene-fx-mist{
+  opacity:calc(var(--scene-fx-strength) * .8);
+  inset:-20%;
+  background:
+    radial-gradient(ellipse at 25% 45%,rgba(223,231,226,.24),transparent 30%),
+    radial-gradient(ellipse at 65% 56%,rgba(205,220,219,.20),transparent 34%),
+    radial-gradient(ellipse at 88% 37%,rgba(232,235,226,.15),transparent 26%);
+  filter:blur(18px);
+  animation:sceneMist 18s ease-in-out infinite alternate;
+}
+.scene-effects.fx-wind .scene-fx-wind{
+  opacity:calc(var(--scene-fx-strength) * .48);
+  inset:-20%;
+  background:
+    repeating-linear-gradient(172deg,
+      transparent 0 32px,
+      rgba(220,214,190,.11) 34px,
+      transparent 38px 70px);
+  filter:blur(2px);
+  animation:sceneWind 3.8s linear infinite;
+}
+.scene-effects.fx-snow .scene-fx-snow{
+  opacity:calc(var(--scene-fx-strength) * .8);
+  background-image:
+    radial-gradient(circle,rgba(245,248,247,.92) 0 1px,transparent 1.7px),
+    radial-gradient(circle,rgba(230,240,241,.72) 0 1.4px,transparent 2px),
+    radial-gradient(circle,rgba(255,255,255,.64) 0 .8px,transparent 1.4px);
+  background-size:48px 52px,82px 88px,31px 38px;
+  background-position:0 0,18px -21px,7px -12px;
+  animation:sceneSnow 9s linear infinite;
+}
+.scene-effects.fx-ash .scene-fx-ash{
+  opacity:calc(var(--scene-fx-strength) * .72);
+  background-image:
+    radial-gradient(circle,rgba(184,177,163,.72) 0 1px,transparent 1.8px),
+    radial-gradient(circle,rgba(125,119,108,.62) 0 1.3px,transparent 2px),
+    radial-gradient(circle,rgba(222,207,180,.38) 0 .8px,transparent 1.5px);
+  background-size:43px 49px,76px 81px,29px 35px;
+  background-position:0 0,21px -25px,5px -15px;
+  filter:blur(.25px);
+  animation:sceneAsh 12s linear infinite;
+}
+.scene-effects.fx-heat .scene-fx-heat{
+  opacity:calc(var(--scene-fx-strength) * .52);
+  inset:0;
+  background:
+    linear-gradient(180deg,rgba(224,143,76,.08),transparent 48%,rgba(115,48,18,.13)),
+    repeating-linear-gradient(90deg,transparent 0 18px,rgba(255,207,135,.035) 20px,transparent 24px 46px);
+  filter:blur(1.6px);
+  animation:sceneHeat 3.6s ease-in-out infinite alternate;
+}
+.scene-effects.fx-magic .scene-fx-magic{
+  opacity:calc(var(--scene-fx-strength) * .62);
+  inset:-10%;
+  background:
+    radial-gradient(circle at 20% 30%,rgba(86,196,220,.18),transparent 24%),
+    radial-gradient(circle at 74% 58%,rgba(179,91,211,.16),transparent 28%),
+    linear-gradient(115deg,transparent 25%,rgba(209,176,89,.08) 48%,transparent 68%);
+  mix-blend-mode:screen;
+  filter:saturate(1.3);
+  animation:sceneMagic 7s ease-in-out infinite alternate;
+}
+.scene-effects.fx-cold .scene-fx-cold{
+  opacity:calc(var(--scene-fx-strength) * .46);
+  inset:0;
+  background:
+    linear-gradient(180deg,rgba(87,155,190,.18),rgba(24,71,102,.08) 55%,rgba(13,38,60,.17)),
+    radial-gradient(circle at 50% 35%,transparent 38%,rgba(15,35,54,.16) 100%);
+  mix-blend-mode:screen;
+}
+@keyframes sceneRain{
+  from{transform:translate3d(-3%,-24%,0)}
+  to{transform:translate3d(3%,24%,0)}
+}
+@keyframes sceneStormPulse{
+  0%,72%,100%{filter:brightness(1)}
+  75%{filter:brightness(1.14)}
+  77%{filter:brightness(1)}
+  79%{filter:brightness(1.08)}
+  81%{filter:brightness(1)}
+}
+@keyframes sceneMist{
+  from{transform:translate3d(-5%,1%,0) scale(1.02)}
+  to{transform:translate3d(6%,-2%,0) scale(1.08)}
+}
+@keyframes sceneWind{
+  from{transform:translate3d(-12%,0,0)}
+  to{transform:translate3d(12%,2%,0)}
+}
+@keyframes sceneSnow{
+  from{transform:translate3d(0,-10%,0)}
+  to{transform:translate3d(4%,10%,0)}
+}
+@keyframes sceneAsh{
+  from{transform:translate3d(0,-8%,0) rotate(.1deg)}
+  to{transform:translate3d(-3%,10%,0) rotate(-.1deg)}
+}
+@keyframes sceneHeat{
+  from{transform:translate3d(-.4%,0,0) scale(1.003)}
+  to{transform:translate3d(.4%,-.3%,0) scale(1.009)}
+}
+@keyframes sceneMagic{
+  from{transform:translate3d(-1%,1%,0) scale(1.01);filter:hue-rotate(-8deg) saturate(1.15)}
+  to{transform:translate3d(2%,-1%,0) scale(1.035);filter:hue-rotate(13deg) saturate(1.45)}
+}
+
+.scene-effects-panel{
+  margin-top:12px;
+  padding:11px;
+  border:1px solid rgba(216,182,102,.17);
+  border-radius:12px;
+  background:linear-gradient(180deg,rgba(17,22,28,.78),rgba(9,13,18,.9));
+}
+.scene-effects-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+.scene-effects-head h3{
+  margin:2px 0 0;
+  color:#eee6d8;
+  font:700 13px/1.1 Georgia,serif;
+}
+.scene-effects-head .eyebrow{margin:0}
+.scene-fx-clear{
+  min-height:28px;
+  padding:0 9px;
+  border:1px solid rgba(216,182,102,.18);
+  border-radius:8px;
+  background:#10171e;
+  color:#cbb980;
+  font-size:8px;
+}
+.scene-fx-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:5px;
+  margin-top:9px;
+}
+.scene-fx-grid button{
+  min-height:31px;
+  padding:0 6px;
+  border:1px solid rgba(132,151,164,.18);
+  border-radius:8px;
+  background:#10171e;
+  color:#c8d0d6;
+  font-size:8px;
+  transition:border-color .18s ease,background .18s ease,color .18s ease,box-shadow .18s ease;
+}
+.scene-fx-grid button.active{
+  border-color:rgba(216,182,102,.58);
+  background:linear-gradient(180deg,rgba(82,68,35,.46),rgba(31,28,20,.62));
+  color:#f2dfa7;
+  box-shadow:0 0 12px rgba(216,182,102,.08);
+}
+.scene-fx-grid button:disabled,
+.scene-fx-clear:disabled{opacity:.38;cursor:not-allowed}
+.scene-fx-settings{
+  display:grid;
+  grid-template-columns:1fr 92px;
+  gap:8px;
+  margin-top:9px;
+}
+.scene-fx-settings label{
+  display:grid;
+  gap:5px;
+  color:#aeb7be;
+  font-size:8px;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
+.scene-fx-settings input,
+.scene-fx-settings select{
+  width:100%;
+  accent-color:#caae65;
+}
+.scene-fx-settings select{
+  min-height:29px;
+  padding:0 7px;
+  border:1px solid rgba(132,151,164,.18);
+  border-radius:8px;
+  background:#0d141a;
+  color:#d8dde0;
+  font-size:8px;
+}
+.scene-fx-status{
+  margin:8px 0 0;
+  color:#8f9ba3;
+  font-size:8px;
+  line-height:1.4;
+}
+.scene-effects-panel.scene-inactive{
+  border-color:rgba(132,151,164,.10);
+}
+.scene-effects-panel.scene-inactive .scene-fx-status{
+  color:#7d8991;
+}
+@media(prefers-reduced-motion:reduce){
+  .scene-fx{animation:none!important}
+}
