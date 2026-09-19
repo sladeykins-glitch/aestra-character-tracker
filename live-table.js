@@ -3,6 +3,7 @@ const CAMPAIGN_ID=CONFIG.campaignId;
 const DISPLAY_QUERY=new URLSearchParams(location.search).get('display')==='1';
 const els=Object.fromEntries([...document.querySelectorAll('[id]')].map(el=>[el.id,el]));
 let supabase=null,user=null,isGM=false,state=null,assets=[],party=[],recent=[],filterKind='all',previewUrl='';
+let displayInitialized=false,lastSceneId=null,lastSceneBackdrop='',sceneTransitionTimer=null;
 
 const esc=s=>String(s??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const byId=id=>assets.find(a=>a.id===id)||null;
@@ -82,6 +83,22 @@ function setBackdrop(asset){
   els.backdrop.style.backgroundImage=asset?.image_url?'url("'+asset.image_url.replace(/"/g,'%22')+'")':'';
 }
 
+function playSceneTransition(previousUrl,nextUrl){
+  if(!displayInitialized||previousUrl===nextUrl)return;
+  const display=els.playerDisplay;
+  if(!display)return;
+  if(sceneTransitionTimer)clearTimeout(sceneTransitionTimer);
+  display.classList.remove('scene-transitioning');
+  void display.offsetWidth;
+  display.style.setProperty('--previous-backdrop',previousUrl?'url("'+previousUrl.replace(/"/g,'%22')+'")':'none');
+  display.classList.add('scene-transitioning');
+  sceneTransitionTimer=setTimeout(()=>{
+    display.classList.remove('scene-transitioning');
+    display.style.removeProperty('--previous-backdrop');
+    sceneTransitionTimer=null;
+  },1450);
+}
+
 function renderPinned(host,id){
   const asset=byId(id);
   if(!asset){host.classList.add('hidden');host.innerHTML='';return}
@@ -98,7 +115,11 @@ function renderDisplay(){
   els.previewHeading.textContent=mode==='map'?'World Map':mode==='reveal'?'Reveal':mode==='title'?'Title Screen':mode==='blackout'?'Blackout':'Scene View';
   document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));
 
-  setBackdrop(mode==='map'?(map||scene):scene);
+  const backdropAsset=mode==='map'?(map||scene):scene;
+  if(mode==='scene'&&state.active_scene_id!==lastSceneId){
+    playSceneTransition(lastSceneBackdrop,scene?.image_url||'');
+  }
+  setBackdrop(backdropAsset);
   const name=mode==='map'?(map?.name||'WORLD MAP'):(state.location_title||scene?.name||'AESTRA');
   const sub=mode==='map'?(map?.subtitle||'Aestra'):(state.location_subtitle||scene?.subtitle||'');
   els.locationName.textContent=String(name).toUpperCase();
@@ -120,6 +141,11 @@ function renderDisplay(){
   renderPinned(els.pinRight,state.pinned_right_id);
   els.hudToggle.checked=state.hud_visible!==false;
   renderParty();
+  if(mode==='scene'){
+    lastSceneId=state.active_scene_id||null;
+    lastSceneBackdrop=scene?.image_url||'';
+  }
+  displayInitialized=true;
 }
 
 function sceneCard(asset){
