@@ -64,6 +64,8 @@
           <strong id="locationName">AESTRA</strong>
         </div>
 
+        <div id="sceneCast" class="scene-cast hidden" aria-hidden="true"></div>
+
         <div id="pinLeft" class="pin-card pin-left hidden"></div>
         <div id="pinRight" class="pin-card pin-right hidden"></div>
 
@@ -152,6 +154,21 @@
             </label>
           </div>
           <p id="sceneFxStatus" class="scene-fx-status">No scene effects active.</p>
+        </div>
+
+        <div id="sceneCastPanel" class="scene-cast-panel">
+          <div class="scene-cast-head">
+            <div>
+              <p class="eyebrow">Conversation</p>
+              <h3>Scene Cast</h3>
+            </div>
+            <div class="scene-cast-head-actions">
+              <span id="sceneCastCount" class="scene-cast-count">0 / 6</span>
+              <button id="clearSceneCastBtn" type="button">Clear</button>
+            </div>
+          </div>
+          <p class="scene-cast-help">Add NPCs from the library. Click Speak to highlight whoever is talking; drag portraits to reorder them.</p>
+          <div id="sceneCastTray" class="scene-cast-tray"></div>
         </div>
 
         <div id="cueAudioPanel" class="cue-audio-panel">
