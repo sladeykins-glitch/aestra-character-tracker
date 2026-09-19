@@ -242,7 +242,7 @@ function mapSourceForRole(source,role){
     "  function aApplyLiveJourney(payload){",
     "    if(!payload)return false;",
     "    try{",
-    "      if(payload.party&&data.travel&&data.travel.party){data.travel.party.x=Number(payload.party.x)||0;data.travel.party.y=Number(payload.party.y)||0;data.travel.party.visible=payload.party.visible!==false;renderTravel()}",
+    "      if(payload.party&&data.travel&&data.travel.party){data.travel.party.x=Number(payload.party.x)||0;data.travel.party.y=Number(payload.party.y)||0;data.travel.party.visible=payload.party.visible!==false;if(typeof updatePartyDomPosition==='function'&&partyTokenEl&&partyTokenEl.querySelector('.party-core'))updatePartyDomPosition(data.travel.party);else renderTravel()}",
     "      if(aLiveRole==='player'&&window.aestraUpdateTravelHud)window.aestraUpdateTravelHud(payload.travel||null);",
     "      return true;",
     "    }catch(err){console.warn('Aestra live journey apply failed',err);return false}",
@@ -265,7 +265,7 @@ function mapSourceForRole(source,role){
     "      return true;",
     "    }catch(err){console.warn('Aestra live mirror apply failed',err);return false}",
     "  }",
-    "  window.AestraLiveBridge={version:6,role:aLiveRole,collect:aCollectLiveMirror,collectView:aCollectLiveView,collectJourney:aCollectLiveJourney,apply:aApplyLiveMirror,applyView:aApplyLiveView,applyJourney:aApplyLiveJourney,applyParty:(x,y)=>{try{data.travel.party.x=Number(x)||0;data.travel.party.y=Number(y)||0;data.travel.party.visible=true;renderTravel();return true}catch(err){return false}},present:()=>{try{setPresentation(true);return true}catch(err){return false}}};",
+    "  window.AestraLiveBridge={version:6,role:aLiveRole,collect:aCollectLiveMirror,collectView:aCollectLiveView,collectJourney:aCollectLiveJourney,apply:aApplyLiveMirror,applyView:aApplyLiveView,applyJourney:aApplyLiveJourney,applyParty:(x,y)=>{try{data.travel.party.x=Number(x)||0;data.travel.party.y=Number(y)||0;data.travel.party.visible=true;if(typeof updatePartyDomPosition==='function'&&partyTokenEl&&partyTokenEl.querySelector('.party-core'))updatePartyDomPosition(data.travel.party);else renderTravel();return true}catch(err){return false}},present:()=>{try{setPresentation(true);return true}catch(err){return false}}};",
     "  parent.postMessage({type:'aestra-map-ready',role:aLiveRole},'*');"
   ];
   const bridgeCode=bridgeLines.join(nl)+nl+nl;
