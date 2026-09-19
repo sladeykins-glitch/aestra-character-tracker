@@ -141,12 +141,6 @@ async function fetchInteractiveMapSource(asset){
 function mapSourceForRole(source,role){
   let preparedSource=source;
 
-  if(role==='gm'){
-    const dragBlock="  window.addEventListener('pointermove', e => {\n    if (!draggingPartyToken) return;\n    partyTokenSelected = true;\n    syncPartyTokenState();\n    const pos = screenToMap(e.clientX, e.clientY);\n    data.travel.party.x = Math.max(0, Math.min(W, pos.x));\n    data.travel.party.y = Math.max(0, Math.min(H, pos.y));\n    data.travel.party.visible = true;\n    renderTravel();\n  });";
-    const dragWithLive="  window.addEventListener('pointermove', e => {\n    if (!draggingPartyToken) return;\n    partyTokenSelected = true;\n    syncPartyTokenState();\n    const pos = screenToMap(e.clientX, e.clientY);\n    data.travel.party.x = Math.max(0, Math.min(W, pos.x));\n    data.travel.party.y = Math.max(0, Math.min(H, pos.y));\n    data.travel.party.visible = true;\n    renderTravel();\n    try { parent.postMessage({type:'aestra-map-party-motion',x:data.travel.party.x,y:data.travel.party.y},'*'); } catch (_) {}\n  });";
-    if(preparedSource.includes(dragBlock))preparedSource=preparedSource.replace(dragBlock,dragWithLive);
-  }
-
   const oldPartyMarkup="core.innerHTML='<span class=\"party-symbol\">✦</span><span class=\"party-label\">Party</span>';";
   const caravanMarkup="core.innerHTML='<span class=\"party-symbol party-caravan\" aria-hidden=\"true\"><svg viewBox=\"0 0 72 52\" xmlns=\"http://www.w3.org/2000/svg\"><path class=\"caravan-canopy\" d=\"M17 24c1-9 7-15 18-15 12 0 20 6 21 15H17Z\"/><path class=\"caravan-body\" d=\"M13 23h47l-4 17H18l-5-17Z\"/><path class=\"caravan-trim\" d=\"M18 25h37M26 11v27M44 11v27\"/><path class=\"caravan-tongue\" d=\"M59 32h9l3 4\"/><circle class=\"caravan-wheel\" cx=\"25\" cy=\"42\" r=\"6\"/><circle class=\"caravan-wheel\" cx=\"50\" cy=\"42\" r=\"6\"/><circle class=\"caravan-hub\" cx=\"25\" cy=\"42\" r=\"2\"/><circle class=\"caravan-hub\" cx=\"50\" cy=\"42\" r=\"2\"/><circle class=\"caravan-lantern\" cx=\"62\" cy=\"28\" r=\"2.4\"/></svg></span><span class=\"party-label\">Party Caravan</span>';";
   if(preparedSource.includes(oldPartyMarkup))preparedSource=preparedSource.replace(oldPartyMarkup,caravanMarkup);
@@ -168,9 +162,101 @@ function mapSourceForRole(source,role){
     '</style>';
   preparedSource=preparedSource.includes('</head>')?preparedSource.replace('</head>',caravanStyle+'</head>'):caravanStyle+preparedSource;
 
+  // Install a live mirror inside the atlas' own script scope. This has access
+  // to transient route/drawing state as well as the persisted map data.
+  const mirrorAnchor="  const saveKey = 'aestraMapDataV78';";
+  const mirrorHelpers=`
+  const aLiveMirrorLayerIds = [
+    'showTerrain','showMarkers','showRegions','showLabels','showDrawings','showHex',
+    'showFog','showWeather','showInfluence','showThreats','showCrystals','showNPCs',
+    'showParty','showCamps','subtleCamps','showHudScene','showHudObjectives','showHudClocks'
+  ];
+  let aLiveMirrorTimer = null;
+  let aLiveMirrorLastSentAt = 0;
+  let aLiveMirrorLastSignature = '';
+
+  function aCollectLiveMirror() {
+    const r = wrap.getBoundingClientRect();
+    const fitScale = Math.max(.0001, Math.min(r.width / W, r.height / H));
+    const layers = {};
+    for (const id of aLiveMirrorLayerIds) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      layers[id] = el.type === 'checkbox' ? !!el.checked : el.value;
+    }
+    const liveParty = journeyDisplayPos || (data.travel && data.travel.party) || null;
+    return {
+      version: 2,
+      data: JSON.parse(JSON.stringify(data)),
+      layers,
+      view: {
+        centerX: (r.width / 2 - tx) / Math.max(scale, .0001),
+        centerY: (r.height / 2 - ty) / Math.max(scale, .0001),
+        zoom: scale / fitScale
+      },
+      liveParty: liveParty ? {
+        x: Number(liveParty.x) || 0,
+        y: Number(liveParty.y) || 0,
+        visible: liveParty.visible !== false
+      } : null
+    };
+  }
+
+  function aEmitLiveMirrorNow() {
+    if (!gmMode) return;
+    try {
+      const mirror = aCollectLiveMirror();
+      const signature = JSON.stringify(mirror);
+      if (signature === aLiveMirrorLastSignature) return;
+      aLiveMirrorLastSignature = signature;
+      aLiveMirrorLastSentAt = performance.now();
+      parent.postMessage({type:'aestra-map-mirror', mirror}, '*');
+    } catch (err) {
+      console.warn('Aestra live mirror failed', err);
+    }
+  }
+
+  function aScheduleLiveMirror(minGap = 65) {
+    if (!gmMode) return;
+    if (aLiveMirrorTimer) return;
+    const elapsed = performance.now() - aLiveMirrorLastSentAt;
+    const wait = Math.max(0, minGap - elapsed);
+    aLiveMirrorTimer = setTimeout(() => {
+      aLiveMirrorTimer = null;
+      aEmitLiveMirrorNow();
+    }, wait);
+  }
+
+  document.addEventListener('input', () => aScheduleLiveMirror(20));
+  document.addEventListener('change', () => aScheduleLiveMirror(20));
+  document.addEventListener('click', () => aScheduleLiveMirror(35));
+  window.addEventListener('pointermove', () => {
+    if (pointerDown || draggingPartyToken || markerDirectDrag || regionLabelDrag ||
+        labelDirectDrag || labelTransformDrag || worldPinDrag) {
+      aScheduleLiveMirror(55);
+    }
+  });
+  window.addEventListener('pointerup', () => aScheduleLiveMirror(15), true);
+  window.addEventListener('pointercancel', () => aScheduleLiveMirror(15), true);
+  window.addEventListener('wheel', () => aScheduleLiveMirror(55), {passive:true});
+  setInterval(() => {
+    if (gmMode && journeyActive) aScheduleLiveMirror(55);
+  }, 55);
+
+`;
+  if(preparedSource.includes(mirrorAnchor)){
+    preparedSource=preparedSource.replace(mirrorAnchor,mirrorHelpers+mirrorAnchor);
+  }
+
+  // Programmatic camera moves (focus/centre/animated zoom) also need to be mirrored.
+  if(role==='gm'){
+    const transformMarker="    renderMarkers();\n\n    // Interior tint fades as the player zooms in.";
+    const transformLive="    renderMarkers();\n    if (typeof aScheduleLiveMirror === 'function') aScheduleLiveMirror(55);\n\n    // Interior tint fades as the player zooms in.";
+    if(preparedSource.includes(transformMarker))preparedSource=preparedSource.replace(transformMarker,transformLive);
+  }
+
   // Presentation mode lives inside the atlas' own DOMContentLoaded scope, so
-  // force it from inside that scope for player displays instead of relying
-  // only on the external iframe bridge.
+  // force it from inside that scope for player displays.
   if(role==='player'){
     const initMarker="  setTool('pan');\n  renderAll();\n  fit();\n  applyAmbientParallax();";
     const playerInit="  setTool('pan');\n  renderAll();\n  fit();\n  applyAmbientParallax();\n  setTimeout(() => {\n    try {\n      setPresentation(true);\n      const exit=document.getElementById('presentationExit');\n      if(exit) exit.style.display='none';\n      const toggle=document.getElementById('presentationToggle');\n      if(toggle) toggle.style.display='none';\n    } catch (err) {\n      const app=document.getElementById('app');\n      if(app) app.classList.add('presentation');\n    }\n  }, 140);";
@@ -184,12 +270,13 @@ function mapSourceForRole(source,role){
   const bridge='<script id="aestra-live-table-runtime-bridge">(function(){'+
     'var role='+JSON.stringify(role)+';var applyingRemote=false;'+
     'function sendState(){if(role!=="gm"||applyingRemote)return;try{parent.postMessage({type:"aestra-map-state",state:JSON.parse(JSON.stringify(data))},"*")}catch(e){console.warn("Aestra map sync send failed",e)}}'+
-    'function applyState(next){if(!next)return;try{applyingRemote=true;data=JSON.parse(JSON.stringify(next));if(typeof normalizeData==="function")normalizeData();var fog=document.getElementById("fogOpacity");if(fog&&data.fog)fog.value=data.fog.opacity||82;if(typeof renderAll==="function")renderAll()}catch(e){console.warn("Aestra map sync apply failed",e)}finally{setTimeout(function(){applyingRemote=false},260)}}'+
+    'function applyState(next){if(!next)return;try{applyingRemote=true;data=JSON.parse(JSON.stringify(next));if(typeof normalizeData==="function")normalizeData();var fog=document.getElementById("fogOpacity");if(fog&&data.fog)fog.value=data.fog.opacity||82;if(typeof renderAll==="function")renderAll()}catch(e){console.warn("Aestra map sync apply failed",e)}finally{setTimeout(function(){applyingRemote=false},180)}}'+
+    'function applyMirror(mirror){if(!mirror)return;try{applyingRemote=true;var payload=(mirror.version===2&&mirror.data)?mirror:{version:1,data:mirror};if(payload.data){data=JSON.parse(JSON.stringify(payload.data));if(typeof normalizeData==="function")normalizeData()}if(payload.layers){Object.keys(payload.layers).forEach(function(id){var el=document.getElementById(id);if(!el)return;if(el.type==="checkbox")el.checked=!!payload.layers[id];else el.value=payload.layers[id]})}if(payload.liveParty&&data&&data.travel&&data.travel.party){data.travel.party.x=Number(payload.liveParty.x)||0;data.travel.party.y=Number(payload.liveParty.y)||0;data.travel.party.visible=payload.liveParty.visible!==false}var fog=document.getElementById("fogOpacity");if(fog&&data.fog)fog.value=data.fog.opacity||82;if(typeof renderAll==="function")renderAll();if(typeof syncLegendFilters==="function")syncLegendFilters();if(payload.view&&typeof wrap!=="undefined"){var r=wrap.getBoundingClientRect();var fitScale=Math.max(.0001,Math.min(r.width/W,r.height/H));var zoom=Math.max(.12,Math.min(8,Number(payload.view.zoom)||1));scale=fitScale*zoom;tx=r.width/2-(Number(payload.view.centerX)||W/2)*scale;ty=r.height/2-(Number(payload.view.centerY)||H/2)*scale;if(typeof applyTransform==="function")applyTransform()}}catch(e){console.warn("Aestra live mirror apply failed",e)}finally{setTimeout(function(){applyingRemote=false},120)}}'+
     'function enforcePlayerPresentation(){if(role!=="player")return;var app=document.getElementById("app");if(app)app.classList.add("presentation");var exit=document.getElementById("presentationExit");if(exit)exit.style.display="none";var toggle=document.getElementById("presentationToggle");if(toggle)toggle.style.display="none"}'+
     'function configure(){document.body.classList.add("aestra-live-embedded");try{if(role==="player"){enforcePlayerPresentation();setTimeout(enforcePlayerPresentation,300);setTimeout(enforcePlayerPresentation,900)}else{var app=document.getElementById("app");if(app)app.classList.remove("presentation");if(typeof gmMode!=="undefined"){gmMode=true;if(typeof syncModeLabels==="function")syncModeLabels()}if(typeof renderAll==="function")renderAll()}}catch(e){console.warn("Aestra bridge configure failed",e)}'+
     'try{var originalSave=saveLocal;saveLocal=function(silent){originalSave(silent);sendState()}}catch(e){console.warn("Aestra bridge save hook failed",e)}'+
-    'window.addEventListener("message",function(ev){var m=ev.data||{};if(m.type==="aestra-map-state-apply"){applyState(m.state);if(role==="player")setTimeout(enforcePlayerPresentation,40)}else if(m.type==="aestra-map-party-motion-apply"&&role==="player"){try{data.travel.party.x=Number(m.x);data.travel.party.y=Number(m.y);data.travel.party.visible=true;if(typeof renderTravel==="function")renderTravel()}catch(e){}}});'+
-    'parent.postMessage({type:"aestra-map-ready",role:role},"*");if(role==="gm")setTimeout(sendState,250)}'+
+    'window.addEventListener("message",function(ev){var m=ev.data||{};if(m.type==="aestra-map-mirror-apply"){applyMirror(m.mirror);if(role==="player")setTimeout(enforcePlayerPresentation,25)}else if(m.type==="aestra-map-state-apply"){applyState(m.state);if(role==="player")setTimeout(enforcePlayerPresentation,40)}else if(m.type==="aestra-map-party-motion-apply"&&role==="player"){try{data.travel.party.x=Number(m.x);data.travel.party.y=Number(m.y);data.travel.party.visible=true;if(typeof renderTravel==="function")renderTravel()}catch(e){}}});'+
+    'parent.postMessage({type:"aestra-map-ready",role:role},"*");if(role==="gm")setTimeout(function(){try{if(typeof aEmitLiveMirrorNow==="function")aEmitLiveMirrorNow();else sendState()}catch(e){sendState()}},220)}'+
     'if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",function(){setTimeout(configure,120)});else setTimeout(configure,120)})();<\/script>';
 
   const addition=playerStyle+bridge;
