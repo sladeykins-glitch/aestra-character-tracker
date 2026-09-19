@@ -54,6 +54,17 @@
         <div id="backdrop" class="backdrop"></div>
         <iframe id="worldMapFrame" class="world-map-frame hidden" title="Aestra interactive world map" referrerpolicy="no-referrer"></iframe>
         <div class="atmosphere"></div>
+        <div id="sceneEffects" class="scene-effects" aria-hidden="true">
+          <div class="scene-fx scene-fx-rain"></div>
+          <div class="scene-fx scene-fx-storm"></div>
+          <div class="scene-fx scene-fx-mist"></div>
+          <div class="scene-fx scene-fx-wind"></div>
+          <div class="scene-fx scene-fx-snow"></div>
+          <div class="scene-fx scene-fx-ash"></div>
+          <div class="scene-fx scene-fx-heat"></div>
+          <div class="scene-fx scene-fx-magic"></div>
+          <div class="scene-fx scene-fx-cold"></div>
+        </div>
         <div id="locationTitle" class="location-title">
           <span id="locationSubtitle"></span>
           <strong id="locationName">AESTRA</strong>
@@ -95,6 +106,41 @@
           <button id="addSceneBtn" class="icon-btn" type="button" title="Add scene">＋</button>
         </div>
         <div id="sceneStrip" class="scene-strip"></div>
+        <div id="sceneEffectsPanel" class="scene-effects-panel">
+          <div class="scene-effects-head">
+            <div>
+              <p class="eyebrow">Scene Only</p>
+              <h3>Atmosphere</h3>
+            </div>
+            <button id="clearSceneFxBtn" type="button" class="scene-fx-clear">Clear</button>
+          </div>
+          <div class="scene-fx-grid" aria-label="Scene atmospheric effects">
+            <button type="button" data-scene-fx="rain">Rain</button>
+            <button type="button" data-scene-fx="storm">Storm</button>
+            <button type="button" data-scene-fx="mist">Mist</button>
+            <button type="button" data-scene-fx="wind">Wind</button>
+            <button type="button" data-scene-fx="snow">Snow</button>
+            <button type="button" data-scene-fx="ash">Ashfall</button>
+            <button type="button" data-scene-fx="heat">Heat</button>
+            <button type="button" data-scene-fx="magic">Magic</button>
+            <button type="button" data-scene-fx="cold">Cold Grade</button>
+          </div>
+          <div class="scene-fx-settings">
+            <label>
+              <span>Intensity</span>
+              <input id="sceneFxIntensity" type="range" min="1" max="3" step="1" value="2" />
+            </label>
+            <label>
+              <span>Fade</span>
+              <select id="sceneFxFade">
+                <option value="350">Quick</option>
+                <option value="900" selected>Smooth</option>
+                <option value="1800">Slow</option>
+              </select>
+            </label>
+          </div>
+          <p id="sceneFxStatus" class="scene-fx-status">No scene effects active.</p>
+        </div>
         <div class="map-tool-stack">
           <button id="setMapAssetBtn" type="button" class="wide">Choose World Map</button>
           <button id="importInteractiveMapBtn" type="button" class="wide primary">Import Interactive Map</button>
