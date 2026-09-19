@@ -3,7 +3,7 @@ const CAMPAIGN_ID=CONFIG.campaignId;
 const DISPLAY_QUERY=new URLSearchParams(location.search).get('display')==='1';
 const els=Object.fromEntries([...document.querySelectorAll('[id]')].map(el=>[el.id,el]));
 let supabase=null,user=null,isGM=false,state=null,assets=[],party=[],recent=[],filterKind='all',previewUrl='';
-let displayInitialized=false,lastSceneId=null,lastSceneBackdrop='',sceneTransitionTimer=null;
+let displayInitialized=false,lastDisplaySignature='',displayTransitionTimer=null;
 
 const esc=s=>String(s??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const byId=id=>assets.find(a=>a.id===id)||null;
@@ -85,20 +85,33 @@ function setBackdrop(asset){
   els.backdrop.style.backgroundImage=asset?.image_url?'url("'+asset.image_url.replace(/"/g,'%22')+'")':'';
 }
 
-function playSceneTransition(previousUrl,nextUrl){
-  if(!displayInitialized||previousUrl===nextUrl)return;
+function displaySignature(s){
+  if(!s)return '';
+  return [
+    s.mode||'scene',
+    s.active_scene_id||'',
+    s.map_asset_id||'',
+    s.active_reveal_id||'',
+    s.pinned_left_id||'',
+    s.pinned_right_id||'',
+    s.location_title||'',
+    s.location_subtitle||'',
+    s.hud_visible===false?'hud-off':'hud-on'
+  ].join('|');
+}
+
+function playDisplayTransition(){
+  if(!displayInitialized)return;
   const display=els.playerDisplay;
   if(!display)return;
-  if(sceneTransitionTimer)clearTimeout(sceneTransitionTimer);
-  display.classList.remove('scene-transitioning');
+  if(displayTransitionTimer)clearTimeout(displayTransitionTimer);
+  display.classList.remove('display-transitioning');
   void display.offsetWidth;
-  display.style.setProperty('--previous-backdrop',previousUrl?'url("'+previousUrl.replace(/"/g,'%22')+'")':'none');
-  display.classList.add('scene-transitioning');
-  sceneTransitionTimer=setTimeout(()=>{
-    display.classList.remove('scene-transitioning');
-    display.style.removeProperty('--previous-backdrop');
-    sceneTransitionTimer=null;
-  },1450);
+  display.classList.add('display-transitioning');
+  displayTransitionTimer=setTimeout(()=>{
+    display.classList.remove('display-transitioning');
+    displayTransitionTimer=null;
+  },1250);
 }
 
 function renderPinned(host,id){
@@ -114,14 +127,13 @@ function renderDisplay(){
   const map=byId(state.map_asset_id);
   const reveal=byId(state.active_reveal_id);
   const mode=state.mode||'scene';
+  const signature=displaySignature(state);
+  if(displayInitialized&&signature!==lastDisplaySignature)playDisplayTransition();
   els.previewHeading.textContent=mode==='map'?'World Map':mode==='reveal'?'Reveal':mode==='title'?'Title Screen':mode==='blackout'?'Blackout':'Scene View';
   document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));
 
   const interactiveMapLive=mode==='map'&&isInteractiveMap(map);
   const backdropAsset=mode==='map'?(interactiveMapLive?scene:(map||scene)):scene;
-  if(mode==='scene'&&state.active_scene_id!==lastSceneId){
-    playSceneTransition(lastSceneBackdrop,scene?.image_url||'');
-  }
   setBackdrop(backdropAsset);
   if(interactiveMapLive){
     const src=withMapRole(map.image_url,'player');
@@ -156,10 +168,7 @@ function renderDisplay(){
   renderPinned(els.pinRight,state.pinned_right_id);
   els.hudToggle.checked=state.hud_visible!==false;
   renderParty();
-  if(mode==='scene'){
-    lastSceneId=state.active_scene_id||null;
-    lastSceneBackdrop=scene?.image_url||'';
-  }
+  lastDisplaySignature=signature;
   displayInitialized=true;
 }
 
