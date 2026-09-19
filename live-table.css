@@ -44,7 +44,8 @@ button.danger:hover{border-color:#c96468!important;background:rgba(119,35,43,.3)
 .map-tool-stack .wide{margin-top:0}
 .map-import-status{margin:2px 0 0;color:var(--muted);font-size:9px;line-height:1.45}
 .display-only .world-map-frame{pointer-events:auto}
-body:not(.display-only) .world-map-frame{pointer-events:none}
+body:not(.display-only) .player-display.map-live .world-map-frame{pointer-events:auto}
+body:not(.display-only) .player-display:not(.map-live) .world-map-frame{pointer-events:none}
 
 .interactive-map-thumb{display:grid;place-items:center;align-content:center;gap:5px;background:radial-gradient(circle at 50% 42%,rgba(118,184,221,.18),transparent 42%),linear-gradient(145deg,#16222c,#0b1117);border:1px solid rgba(216,182,102,.22);color:#dec779;text-align:center}
 .interactive-map-thumb span{font-size:24px;text-shadow:0 0 16px rgba(118,184,221,.38)}
@@ -59,3 +60,8 @@ body:not(.display-only) .world-map-frame{pointer-events:none}
 .ai-prompt-chips button{min-height:28px!important;padding:0 8px!important;border-radius:999px!important;font-size:8px!important}
 .ai-status{min-height:28px;margin:0;color:var(--muted);font-size:9px;line-height:1.45}
 .ai-box #generateBackdropBtn{width:100%}
+
+.player-display.map-live{outline:1px solid rgba(216,182,102,.18);outline-offset:-1px}
+body:not(.display-only) .player-display.map-live::before{content:'GM MAP CONTROL · LIVE';position:absolute;top:10px;left:10px;z-index:29;padding:5px 8px;border:1px solid rgba(216,182,102,.36);border-radius:999px;background:rgba(7,10,14,.74);backdrop-filter:blur(7px);color:#ead38f;font:700 8px/1 Inter,system-ui,sans-serif;letter-spacing:.13em;pointer-events:none}
+.player-display.map-loading::before{content:'LOADING WORLD MAP…'}
+.display-only .player-display.map-live::before{display:none}
