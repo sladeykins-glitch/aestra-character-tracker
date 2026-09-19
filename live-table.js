@@ -139,6 +139,27 @@ async function fetchInteractiveMapSource(asset){
 function mapSourceForRole(source,role){
   let preparedSource=source;
 
+  const oldPartyMarkup="core.innerHTML='<span class=\"party-symbol\">✦</span><span class=\"party-label\">Party</span>';";
+  const caravanMarkup="core.innerHTML='<span class=\"party-symbol party-caravan\" aria-hidden=\"true\"><svg viewBox=\"0 0 72 52\" xmlns=\"http://www.w3.org/2000/svg\"><path class=\"caravan-canopy\" d=\"M17 24c1-9 7-15 18-15 12 0 20 6 21 15H17Z\"/><path class=\"caravan-body\" d=\"M13 23h47l-4 17H18l-5-17Z\"/><path class=\"caravan-trim\" d=\"M18 25h37M26 11v27M44 11v27\"/><path class=\"caravan-tongue\" d=\"M59 32h9l3 4\"/><circle class=\"caravan-wheel\" cx=\"25\" cy=\"42\" r=\"6\"/><circle class=\"caravan-wheel\" cx=\"50\" cy=\"42\" r=\"6\"/><circle class=\"caravan-hub\" cx=\"25\" cy=\"42\" r=\"2\"/><circle class=\"caravan-hub\" cx=\"50\" cy=\"42\" r=\"2\"/><circle class=\"caravan-lantern\" cx=\"62\" cy=\"28\" r=\"2.4\"/></svg></span><span class=\"party-label\">Party Caravan</span>';";
+  if(preparedSource.includes(oldPartyMarkup))preparedSource=preparedSource.replace(oldPartyMarkup,caravanMarkup);
+
+  const caravanStyle='<style id="aestra-party-caravan-style">'+
+    '#partyToken .party-core{width:34px!important;height:28px!important;border-radius:10px!important;border:1px solid rgba(244,210,132,.36)!important;background:radial-gradient(circle at 50% 45%,rgba(22,28,31,.94),rgba(8,11,14,.96) 72%)!important;box-shadow:0 0 0 2px rgba(31,23,13,.62),0 0 13px rgba(228,178,76,.28),0 0 22px rgba(94,183,215,.10)!important;padding:2px!important}'+
+    '#partyToken .party-symbol.party-caravan{display:block;width:30px;height:23px;line-height:0;filter:drop-shadow(0 1px 1px rgba(0,0,0,.7)) drop-shadow(0 0 4px rgba(231,190,97,.24));pointer-events:none}'+
+    '#partyToken .party-symbol.party-caravan svg{display:block;width:100%;height:100%;overflow:visible}'+
+    '#partyToken .caravan-canopy{fill:#d8c28e;stroke:#4a3518;stroke-width:2;stroke-linejoin:round}'+
+    '#partyToken .caravan-body{fill:#9a642c;stroke:#3c2814;stroke-width:2;stroke-linejoin:round}'+
+    '#partyToken .caravan-trim{fill:none;stroke:#f0d68f;stroke-width:1.6;stroke-linecap:round;opacity:.8}'+
+    '#partyToken .caravan-tongue{fill:none;stroke:#d8b46a;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}'+
+    '#partyToken .caravan-wheel{fill:#2e241b;stroke:#d8b46a;stroke-width:2}'+
+    '#partyToken .caravan-hub{fill:#ecd18a}'+
+    '#partyToken .caravan-lantern{fill:#9ee8f2;stroke:#e5ffff;stroke-width:.8;filter:drop-shadow(0 0 3px #73d8e8)}'+
+    '#app.party-token-active #partyToken .party-core,#app.party-token-dragging #partyToken .party-core{width:58px!important;height:47px!important;border-radius:14px!important;box-shadow:0 0 0 3px rgba(31,23,13,.72),0 0 25px rgba(228,178,76,.42),0 0 40px rgba(94,183,215,.18),0 10px 24px rgba(0,0,0,.4)!important}'+
+    '#app.party-token-active #partyToken .party-symbol.party-caravan,#app.party-token-dragging #partyToken .party-symbol.party-caravan{width:52px;height:40px;filter:drop-shadow(0 2px 2px rgba(0,0,0,.78)) drop-shadow(0 0 7px rgba(231,190,97,.35))}'+
+    '#app.party-token-active #partyToken .party-core .party-label,#app.party-token-dragging #partyToken .party-core .party-label{top:54px!important}'+
+    '</style>';
+  preparedSource=preparedSource.includes('</head>')?preparedSource.replace('</head>',caravanStyle+'</head>'):caravanStyle+preparedSource;
+
   // Presentation mode lives inside the atlas' own DOMContentLoaded scope, so
   // force it from inside that scope for player displays instead of relying
   // only on the external iframe bridge.
