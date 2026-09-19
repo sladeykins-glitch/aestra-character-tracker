@@ -485,6 +485,74 @@ function handleMapBridgeMessage(event){
   }
 }
 
+const SCENE_EFFECT_KEYS=['rain','storm','mist','wind','snow','ash','heat','magic','cold'];
+
+function sceneEffectState(){
+  const raw=state?.scene_effects&&typeof state.scene_effects==='object'?state.scene_effects:{};
+  const effects=Array.isArray(raw.effects)
+    ? [...new Set(raw.effects.filter(effect=>SCENE_EFFECT_KEYS.includes(effect)))]
+    : [];
+  const intensity=[1,2,3].includes(Number(raw.intensity))?Number(raw.intensity):2;
+  const fadeMs=[350,900,1800].includes(Number(raw.fade_ms))?Number(raw.fade_ms):900;
+  return {effects,intensity,fade_ms:fadeMs};
+}
+
+function renderSceneEffects(mode=state?.mode||'scene'){
+  const cfg=sceneEffectState();
+  const sceneOnly=mode==='scene';
+  const host=els.sceneEffects;
+  if(host){
+    host.className='scene-effects intensity-'+cfg.intensity;
+    host.style.setProperty('--scene-fx-fade',cfg.fade_ms+'ms');
+    if(sceneOnly&&cfg.effects.length){
+      host.classList.add('active');
+      cfg.effects.forEach(effect=>host.classList.add('fx-'+effect));
+    }
+  }
+
+  const buttons=[...document.querySelectorAll('[data-scene-fx]')];
+  buttons.forEach(button=>{
+    const selected=cfg.effects.includes(button.dataset.sceneFx);
+    button.classList.toggle('active',selected);
+    button.setAttribute('aria-pressed',selected?'true':'false');
+    button.disabled=!canGMControl()||!sceneOnly;
+  });
+  if(els.sceneFxIntensity){
+    els.sceneFxIntensity.value=String(cfg.intensity);
+    els.sceneFxIntensity.disabled=!canGMControl()||!sceneOnly;
+  }
+  if(els.sceneFxFade){
+    els.sceneFxFade.value=String(cfg.fade_ms);
+    els.sceneFxFade.disabled=!canGMControl()||!sceneOnly;
+  }
+  if(els.clearSceneFxBtn)els.clearSceneFxBtn.disabled=!canGMControl()||!sceneOnly||!cfg.effects.length;
+  if(els.sceneEffectsPanel)els.sceneEffectsPanel.classList.toggle('scene-inactive',!sceneOnly);
+  if(els.sceneFxStatus){
+    els.sceneFxStatus.textContent=!sceneOnly
+      ? 'Scene effects are paused outside Scene mode.'
+      : cfg.effects.length
+        ? cfg.effects.length+' effect'+(cfg.effects.length===1?'':'s')+' active • intensity '+cfg.intensity
+        : 'No scene effects active.';
+  }
+}
+
+async function toggleSceneEffect(effect){
+  if(!canGMControl()||state?.mode!=='scene'||!SCENE_EFFECT_KEYS.includes(effect))return;
+  const cfg=sceneEffectState();
+  const next=cfg.effects.includes(effect)
+    ? cfg.effects.filter(item=>item!==effect)
+    : [...cfg.effects,effect];
+  await patchState({scene_effects:{...cfg,effects:next}});
+}
+
+async function setSceneEffectSetting(key,value){
+  if(!canGMControl()||state?.mode!=='scene')return;
+  const cfg=sceneEffectState();
+  if(key==='intensity')cfg.intensity=Math.max(1,Math.min(3,Number(value)||2));
+  if(key==='fade_ms')cfg.fade_ms=[350,900,1800].includes(Number(value))?Number(value):900;
+  await patchState({scene_effects:cfg});
+}
+
 function renderPinned(host,id){
   const asset=byId(id);
   if(!asset){host.classList.add('hidden');host.innerHTML='';return}
@@ -535,6 +603,7 @@ function renderDisplay(){
   renderPinned(els.pinRight,state.pinned_right_id);
   els.hudToggle.checked=state.hud_visible!==false;
   renderParty();
+  renderSceneEffects(mode);
   // The world map already represents the party with the caravan marker.
   // Hide the character HUD there to keep the map presentation uncluttered.
   els.partyHud.classList.toggle('hidden',mode==='map'||state.hud_visible===false);
@@ -971,6 +1040,14 @@ function wire(){
   els.returnSceneBtn.addEventListener('click',()=>patchState({mode:'scene',active_reveal_id:null}));
   els.clearPinsBtn.addEventListener('click',()=>patchState({pinned_left_id:null,pinned_right_id:null}));
   els.hudToggle.addEventListener('change',()=>patchState({hud_visible:els.hudToggle.checked}));
+  document.querySelectorAll('[data-scene-fx]').forEach(button=>button.addEventListener('click',()=>toggleSceneEffect(button.dataset.sceneFx)));
+  els.sceneFxIntensity?.addEventListener('change',()=>setSceneEffectSetting('intensity',els.sceneFxIntensity.value));
+  els.sceneFxFade?.addEventListener('change',()=>setSceneEffectSetting('fade_ms',els.sceneFxFade.value));
+  els.clearSceneFxBtn?.addEventListener('click',async()=>{
+    if(!canGMControl()||state?.mode!=='scene')return;
+    const cfg=sceneEffectState();
+    await patchState({scene_effects:{...cfg,effects:[]}});
+  });
   els.modeSwitch.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>{
     const mode=b.dataset.mode;
     if(mode==='map'&&!state?.map_asset_id){els.setMapAssetBtn.click();return}
