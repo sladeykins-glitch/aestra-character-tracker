@@ -1688,7 +1688,6 @@ function cueSummary(snapshot){
   pieces.push(s.hud_visible===false?'HUD off':'HUD on');
   const pinCount=[s.pinned_left_id,s.pinned_right_id].filter(Boolean).length;
   if(pinCount)pieces.push(pinCount+' pinned');
-  patch.transition_state={...normalizeTransition(s.transition),nonce:nextTransitionNonce()};
   const cueAudio=normalizeCueAudio(s.audio);
   if(cueAudio){
     const music=audioById(cueAudio.music_id)?.name;
@@ -1803,6 +1802,7 @@ function buildCuePatch(snapshot){
     hud_visible:s.hud_visible!==false,
     scene_effects:normalizeCueEffects(s.scene_effects)
   };
+  patch.transition_state={...normalizeTransition(s.transition),nonce:nextTransitionNonce()};
   const cueAudio=normalizeCueAudio(s.audio);
   if(cueAudio){
     const current=normalizeAudioState(state?.audio_state);
