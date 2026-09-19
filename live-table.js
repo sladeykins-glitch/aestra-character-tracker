@@ -19,6 +19,7 @@ let mapStatePersistBusy=false,mapStatePersistPending=null,lastMapStatePersistAt=
 let cueSequenceDragId='';
 const cuePreloadedUrls=new Set();
 const cuePreloadedAudioUrls=new Set();
+const cueAudioPreloaders=new Map();
 let liveAudioEngine=null;
 let gmAudioPreview=null;
 
@@ -1765,6 +1766,7 @@ function preloadCueSnapshot(snapshot){
     const audio=new Audio();
     audio.preload='auto';
     audio.src=track.url;
+    cueAudioPreloaders.set(track.url,audio);
     try{audio.load()}catch(_){}
   }
 }
