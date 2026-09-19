@@ -1298,13 +1298,186 @@ function renderRevealGrid(){
   els.revealGrid.querySelectorAll('[data-delete]').forEach(b=>b.addEventListener('click',()=>deleteAsset(b.dataset.delete)));
 }
 
+function scenePresets(){
+  const raw=state?.scene_presets;
+  if(!Array.isArray(raw))return [];
+  return raw
+    .filter(p=>p&&typeof p==='object'&&typeof p.id==='string'&&p.snapshot&&typeof p.snapshot==='object')
+    .slice(0,36);
+}
+
+function normalizeCueEffects(raw){
+  const effects=Array.isArray(raw?.effects)
+    ? [...new Set(raw.effects.filter(effect=>SCENE_EFFECT_KEYS.includes(effect)))]
+    : [];
+  return {
+    effects,
+    intensity:[1,2,3].includes(Number(raw?.intensity))?Number(raw.intensity):2,
+    fade_ms:[350,900,1800].includes(Number(raw?.fade_ms))?Number(raw.fade_ms):900
+  };
+}
+
+function captureCurrentCueSnapshot(){
+  return {
+    mode:['scene','map','reveal','title','blackout'].includes(state?.mode)?state.mode:'scene',
+    active_scene_id:state?.active_scene_id||null,
+    active_reveal_id:state?.active_reveal_id||null,
+    map_asset_id:state?.map_asset_id||null,
+    pinned_left_id:state?.pinned_left_id||null,
+    pinned_right_id:state?.pinned_right_id||null,
+    location_title:state?.location_title||'',
+    location_subtitle:state?.location_subtitle||'',
+    reveal_style:state?.reveal_style||'focus',
+    hud_visible:state?.hud_visible!==false,
+    scene_effects:normalizeCueEffects(state?.scene_effects)
+  };
+}
+
+function cueSnapshotSignature(snapshot){
+  const s=snapshot||{};
+  return JSON.stringify({
+    mode:s.mode||'scene',
+    active_scene_id:s.active_scene_id||null,
+    active_reveal_id:s.active_reveal_id||null,
+    map_asset_id:s.map_asset_id||null,
+    pinned_left_id:s.pinned_left_id||null,
+    pinned_right_id:s.pinned_right_id||null,
+    location_title:s.location_title||'',
+    location_subtitle:s.location_subtitle||'',
+    reveal_style:s.reveal_style||'focus',
+    hud_visible:s.hud_visible!==false,
+    scene_effects:normalizeCueEffects(s.scene_effects)
+  });
+}
+
+function cueModeLabel(mode){
+  return ({scene:'Scene',map:'World Map',reveal:'Reveal',title:'Title',blackout:'Blackout'})[mode]||'Scene';
+}
+
+function cuePrimaryLabel(snapshot){
+  const s=snapshot||{};
+  if(s.mode==='scene')return byId(s.active_scene_id)?.name||s.location_title||'Scene';
+  if(s.mode==='map')return byId(s.map_asset_id)?.name||'World Map';
+  if(s.mode==='reveal')return byId(s.active_reveal_id)?.name||'Reveal';
+  if(s.mode==='blackout')return 'Blackout';
+  return 'Aestra Title';
+}
+
+function cueSummary(snapshot){
+  const s=snapshot||{};
+  const fx=normalizeCueEffects(s.scene_effects);
+  const pieces=[cuePrimaryLabel(s)];
+  if(s.mode==='scene')pieces.push(fx.effects.length?fx.effects.map(x=>x==='cold'?'Cold':x[0].toUpperCase()+x.slice(1)).join(' + '):'No atmosphere');
+  pieces.push(s.hud_visible===false?'HUD off':'HUD on');
+  const pinCount=[s.pinned_left_id,s.pinned_right_id].filter(Boolean).length;
+  if(pinCount)pieces.push(pinCount+' pinned');
+  return pieces.join(' · ');
+}
+
+function defaultCueName(){
+  const snapshot=captureCurrentCueSnapshot();
+  const primary=cuePrimaryLabel(snapshot);
+  if(snapshot.mode==='blackout')return 'Blackout';
+  if(snapshot.mode==='title')return 'Aestra Title';
+  return primary||cueModeLabel(snapshot.mode)+' Cue';
+}
+
+function renderCuePresets(){
+  if(!els.cuePresetList)return;
+  const presets=scenePresets();
+  if(els.cuePresetCount)els.cuePresetCount.textContent=String(presets.length);
+  const currentSig=cueSnapshotSignature(captureCurrentCueSnapshot());
+  if(!presets.length){
+    els.cuePresetList.innerHTML='<p class="cue-preset-empty">Save the current presentation to create your first one-click cue.</p>';
+    return;
+  }
+  els.cuePresetList.innerHTML=presets.map(p=>{
+    const snapshot=p.snapshot||{};
+    const isCurrent=cueSnapshotSignature(snapshot)===currentSig;
+    return '<article class="cue-preset-card'+(isCurrent?' is-current':'')+'" data-cue-id="'+esc(p.id)+'">'+
+      '<div class="cue-preset-top"><strong class="cue-preset-name">'+esc(p.name||'Untitled Cue')+'</strong><span class="cue-mode-badge">'+esc(cueModeLabel(snapshot.mode))+'</span></div>'+
+      '<small class="cue-preset-summary">'+esc(cueSummary(snapshot))+'</small>'+
+      '<div class="cue-preset-actions">'+
+        '<button type="button" class="cue-go" data-cue-go="'+esc(p.id)+'">'+(isCurrent?'LIVE':'GO')+'</button>'+
+        '<button type="button" class="cue-update" data-cue-update="'+esc(p.id)+'" title="Replace this cue with the current Live Table setup">UPDATE</button>'+
+        '<button type="button" class="cue-delete" data-cue-delete="'+esc(p.id)+'" title="Delete cue">×</button>'+
+      '</div>'+
+    '</article>';
+  }).join('');
+  els.cuePresetList.querySelectorAll('[data-cue-go]').forEach(b=>b.addEventListener('click',()=>applyCuePreset(b.dataset.cueGo)));
+  els.cuePresetList.querySelectorAll('[data-cue-update]').forEach(b=>b.addEventListener('click',()=>updateCuePreset(b.dataset.cueUpdate)));
+  els.cuePresetList.querySelectorAll('[data-cue-delete]').forEach(b=>b.addEventListener('click',()=>deleteCuePreset(b.dataset.cueDelete)));
+}
+
+async function saveCuePreset(){
+  if(!canGMControl())return;
+  const name=(els.cuePresetName?.value||'').trim()||defaultCueName();
+  const preset={
+    id:crypto.randomUUID?crypto.randomUUID():'cue-'+Date.now().toString(36),
+    name:name.slice(0,60),
+    created_at:new Date().toISOString(),
+    snapshot:captureCurrentCueSnapshot()
+  };
+  const next=[preset,...scenePresets()].slice(0,36);
+  await patchState({scene_presets:next});
+  if(els.cuePresetName)els.cuePresetName.value='';
+}
+
+async function updateCuePreset(id){
+  if(!canGMControl())return;
+  const presets=scenePresets();
+  const existing=presets.find(p=>p.id===id);
+  if(!existing)return;
+  const next=presets.map(p=>p.id===id
+    ? {...p,updated_at:new Date().toISOString(),snapshot:captureCurrentCueSnapshot()}
+    : p);
+  await patchState({scene_presets:next});
+}
+
+async function deleteCuePreset(id){
+  if(!canGMControl())return;
+  const preset=scenePresets().find(p=>p.id===id);
+  if(!preset)return;
+  if(!confirm('Delete cue "'+(preset.name||'Untitled Cue')+'"?'))return;
+  await patchState({scene_presets:scenePresets().filter(p=>p.id!==id)});
+}
+
+async function applyCuePreset(id){
+  if(!canGMControl())return;
+  const preset=scenePresets().find(p=>p.id===id);
+  if(!preset)return;
+  const s=preset.snapshot||{};
+  const assetId=idValue=>idValue&&byId(idValue)?idValue:null;
+  const sceneId=assetId(s.active_scene_id);
+  const revealId=assetId(s.active_reveal_id);
+  const mapId=assetId(s.map_asset_id);
+  let mode=['scene','map','reveal','title','blackout'].includes(s.mode)?s.mode:'scene';
+  if(mode==='map'&&!mapId)mode=sceneId?'scene':'title';
+  if(mode==='reveal'&&!revealId)mode=sceneId?'scene':'title';
+  if(mode==='scene'&&s.active_scene_id&&!sceneId)mode='title';
+
+  await patchState({
+    mode,
+    active_scene_id:sceneId,
+    active_reveal_id:revealId,
+    map_asset_id:mapId,
+    pinned_left_id:assetId(s.pinned_left_id),
+    pinned_right_id:assetId(s.pinned_right_id),
+    location_title:String(s.location_title||'').slice(0,120),
+    location_subtitle:String(s.location_subtitle||'').slice(0,180),
+    reveal_style:typeof s.reveal_style==='string'?s.reveal_style:'focus',
+    hud_visible:s.hud_visible!==false,
+    scene_effects:normalizeCueEffects(s.scene_effects)
+  });
+}
+
 function renderRecent(){
   const found=recent.map(byId).filter(Boolean).slice(0,8);
   els.recentList.innerHTML=found.length?found.map(a=>'<button class="recent-chip" type="button" data-recent="'+a.id+'">'+esc(a.name)+'</button>').join(''):'<p class="muted">Things you show will appear here.</p>';
   els.recentList.querySelectorAll('[data-recent]').forEach(b=>b.addEventListener('click',()=>showReveal(b.dataset.recent)));
 }
 
-function renderAll(){renderDisplay();renderScenes();renderRevealGrid();renderRecent()}
+function renderAll(){renderDisplay();renderScenes();renderCuePresets();renderRevealGrid();renderRecent()}
 
 async function patchState(patch){
   if(!canGMControl())return;
@@ -1766,6 +1939,12 @@ function wire(){
     if(!canGMControl()||state?.mode!=='scene')return;
     const cfg=sceneEffectState();
     await patchState({scene_effects:{...cfg,effects:[]}});
+  });
+  els.saveCuePresetBtn?.addEventListener('click',saveCuePreset);
+  els.cuePresetName?.addEventListener('keydown',event=>{
+    if(event.key!=='Enter')return;
+    event.preventDefault();
+    saveCuePreset();
   });
   els.modeSwitch.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>{
     const mode=b.dataset.mode;
