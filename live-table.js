@@ -10,9 +10,9 @@ let displayInitialized=false,lastDisplaySignature='',displayTransitionTimer=null
 const interactiveMapCache=new Map();
 let interactiveMapLoadToken=0;
 let mapState=null,mapStateSaveTimer=null,mapBridgeReady=false;
-let mapMotionChannel=null,mapMotionReady=false,lastMapMotionSentAt=0,lastMapCameraSentAt=0;
+let mapMotionChannel=null,mapMotionReady=false,lastMapMotionSentAt=0,lastMapCameraSentAt=0,lastMapJourneySentAt=0;
 let browserMapMotionChannel=null;
-let mapMirrorPollTimer=null,mapCameraPollTimer=null,lastPolledMapMirrorSignature='',lastPolledMapCameraSignature='';
+let mapMirrorPollTimer=null,mapCameraPollTimer=null,mapJourneyPollTimer=null,lastPolledMapMirrorSignature='',lastPolledMapCameraSignature='',lastPolledMapJourneySignature='';
 let mapCameraPersistTimer=null;
 let playerMapStatePollTimer=null,lastPlayerMapStateUpdatedAt='';
 let mapStatePersistBusy=false,mapStatePersistPending=null,lastMapStatePersistAt=0;
@@ -185,6 +185,24 @@ function mapSourceForRole(source,role){
     "    const fitScale=Math.max(.0001,Math.min(r.width/W,r.height/H));",
     "    return {centerX:(r.width/2-tx)/Math.max(scale,.0001),centerY:(r.height/2-ty)/Math.max(scale,.0001),zoom:scale/fitScale};",
     "  }",
+    "  function aCollectLiveJourney(){",
+    "    const party=journeyDisplayPos||(data.travel&&data.travel.party)||null;",
+    "    const activeRoute=(data.travel&&data.travel.routes||[]).find(route=>route.id===data.travel.activeRouteId)||null;",
+    "    let travel=null;",
+    "    if(activeRoute&&activeRoute.points&&activeRoute.points.length>=2){",
+    "      const path=routeHexPath(activeRoute.points);",
+    "      const days=Math.max(0,path.length-1);",
+    "      let currentDay=0;",
+    "      const pos=journeyDisplayPos||(data.travel&&data.travel.party);",
+    "      if(pos&&path.length){let nearest=0,best=Infinity;for(let i=0;i<path.length;i++){const d=Math.hypot(path[i].x-pos.x,path[i].y-pos.y);if(d<best){best=d;nearest=i}}currentDay=Math.max(0,Math.min(days,nearest))}",
+    "      const end=path[path.length-1];",
+    "      let destination='Destination';",
+    "      if(end&&Array.isArray(data.markers)&&data.markers.length){let best=null,bestD=Infinity;for(const m of data.markers){const d=Math.hypot((m.x||0)-end.x,(m.y||0)-end.y);if(d<bestD){bestD=d;best=m}}if(best&&bestD<120)destination=best.name||destination}",
+    "      const justArrived=!!activeRoute.travelled&&!!activeRoute.completedAt&&(Date.now()-Date.parse(activeRoute.completedAt)<5000);",
+    "      travel={active:!!journeyActive,planned:!journeyActive&&!activeRoute.travelled,arrived:justArrived,routeName:activeRoute.name||'Planned Route',destination:destination,totalDays:days,currentDay:journeyActive?currentDay:(activeRoute.travelled?days:0),remainingDays:Math.max(0,days-(journeyActive?currentDay:(activeRoute.travelled?days:0))),progress:days?Math.max(0,Math.min(1,(journeyActive?currentDay:(activeRoute.travelled?days:0))/days)):0};",
+    "    }",
+    "    return {party:party?{x:Number(party.x)||0,y:Number(party.y)||0,visible:party.visible!==false}:null,travel:travel};",
+    "  }",
     "  function aCollectLiveMirror(){",
     "    const r=wrap.getBoundingClientRect();",
     "    const fitScale=Math.max(.0001,Math.min(r.width/W,r.height/H));",
@@ -221,6 +239,14 @@ function mapSourceForRole(source,role){
     "      return true;",
     "    }catch(err){console.warn('Aestra live view apply failed',err);return false}",
     "  }",
+    "  function aApplyLiveJourney(payload){",
+    "    if(!payload)return false;",
+    "    try{",
+    "      if(payload.party&&data.travel&&data.travel.party){data.travel.party.x=Number(payload.party.x)||0;data.travel.party.y=Number(payload.party.y)||0;data.travel.party.visible=payload.party.visible!==false;renderTravel()}",
+    "      if(aLiveRole==='player'&&window.aestraUpdateTravelHud)window.aestraUpdateTravelHud(payload.travel||null);",
+    "      return true;",
+    "    }catch(err){console.warn('Aestra live journey apply failed',err);return false}",
+    "  }",
     "  function aApplyLiveMirror(mirror){",
     "    if(!mirror)return false;",
     "    try{",
@@ -239,7 +265,7 @@ function mapSourceForRole(source,role){
     "      return true;",
     "    }catch(err){console.warn('Aestra live mirror apply failed',err);return false}",
     "  }",
-    "  window.AestraLiveBridge={version:5,role:aLiveRole,collect:aCollectLiveMirror,collectView:aCollectLiveView,apply:aApplyLiveMirror,applyView:aApplyLiveView,applyParty:(x,y)=>{try{data.travel.party.x=Number(x)||0;data.travel.party.y=Number(y)||0;data.travel.party.visible=true;renderTravel();return true}catch(err){return false}},present:()=>{try{setPresentation(true);return true}catch(err){return false}}};",
+    "  window.AestraLiveBridge={version:6,role:aLiveRole,collect:aCollectLiveMirror,collectView:aCollectLiveView,collectJourney:aCollectLiveJourney,apply:aApplyLiveMirror,applyView:aApplyLiveView,applyJourney:aApplyLiveJourney,applyParty:(x,y)=>{try{data.travel.party.x=Number(x)||0;data.travel.party.y=Number(y)||0;data.travel.party.visible=true;renderTravel();return true}catch(err){return false}},present:()=>{try{setPresentation(true);return true}catch(err){return false}}};",
     "  parent.postMessage({type:'aestra-map-ready',role:aLiveRole},'*');"
   ];
   const bridgeCode=bridgeLines.join(nl)+nl+nl;
@@ -461,6 +487,11 @@ function persistFinalMapCamera(){
     const win=els.worldMapFrame?.contentWindow;
     try{
       const bridge=win?.AestraLiveBridge;
+      const journey=bridge?.collectJourney?.();
+      if(journey?.travel?.active){
+        persistFinalMapCamera();
+        return;
+      }
       const mirror=bridge?.collect?.();
       if(!mirror)return;
       // Save the resting camera position without rebroadcasting the heavy mirror.
@@ -470,7 +501,7 @@ function persistFinalMapCamera(){
         updated_by:user.id,
         updated_at:new Date().toISOString()
       };
-      const signature=JSON.stringify({...mirror,view:null});
+      const signature=JSON.stringify({...mirror,view:null,liveParty:null,travel:null});
       lastPolledMapMirrorSignature=signature;
       queueMapStateSave(mirror);
     }catch(err){
@@ -505,6 +536,40 @@ function sendMapCameraMotion(view){
   }
 
   persistFinalMapCamera();
+}
+
+function applyJourneyMotionToPlayer(payload){
+  if(!shouldReceivePlayerMap()||!payload)return false;
+  const win=els.worldMapFrame?.contentWindow;
+  if(!win)return false;
+  try{
+    const bridge=win.AestraLiveBridge;
+    if(bridge?.applyJourney)return bridge.applyJourney(payload)===true;
+  }catch(err){
+    console.warn('Direct journey motion apply failed',err);
+  }
+  return false;
+}
+
+function sendJourneyMotion(payload){
+  if(!canGMControl()||!payload)return;
+  const now=performance.now();
+  if(now-lastMapJourneySentAt<28)return;
+  lastMapJourneySentAt=now;
+
+  try{
+    browserMapMotionChannel?.postMessage({kind:'journey-motion',payload});
+  }catch(err){
+    console.warn('Local journey motion broadcast failed',err);
+  }
+
+  if(mapMotionReady&&mapMotionChannel){
+    mapMotionChannel.send({
+      type:'broadcast',
+      event:'journey-motion',
+      payload
+    }).catch(err=>console.warn('Journey motion broadcast failed',err));
+  }
 }
 
 function applyPartyMotionToPlayer(x,y){
@@ -1530,6 +1595,39 @@ function startPlayerMapStatePolling(){
 function startMapMirrorPolling(){
   clearInterval(mapMirrorPollTimer);
   clearInterval(mapCameraPollTimer);
+  clearInterval(mapJourneyPollTimer);
+
+  // Journey path: caravan position + cinematic HUD only, with no full map render.
+  mapJourneyPollTimer=setInterval(()=>{
+    if(!canGMControl()||state?.mode!=='map')return;
+    const win=els.worldMapFrame?.contentWindow;
+    if(!win)return;
+    try{
+      const bridge=win.AestraLiveBridge;
+      if(!bridge?.collectJourney||bridge.role!=='gm')return;
+      const payload=bridge.collectJourney();
+      if(!payload)return;
+      const p=payload.party;
+      const t=payload.travel;
+      const signature=[
+        p?Number(p.x).toFixed(2):'',
+        p?Number(p.y).toFixed(2):'',
+        p?.visible===false?'0':'1',
+        t?.active?'1':'0',
+        t?.arrived?'1':'0',
+        t?.routeName||'',
+        t?.destination||'',
+        t?.totalDays??'',
+        t?.currentDay??'',
+        Number(t?.progress||0).toFixed(4)
+      ].join('|');
+      if(signature===lastPolledMapJourneySignature)return;
+      lastPolledMapJourneySignature=signature;
+      sendJourneyMotion(payload);
+    }catch(err){
+      // iframe may be between srcdoc reloads; the next poll will retry.
+    }
+  },32);
 
   // Camera path: tiny view-only updates at ~30 fps. No full map render on player.
   mapCameraPollTimer=setInterval(()=>{
@@ -1564,7 +1662,8 @@ function startMapMirrorPolling(){
       if(!bridge?.collect||bridge.role!=='gm')return;
       const mirror=bridge.collect();
       if(!mirror)return;
-      const signature=JSON.stringify({...mirror,view:null});
+      // Camera and journey animation have their own lightweight channels.
+      const signature=JSON.stringify({...mirror,view:null,liveParty:null,travel:null});
       if(signature===lastPolledMapMirrorSignature)return;
       lastPolledMapMirrorSignature=signature;
       sendMapMirror(mirror);
@@ -1582,6 +1681,7 @@ async function subscribeRealtime(){
         const p=event.data||{};
         if(p.kind==='mirror'&&p.mirror)applyMapMirrorToPlayer(p.mirror);
         else if(p.kind==='camera-motion'&&p.view)applyMapCameraToPlayer(p.view);
+        else if(p.kind==='journey-motion'&&p.payload)applyJourneyMotionToPlayer(p.payload);
         else if(p.kind==='party-motion')applyPartyMotionToPlayer(p.x,p.y);
         else if(Number.isFinite(Number(p.x))&&Number.isFinite(Number(p.y)))applyPartyMotionToPlayer(p.x,p.y);
       });
@@ -1596,6 +1696,10 @@ async function subscribeRealtime(){
     .on('broadcast',{event:'camera-motion'},payload=>{
       const p=payload?.payload||{};
       if(p.view)applyMapCameraToPlayer(p.view);
+    })
+    .on('broadcast',{event:'journey-motion'},payload=>{
+      const p=payload?.payload||{};
+      applyJourneyMotionToPlayer(p);
     })
     .on('broadcast',{event:'party-motion'},payload=>{
       const p=payload?.payload||{};
@@ -1688,8 +1792,8 @@ async function startApp(){
   await Promise.all([loadState(),loadAssets(),loadParty(),loadMapState()]);
   renderAll();
 
-  // The full GM -> Player mirror uses ordinary database reads/writes and
-  // remains active even if Realtime websocket setup fails.
+  // Full map state remains the durable fallback; camera and journey motion
+  // use lightweight realtime paths when available.
   startMapMirrorPolling();
   startPlayerMapStatePolling();
 
