@@ -9,6 +9,8 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'
 const byId=id=>assets.find(a=>a.id===id)||null;
 const pct=(a,b)=>Math.max(0,Math.min(100,b?Number(a||0)/Number(b)*100:0));
 const configured=()=>Boolean(CONFIG.supabaseUrl&&CONFIG.supabaseAnonKey&&CAMPAIGN_ID);
+const isInteractiveMap=asset=>asset?.kind==='map'&&asset?.metadata?.interactive===true;
+const withMapRole=(url,role)=>url+(url.includes('?')?'&':'?')+'aestraRole='+encodeURIComponent(role);
 
 async function ensureSupabase(){
   if(supabase)return supabase;
@@ -115,16 +117,29 @@ function renderDisplay(){
   els.previewHeading.textContent=mode==='map'?'World Map':mode==='reveal'?'Reveal':mode==='title'?'Title Screen':mode==='blackout'?'Blackout':'Scene View';
   document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));
 
-  const backdropAsset=mode==='map'?(map||scene):scene;
+  const interactiveMapLive=mode==='map'&&isInteractiveMap(map);
+  const backdropAsset=mode==='map'?(interactiveMapLive?scene:(map||scene)):scene;
   if(mode==='scene'&&state.active_scene_id!==lastSceneId){
     playSceneTransition(lastSceneBackdrop,scene?.image_url||'');
   }
   setBackdrop(backdropAsset);
+  if(interactiveMapLive){
+    const src=withMapRole(map.image_url,'player');
+    if(els.worldMapFrame.dataset.assetId!==map.id){
+      els.worldMapFrame.src=src;
+      els.worldMapFrame.dataset.assetId=map.id;
+    }
+    els.worldMapFrame.classList.remove('hidden');
+    els.playerDisplay.classList.add('map-live');
+  }else{
+    els.worldMapFrame.classList.add('hidden');
+    els.playerDisplay.classList.remove('map-live');
+  }
   const name=mode==='map'?(map?.name||'WORLD MAP'):(state.location_title||scene?.name||'AESTRA');
   const sub=mode==='map'?(map?.subtitle||'Aestra'):(state.location_subtitle||scene?.subtitle||'');
   els.locationName.textContent=String(name).toUpperCase();
   els.locationSubtitle.textContent=sub;
-  els.locationTitle.classList.toggle('hidden',mode==='title'||mode==='blackout');
+  els.locationTitle.classList.toggle('hidden',interactiveMapLive||mode==='title'||mode==='blackout');
 
   els.revealLayer.classList.toggle('hidden',mode!=='reveal'||!reveal);
   if(mode==='reveal'&&reveal){
@@ -168,7 +183,10 @@ function revealCard(asset){
   const mapAction=asset.kind==='map'
     ? '<button type="button" data-map="'+asset.id+'">WORLD MAP</button>'
     : '<button type="button" data-pin="'+asset.id+'">PIN</button>';
-  return '<article class="reveal-card" data-kind="'+esc(asset.kind)+'"><div class="reveal-thumb" style="background-image:url(\''+esc(asset.image_url)+'\')"></div>'+
+  const thumb=isInteractiveMap(asset)
+    ? '<div class="reveal-thumb interactive-map-thumb"><span>✦</span><b>INTERACTIVE ATLAS</b></div>'
+    : '<div class="reveal-thumb" style="background-image:url(\''+esc(asset.image_url)+'\')"></div>';
+  return '<article class="reveal-card" data-kind="'+esc(asset.kind)+'">'+thumb+
     '<strong>'+esc(asset.name)+'</strong><small>'+esc(asset.subtitle||asset.kind.replace('_',' '))+'</small>'+
     '<div class="card-actions"><button type="button" data-show="'+asset.id+'">SHOW</button>'+mapAction+'<button type="button" data-remove="'+asset.id+'">REMOVE</button><button type="button" class="danger" data-delete="'+asset.id+'">DELETE</button></div></article>';
 }
@@ -245,7 +263,7 @@ async function deleteAsset(id){
   if(!isGM)return;
   const asset=byId(id);
   if(!asset)return;
-  if(!confirm('Delete "'+asset.name+'" permanently? This removes it from the Live Table library and deletes its uploaded image.'))return;
+  if(!confirm('Delete "'+asset.name+'" permanently? This removes it from the Live Table library and deletes its uploaded file.'))return;
   await removeAssetFromDisplay(id);
   const del=await supabase.from('live_table_assets').delete().eq('id',id);
   if(del.error){alert(del.error.message);return}
@@ -262,6 +280,75 @@ async function setWorldMap(id){
   const asset=byId(id);if(!asset)return;
   recent=[id,...recent.filter(x=>x!==id)].slice(0,8);
   await patchState({mode:'map',map_asset_id:id,active_reveal_id:null});
+}
+
+function injectLiveMapPresentation(source){
+  if(source.includes('id="aestra-live-table-map-bridge"'))return source;
+  const style='<style id="aestra-live-table-map-style">#app.presentation #presentationExit{display:none!important}body.aestra-live-embedded{background:#05080b!important}</style>';
+  const script='<script id="aestra-live-table-map-bridge">(function(){var role=new URLSearchParams(location.search).get("aestraRole");function apply(){if(role!=="player")return;document.body.classList.add("aestra-live-embedded");var app=document.getElementById("app");if(app)app.classList.add("presentation");var exit=document.getElementById("presentationExit");if(exit)exit.style.display="none";var toggle=document.getElementById("presentationToggle");if(toggle)toggle.style.display="none"}if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",function(){setTimeout(apply,80)});else setTimeout(apply,80);})();<\/script>';
+  let out=source;
+  out=out.includes('</head>')?out.replace('</head>',style+'</head>'):style+out;
+  out=out.includes('</body>')?out.replace('</body>',script+'</body>'):out+script;
+  return out;
+}
+
+async function importInteractiveMap(){
+  if(!isGM)return;
+  const file=els.interactiveMapFile.files?.[0];
+  if(!file)return;
+  els.mapImportStatus.textContent='Preparing interactive map…';
+  try{
+    if(file.size>30*1024*1024)throw new Error('That map file is larger than 30 MB.');
+    const source=await file.text();
+    if(!/<html[\s>]/i.test(source)||!/<body[\s>]/i.test(source))throw new Error('Choose the Aestra interactive map HTML file.');
+    const prepared=injectLiveMapPresentation(source);
+    const payload=new Blob([prepared],{type:'text/html'});
+    const storagePath=CAMPAIGN_ID+'/interactive-map-'+crypto.randomUUID()+'.html';
+    els.mapImportStatus.textContent='Uploading interactive atlas…';
+    const up=await supabase.storage.from('live-table').upload(storagePath,payload,{cacheControl:'3600',upsert:false,contentType:'text/html'});
+    if(up.error)throw up.error;
+    const publicUrl=supabase.storage.from('live-table').getPublicUrl(storagePath).data.publicUrl;
+    const existing=assets.find(isInteractiveMap);
+    const row={
+      campaign_id:CAMPAIGN_ID,
+      kind:'map',
+      name:existing?.name||'Aestra Interactive World Map',
+      subtitle:'Interactive atlas',
+      image_url:publicUrl,
+      storage_path:storagePath,
+      metadata:{interactive:true,source_name:file.name,imported_at:new Date().toISOString()},
+      created_by:user.id,
+      updated_at:new Date().toISOString()
+    };
+    let saved;
+    if(existing){
+      const result=await supabase.from('live_table_assets').update(row).eq('id',existing.id).select().single();
+      if(result.error){await supabase.storage.from('live-table').remove([storagePath]);throw result.error}
+      saved=result.data;
+      if(existing.storage_path&&existing.storage_path!==storagePath)await supabase.storage.from('live-table').remove([existing.storage_path]);
+      assets=assets.map(a=>a.id===saved.id?saved:a);
+    }else{
+      const result=await supabase.from('live_table_assets').insert(row).select().single();
+      if(result.error){await supabase.storage.from('live-table').remove([storagePath]);throw result.error}
+      saved=result.data;
+      assets=[saved,...assets];
+    }
+    els.mapImportStatus.textContent='Interactive Aestra map linked. World Map mode now uses it.';
+    await setWorldMap(saved.id);
+    renderAll();
+  }catch(err){
+    console.error(err);
+    els.mapImportStatus.textContent=err?.message||'Could not import the interactive map.';
+  }finally{
+    els.interactiveMapFile.value='';
+  }
+}
+
+function openMapEditor(){
+  const selected=byId(state?.map_asset_id);
+  const map=isInteractiveMap(selected)?selected:assets.find(isInteractiveMap);
+  if(!map){els.interactiveMapFile.click();return}
+  window.open(withMapRole(map.image_url,'gm'),'aestra-world-map-editor');
 }
 
 function openAssetDialog(kind='npc'){
@@ -370,6 +457,9 @@ function wire(){
     const index=Math.max(-1,maps.findIndex(m=>m.id===current));
     setWorldMap(maps[(index+1)%maps.length].id);
   });
+  els.importInteractiveMapBtn.addEventListener('click',()=>els.interactiveMapFile.click());
+  els.interactiveMapFile.addEventListener('change',importInteractiveMap);
+  els.openMapEditorBtn.addEventListener('click',openMapEditor);
 }
 
 async function startApp(){
