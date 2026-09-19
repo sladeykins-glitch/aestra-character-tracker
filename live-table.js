@@ -4,6 +4,8 @@ const DISPLAY_QUERY=new URLSearchParams(location.search).get('display')==='1';
 const els=Object.fromEntries([...document.querySelectorAll('[id]')].map(el=>[el.id,el]));
 let supabase=null,user=null,isGM=false,state=null,assets=[],party=[],recent=[],filterKind='all',previewUrl='';
 let displayInitialized=false,lastDisplaySignature='',displayTransitionTimer=null;
+const interactiveMapCache=new Map();
+let interactiveMapLoadToken=0;
 
 const esc=s=>String(s??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const byId=id=>assets.find(a=>a.id===id)||null;
@@ -114,6 +116,51 @@ function playDisplayTransition(){
   },1250);
 }
 
+async function fetchInteractiveMapSource(asset){
+  if(!asset?.id||!asset?.image_url)throw new Error('Interactive map file is missing.');
+  if(interactiveMapCache.has(asset.id))return interactiveMapCache.get(asset.id);
+  const response=await fetch(asset.image_url,{cache:'no-store'});
+  if(!response.ok)throw new Error('Could not load the interactive map file.');
+  const source=await response.text();
+  if(!/<html[\s>]/i.test(source)||!/<body[\s>]/i.test(source)){
+    throw new Error('The stored world map is not valid HTML.');
+  }
+  interactiveMapCache.set(asset.id,source);
+  return source;
+}
+
+function mapSourceForRole(source,role){
+  if(role!=='player')return source;
+  const bridge='<style id="aestra-live-table-runtime-style">#app.presentation #presentationExit{display:none!important}body.aestra-live-embedded{background:#05080b!important}</style>'+
+    '<script id="aestra-live-table-runtime-bridge">(function(){function apply(){document.body.classList.add("aestra-live-embedded");var app=document.getElementById("app");if(app)app.classList.add("presentation");var exit=document.getElementById("presentationExit");if(exit)exit.style.display="none";var toggle=document.getElementById("presentationToggle");if(toggle)toggle.style.display="none"}if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",function(){setTimeout(apply,80)});else setTimeout(apply,80)})();<\/script>';
+  return source.includes('</body>')?source.replace('</body>',bridge+'</body>'):source+bridge;
+}
+
+async function mountInteractiveMap(asset,role='player'){
+  const frame=els.worldMapFrame;
+  const token=++interactiveMapLoadToken;
+  frame.classList.remove('hidden');
+  els.playerDisplay.classList.add('map-live','map-loading');
+  try{
+    const source=await fetchInteractiveMapSource(asset);
+    if(token!==interactiveMapLoadToken)return;
+    if(frame.dataset.assetId===asset.id&&frame.dataset.role===role&&frame.srcdoc)return;
+    frame.removeAttribute('src');
+    frame.srcdoc=mapSourceForRole(source,role);
+    frame.dataset.assetId=asset.id;
+    frame.dataset.role=role;
+  }catch(err){
+    console.error(err);
+    if(token!==interactiveMapLoadToken)return;
+    frame.removeAttribute('src');
+    frame.srcdoc='<!doctype html><html><body style="margin:0;background:#05080b;color:#d8c58b;font-family:Georgia,serif;display:grid;place-items:center;height:100vh;text-align:center"><div><div style="font-size:34px">✦</div><h2>World map could not be loaded</h2><p style="color:#9aa3ad;font-family:system-ui,sans-serif">'+esc(err?.message||'Unknown map error')+'</p></div></body></html>';
+    frame.dataset.assetId=asset?.id||'error';
+    frame.dataset.role=role;
+  }finally{
+    if(token===interactiveMapLoadToken)els.playerDisplay.classList.remove('map-loading');
+  }
+}
+
 function renderPinned(host,id){
   const asset=byId(id);
   if(!asset){host.classList.add('hidden');host.innerHTML='';return}
@@ -136,16 +183,11 @@ function renderDisplay(){
   const backdropAsset=mode==='map'?(interactiveMapLive?scene:(map||scene)):scene;
   setBackdrop(backdropAsset);
   if(interactiveMapLive){
-    const src=withMapRole(map.image_url,'player');
-    if(els.worldMapFrame.dataset.assetId!==map.id){
-      els.worldMapFrame.src=src;
-      els.worldMapFrame.dataset.assetId=map.id;
-    }
-    els.worldMapFrame.classList.remove('hidden');
-    els.playerDisplay.classList.add('map-live');
+    mountInteractiveMap(map,'player');
   }else{
+    interactiveMapLoadToken++;
     els.worldMapFrame.classList.add('hidden');
-    els.playerDisplay.classList.remove('map-live');
+    els.playerDisplay.classList.remove('map-live','map-loading');
   }
   const name=mode==='map'?(map?.name||'WORLD MAP'):(state.location_title||scene?.name||'AESTRA');
   const sub=mode==='map'?(map?.subtitle||'Aestra'):(state.location_subtitle||scene?.subtitle||'');
@@ -342,6 +384,7 @@ async function importInteractiveMap(){
       saved=result.data;
       assets=[saved,...assets];
     }
+    interactiveMapCache.clear();
     els.mapImportStatus.textContent='Interactive Aestra map linked. World Map mode now uses it.';
     await setWorldMap(saved.id);
     renderAll();
@@ -353,11 +396,25 @@ async function importInteractiveMap(){
   }
 }
 
-function openMapEditor(){
+async function openMapEditor(){
   const selected=byId(state?.map_asset_id);
   const map=isInteractiveMap(selected)?selected:assets.find(isInteractiveMap);
   if(!map){els.interactiveMapFile.click();return}
-  window.open(withMapRole(map.image_url,'gm'),'aestra-world-map-editor');
+  const popup=window.open('about:blank','aestra-world-map-editor');
+  if(!popup){alert('Your browser blocked the map editor window. Allow pop-ups for this site and try again.');return}
+  try{
+    popup.document.write('<!doctype html><title>Loading Aestra Map…</title><body style="margin:0;background:#05080b;color:#d8c58b;font-family:Georgia,serif;display:grid;place-items:center;height:100vh">Loading Aestra world map…</body>');
+    popup.document.close();
+    const source=await fetchInteractiveMapSource(map);
+    const blob=new Blob([source],{type:'text/html'});
+    const url=URL.createObjectURL(blob);
+    popup.location.replace(url);
+    setTimeout(()=>URL.revokeObjectURL(url),60000);
+  }catch(err){
+    popup.document.open();
+    popup.document.write('<!doctype html><body style="margin:0;background:#05080b;color:#eee;font-family:system-ui,sans-serif;padding:40px"><h2>Could not open map editor</h2><p>'+esc(err?.message||'Unknown error')+'</p></body>');
+    popup.document.close();
+  }
 }
 
 function openAssetDialog(kind='npc'){
