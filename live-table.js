@@ -833,6 +833,10 @@ class SceneAtmosphereRenderer{
       p.ember=Math.random()<.07;
     }else if(type==='wind'){
       p.x=initial?Math.random()*w:-60;
+      // Wind should always recycle at a visible height. The generic recycled
+      // particle Y starts above the canvas, which made streaks disappear after
+      // their first pass across the screen.
+      p.y=Math.random()*h;
       p.vx=170+Math.random()*280;
       p.vy=-14+Math.random()*28;
       p.size=16+Math.random()*42;
@@ -992,8 +996,9 @@ class SceneAtmosphereRenderer{
     ctx.lineCap='round';
     for(const p of arr){
       p.x+=p.vx*p.z*dt;
+      p.phase+=dt*(.35+p.z*.35);
       p.y+=p.vy*dt+Math.sin(p.phase+p.x*.01)*3*dt;
-      if(p.x>w+80)this.recycle(p);
+      if(p.x>w+80||p.y<-40||p.y>h+40)this.recycle(p);
       ctx.strokeStyle='rgba(226,218,193,'+(.055+.12*p.z)+')';
       ctx.lineWidth=.75+p.z*.9;
       ctx.beginPath();
