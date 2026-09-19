@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta name="theme-color" content="#080b0f" />
+<title>Aestra Live Table</title>
+<link rel="icon" href="aestra-icon.svg" type="image/svg+xml" />
+<link rel="stylesheet" href="live-table.css?v=1" />
+</head>
+<body>
+<div id="authGate" class="auth-gate">
+  <form id="authForm" class="auth-card">
+    <div class="aestra-mark">✦</div>
+    <p class="eyebrow">Fabula Ultima · Aestra</p>
+    <h1>Live Table</h1>
+    <p class="muted">Sign in with the same account you use for the Aestra Character Tracker.</p>
+    <label>Email<input id="emailInput" type="email" autocomplete="email" required /></label>
+    <label>Password<input id="passwordInput" type="password" autocomplete="current-password" required /></label>
+    <button class="primary" type="submit">Sign in</button>
+    <p id="authMessage" class="message" aria-live="polite"></p>
+  </form>
+</div>
+
+<div id="app" class="app hidden">
+  <header id="gmHeader" class="gm-header">
+    <div>
+      <p class="eyebrow">Aestra</p>
+      <h1>Live Table</h1>
+    </div>
+    <div class="header-actions">
+      <span id="liveBadge" class="live-badge"><i></i> Connected</span>
+      <button id="openDisplayBtn" type="button">Open Player Display</button>
+      <button id="logoutBtn" type="button">Sign out</button>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <section class="preview-panel">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Player Display Preview</p>
+          <h2 id="previewHeading">Scene View</h2>
+        </div>
+        <div id="modeSwitch" class="mode-switch" aria-label="Display mode">
+          <button type="button" data-mode="scene" class="active">Scene</button>
+          <button type="button" data-mode="map">World Map</button>
+          <button type="button" data-mode="title">Title</button>
+          <button type="button" data-mode="blackout">Blackout</button>
+        </div>
+      </div>
+
+      <div id="playerDisplay" class="player-display" aria-live="polite">
+        <div id="backdrop" class="backdrop"></div>
+        <div class="atmosphere"></div>
+        <div id="locationTitle" class="location-title">
+          <span id="locationSubtitle"></span>
+          <strong id="locationName">AESTRA</strong>
+        </div>
+
+        <div id="pinLeft" class="pin-card pin-left hidden"></div>
+        <div id="pinRight" class="pin-card pin-right hidden"></div>
+
+        <div id="revealLayer" class="reveal-layer hidden">
+          <img id="revealImage" alt="" />
+          <div class="reveal-copy">
+            <span id="revealKind"></span>
+            <strong id="revealName"></strong>
+            <small id="revealSubtitle"></small>
+          </div>
+        </div>
+
+        <div id="titleLayer" class="title-layer hidden">
+          <span class="title-star">✦</span>
+          <strong>AESTRA</strong>
+          <small>Age of Fading Light</small>
+        </div>
+
+        <div id="blackoutLayer" class="blackout-layer hidden"></div>
+        <div id="partyHud" class="party-hud"></div>
+      </div>
+
+      <div id="gmQuickControls" class="quick-controls">
+        <button id="returnSceneBtn" class="primary" type="button">Return to Scene</button>
+        <button id="clearPinsBtn" type="button">Clear Pinned</button>
+        <label class="switch"><input id="hudToggle" type="checkbox" checked /><span>Party HUD</span></label>
+      </div>
+    </section>
+
+    <section id="gmControls" class="gm-controls">
+      <div class="control-column scenes-column">
+        <div class="section-head compact">
+          <div><p class="eyebrow">Scenes</p><h2>Backdrops</h2></div>
+          <button id="addSceneBtn" class="icon-btn" type="button" title="Add scene">＋</button>
+        </div>
+        <div id="sceneStrip" class="scene-strip"></div>
+        <button id="setMapAssetBtn" type="button" class="wide">Choose World Map</button>
+      </div>
+
+      <div class="control-column reveal-column">
+        <div class="section-head compact">
+          <div><p class="eyebrow">Reveal Library</p><h2>Show Something</h2></div>
+          <button id="addVisualBtn" class="icon-btn" type="button" title="Add visual">＋</button>
+        </div>
+        <div id="revealTabs" class="reveal-tabs">
+          <button type="button" data-kind="all" class="active">All</button>
+          <button type="button" data-kind="npc">NPCs</button>
+          <button type="button" data-kind="item">Items</button>
+          <button type="button" data-kind="map">Maps</button>
+          <button type="button" data-kind="handout">Handouts</button>
+          <button type="button" data-kind="creature">Creatures</button>
+          <button type="button" data-kind="clue">Clues</button>
+        </div>
+        <div id="revealGrid" class="reveal-grid"></div>
+      </div>
+
+      <div class="control-column recent-column">
+        <div class="section-head compact"><div><p class="eyebrow">Session Tray</p><h2>Recent</h2></div></div>
+        <div id="recentList" class="recent-list"></div>
+        <div class="ai-box">
+          <span>AI Backdrops</span>
+          <p>Prompt-based scene generation will plug into this panel next.</p>
+          <button type="button" disabled>Generate with AI</button>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<dialog id="assetDialog">
+  <form id="assetForm" method="dialog" class="asset-form">
+    <div class="dialog-head">
+      <div><p class="eyebrow">Add Visual</p><h2 id="dialogTitle">Upload artwork</h2></div>
+      <button id="closeDialogBtn" type="button" class="icon-btn">×</button>
+    </div>
+    <label>Type
+      <select id="assetKind">
+        <option value="scene">Scene backdrop</option>
+        <option value="npc">NPC / Character</option>
+        <option value="item">Item / Relic</option>
+        <option value="map">Map</option>
+        <option value="handout">Handout / Document</option>
+        <option value="creature">Creature / Monster</option>
+        <option value="clue">Clue / Inscription</option>
+        <option value="location_detail">Location detail</option>
+        <option value="other">Other</option>
+      </select>
+    </label>
+    <label>Name<input id="assetName" maxlength="80" required placeholder="Whispering Forest" /></label>
+    <label>Subtitle<input id="assetSubtitle" maxlength="120" placeholder="Northern Wilds" /></label>
+    <label class="upload-zone">Artwork
+      <input id="assetFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif" required />
+      <span>Choose PNG, JPG, WebP or GIF · up to 15 MB</span>
+    </label>
+    <img id="assetPreview" class="asset-preview hidden" alt="Selected artwork preview" />
+    <p id="assetMessage" class="message" aria-live="polite"></p>
+    <div class="dialog-actions">
+      <button id="cancelAssetBtn" type="button">Cancel</button>
+      <button id="saveAssetBtn" class="primary" type="submit">Upload Visual</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="config.js"></script>
+<script type="module" src="live-table.js?v=1"></script>
+</body>
+</html>
