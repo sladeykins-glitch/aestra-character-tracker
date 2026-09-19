@@ -1009,7 +1009,7 @@ async function subscribeRealtime(){
     .on('postgres_changes',{event:'*',schema:'public',table:'live_table_map_state',filter:'campaign_id=eq.'+CAMPAIGN_ID},payload=>{
       if(!payload.new)return;
       mapState=payload.new;
-      ifshouldReceivePlayerMap()sendMapStateToFrame();
+      if(shouldReceivePlayerMap())sendMapStateToFrame();
     })
     .subscribe();
   startMapMirrorPolling();
