@@ -2094,11 +2094,14 @@ function renderDisplay(){
 
   els.revealLayer.classList.toggle('hidden',mode!=='reveal'||!reveal);
   if(mode==='reveal'&&reveal){
+    els.revealLayer.dataset.kind=reveal.kind||'other';
     els.revealImage.src=reveal.image_url;
     els.revealImage.alt=reveal.name;
     els.revealKind.textContent=reveal.kind.replace('_',' ');
     els.revealName.textContent=reveal.name;
     els.revealSubtitle.textContent=reveal.subtitle||'';
+  }else if(els.revealLayer){
+    delete els.revealLayer.dataset.kind;
   }
 
   els.titleLayer.classList.toggle('hidden',mode!=='title');
