@@ -65,3 +65,200 @@ body:not(.display-only) .player-display:not(.map-live) .world-map-frame{pointer-
 body:not(.display-only) .player-display.map-live::before{content:'GM MAP CONTROL · LIVE';position:absolute;top:10px;left:10px;z-index:29;padding:5px 8px;border:1px solid rgba(216,182,102,.36);border-radius:999px;background:rgba(7,10,14,.74);backdrop-filter:blur(7px);color:#ead38f;font:700 8px/1 Inter,system-ui,sans-serif;letter-spacing:.13em;pointer-events:none}
 .player-display.map-loading::before{content:'LOADING WORLD MAP…'}
 .display-only .player-display.map-live::before{display:none}
+
+
+/* Aestra player party HUD — vertical left stack */
+.party-hud{
+  position:absolute;
+  z-index:9;
+  left:16px;
+  right:auto;
+  bottom:20px;
+  width:min(260px,calc(100% - 32px));
+  max-height:calc(100% - 138px);
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  overflow-y:auto;
+  overflow-x:hidden;
+  padding:28px 8px 8px;
+  border:1px solid rgba(226,198,126,.20);
+  border-radius:16px;
+  background:
+    linear-gradient(180deg,rgba(7,11,15,.42),rgba(5,8,12,.74)),
+    radial-gradient(circle at 18% 0%,rgba(111,186,211,.08),transparent 42%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.025),
+    0 14px 32px rgba(0,0,0,.24);
+  backdrop-filter:blur(10px);
+  scrollbar-width:thin;
+  scrollbar-color:rgba(210,176,95,.34) transparent;
+}
+.party-hud::before{
+  content:'PARTY';
+  position:absolute;
+  top:9px;
+  left:12px;
+  color:#d8bd78;
+  font:700 8px/1 Inter,system-ui,sans-serif;
+  letter-spacing:.22em;
+  text-transform:uppercase;
+  opacity:.9;
+}
+.party-hud::-webkit-scrollbar{width:5px}
+.party-hud::-webkit-scrollbar-track{background:transparent}
+.party-hud::-webkit-scrollbar-thumb{
+  background:rgba(210,176,95,.28);
+  border-radius:999px;
+}
+.party-card{
+  flex:0 0 auto;
+  min-height:74px;
+  display:grid;
+  grid-template-columns:42px minmax(0,1fr);
+  gap:9px;
+  align-items:center;
+  padding:9px 10px;
+  border:1px solid rgba(231,205,136,.16);
+  border-radius:12px;
+  background:
+    linear-gradient(180deg,rgba(12,16,21,.56),rgba(6,9,13,.82));
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.02),
+    0 5px 14px rgba(0,0,0,.16);
+  backdrop-filter:blur(7px);
+}
+.party-portrait{
+  width:42px;
+  height:42px;
+  border-radius:50%;
+  object-fit:cover;
+  border:1px solid rgba(231,205,136,.46);
+  background:
+    radial-gradient(circle at 35% 30%,rgba(99,153,179,.20),transparent 42%),
+    #151d25;
+  display:grid;
+  place-items:center;
+  font:700 13px Georgia,serif;
+  color:#e3ca80;
+  box-shadow:0 0 0 2px rgba(0,0,0,.18),0 0 10px rgba(213,179,95,.08);
+}
+.party-name{
+  min-width:0;
+  overflow:hidden;
+  white-space:nowrap;
+  text-overflow:ellipsis;
+  color:#f0e7d7;
+  font:700 11px/1.15 Georgia,serif;
+  letter-spacing:.045em;
+}
+.resource{
+  display:grid;
+  grid-template-columns:18px minmax(0,1fr) auto;
+  gap:5px;
+  align-items:center;
+  margin-top:4px;
+  color:#cdd4da;
+  font-size:7px;
+  line-height:1;
+}
+.resource>span{
+  color:#aeb8bf;
+  font-weight:700;
+  letter-spacing:.06em;
+}
+.resource>b{
+  min-width:32px;
+  color:#cfd5da;
+  font-size:7px;
+  font-weight:600;
+  text-align:right;
+  font-variant-numeric:tabular-nums;
+}
+.resource-bar{
+  height:5px;
+  overflow:hidden;
+  border-radius:999px;
+  background:rgba(28,37,46,.92);
+  box-shadow:inset 0 1px 2px rgba(0,0,0,.32);
+}
+.resource-bar i{
+  display:block;
+  height:100%;
+  border-radius:inherit;
+  transition:width .32s ease;
+  box-shadow:0 0 6px currentColor;
+}
+.status-row{
+  display:flex;
+  gap:3px;
+  flex-wrap:wrap;
+  margin-top:5px;
+}
+.status-pill{
+  padding:2px 5px;
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:999px;
+  background:rgba(4,7,10,.42);
+  color:#d9dde1;
+  font-size:7px;
+}
+
+/* Player display uses the same left HUD, scaled for a full-screen map. */
+.display-only .party-hud{
+  left:18px;
+  right:auto;
+  bottom:20px;
+  width:min(270px,calc(100vw - 36px));
+  max-height:calc(100vh - 150px);
+}
+
+/* Keep pinned art from fighting with the party stack. */
+.player-display .pin-left{
+  left:292px;
+}
+.display-only .pin-left{
+  left:304px;
+}
+
+/* Compact preview/smaller screens: remain vertical, never return to a bottom strip. */
+@media(max-width:980px){
+  .party-hud{
+    left:12px;
+    right:auto;
+    bottom:12px;
+    width:min(236px,calc(100% - 24px));
+    max-height:calc(100% - 116px);
+    grid-template-columns:none;
+  }
+  .party-card{
+    grid-template-columns:38px minmax(0,1fr);
+    min-height:66px;
+    padding:7px 8px;
+  }
+  .party-portrait{width:38px;height:38px}
+  .player-display .pin-left{left:260px}
+}
+@media(max-width:640px){
+  .party-hud{
+    left:8px;
+    right:auto;
+    bottom:8px;
+    width:min(210px,calc(100% - 16px));
+    max-height:46%;
+    padding:25px 6px 6px;
+    grid-template-columns:none;
+  }
+  .party-card{
+    grid-template-columns:34px minmax(0,1fr);
+    min-height:58px;
+    padding:6px;
+    gap:7px;
+  }
+  .party-portrait{width:34px;height:34px}
+  .party-name{font-size:10px}
+  .resource{grid-template-columns:16px minmax(0,1fr) auto;gap:4px;font-size:6px}
+  .resource>b{min-width:27px;font-size:6px}
+  .resource-bar{height:4px}
+  .player-display .pin-left{left:auto;right:8px}
+}
