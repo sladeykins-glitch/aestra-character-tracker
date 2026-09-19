@@ -6,7 +6,7 @@ let supabase=null,user=null,isGM=false,state=null,assets=[],party=[],recent=[],f
 const IS_PLAYER_DISPLAY=DISPLAY_QUERY;
 const canGMControl=()=>isGM&&!IS_PLAYER_DISPLAY;
 const shouldReceivePlayerMap=()=>IS_PLAYER_DISPLAY||!isGM;
-let displayInitialized=false,lastDisplaySignature='',displayTransitionTimer=null;
+let displayInitialized=false,lastDisplaySignature='',displayTransitionTimer=null,lastDisplayMode='scene';
 const interactiveMapCache=new Map();
 let interactiveMapLoadToken=0;
 let mapState=null,mapStateSaveTimer=null,mapBridgeReady=false;
@@ -384,6 +384,7 @@ class TransitionCanvasRenderer{
     this.snapshot=document.createElement('canvas');
     this.snapshotCtx=this.snapshot.getContext('2d',{alpha:true});
     this.hasSnapshot=false;
+    this.snapshotPrepared=false;
     this.motes=[];
     this.shards=[];
     this.dust=[];
@@ -431,14 +432,117 @@ class TransitionCanvasRenderer{
     this.backdropImg.src=next;
   }
 
-  captureBackdrop(){
+  clearSnapshot(){
+    if(!this.snapshotCtx)return;
+    this.snapshotCtx.setTransform(1,0,0,1,0,0);
+    this.snapshotCtx.clearRect(0,0,this.snapshot.width,this.snapshot.height);
     this.hasSnapshot=false;
+  }
+
+  captureBackdrop(){
+    this.clearSnapshot();
     if(!this.snapshotCtx||!this.backdropReady||!this.backdropImg?.naturalWidth)return;
-    const ctx=this.snapshotCtx;
-    ctx.setTransform(1,0,0,1,0,0);
-    ctx.clearRect(0,0,this.snapshot.width,this.snapshot.height);
-    drawImageCover(ctx,this.backdropImg,0,0,this.snapshot.width,this.snapshot.height);
+    drawImageCover(this.snapshotCtx,this.backdropImg,0,0,this.snapshot.width,this.snapshot.height);
     this.hasSnapshot=true;
+  }
+
+  preparePreviousMode(mode){
+    this.resize();
+    this.clearSnapshot();
+    const ctx=this.snapshotCtx;
+    if(!ctx)return;
+    const w=this.width,h=this.height,pr=this.pixelRatio;
+    const previous=mode||'scene';
+
+    if(previous==='scene'){
+      this.captureBackdrop();
+      this.snapshotPrepared=true;
+      return;
+    }
+
+    ctx.setTransform(pr,0,0,pr,0,0);
+
+    if(previous==='blackout'){
+      ctx.fillStyle='#000';
+      ctx.fillRect(0,0,w,h);
+      this.hasSnapshot=true;
+      this.snapshotPrepared=true;
+      return;
+    }
+
+    if(previous==='title'){
+      const g=ctx.createRadialGradient(w*.5,h*.46,0,w*.5,h*.46,Math.max(w,h)*.7);
+      g.addColorStop(0,'#13202a');
+      g.addColorStop(.42,'#081016');
+      g.addColorStop(1,'#020406');
+      ctx.fillStyle=g;
+      ctx.fillRect(0,0,w,h);
+      ctx.fillStyle='rgba(226,197,119,.92)';
+      ctx.textAlign='center';
+      ctx.textBaseline='middle';
+      ctx.font='700 '+Math.max(24,Math.min(54,w*.055))+'px Georgia,serif';
+      ctx.fillText('AESTRA',w*.5,h*.48);
+      ctx.fillStyle='rgba(205,211,215,.62)';
+      ctx.font='500 '+Math.max(9,Math.min(16,w*.015))+'px Georgia,serif';
+      ctx.fillText('AGE OF FADING LIGHT',w*.5,h*.56);
+      this.hasSnapshot=true;
+      this.snapshotPrepared=true;
+      return;
+    }
+
+    if(previous==='reveal'){
+      ctx.fillStyle='#05080b';
+      ctx.fillRect(0,0,w,h);
+      const img=els.revealImage;
+      if(img?.complete&&img.naturalWidth){
+        const maxW=w*.68,maxH=h*.72;
+        const scale=Math.min(maxW/img.naturalWidth,maxH/img.naturalHeight);
+        const dw=img.naturalWidth*scale,dh=img.naturalHeight*scale;
+        const dx=(w-dw)/2,dy=(h-dh)/2;
+        ctx.fillStyle='rgba(11,15,20,.94)';
+        ctx.fillRect(w*.08,h*.09,w*.84,h*.82);
+        ctx.drawImage(img,dx,dy,dw,dh);
+      }else{
+        const g=ctx.createRadialGradient(w*.5,h*.48,0,w*.5,h*.48,Math.max(w,h)*.62);
+        g.addColorStop(0,'rgba(31,40,49,.92)');
+        g.addColorStop(1,'rgba(3,5,8,1)');
+        ctx.fillStyle=g;
+        ctx.fillRect(0,0,w,h);
+      }
+      this.hasSnapshot=true;
+      this.snapshotPrepared=true;
+      return;
+    }
+
+    if(previous==='map'){
+      const g=ctx.createRadialGradient(w*.5,h*.5,0,w*.5,h*.5,Math.max(w,h)*.72);
+      g.addColorStop(0,'#14232a');
+      g.addColorStop(.5,'#091116');
+      g.addColorStop(1,'#020506');
+      ctx.fillStyle=g;
+      ctx.fillRect(0,0,w,h);
+      ctx.strokeStyle='rgba(206,177,101,.16)';
+      ctx.lineWidth=1;
+      for(let x=0;x<w;x+=Math.max(36,w/14)){
+        ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke();
+      }
+      for(let y=0;y<h;y+=Math.max(36,h/8)){
+        ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();
+      }
+      ctx.fillStyle='rgba(220,194,125,.72)';
+      ctx.textAlign='center';
+      ctx.textBaseline='middle';
+      ctx.font='700 '+Math.max(14,Math.min(28,w*.028))+'px Georgia,serif';
+      ctx.fillText('WORLD MAP',w*.5,h*.5);
+      this.hasSnapshot=true;
+      this.snapshotPrepared=true;
+      return;
+    }
+
+    ctx.fillStyle='#05080b';
+    ctx.fillRect(0,0,w,h);
+    this.hasSnapshot=true;
+    this.snapshotPrepared=true;
   }
 
   buildParticles(){
@@ -474,13 +578,18 @@ class TransitionCanvasRenderer{
     if(!this.ctx||!this.canvas)return;
     this.stop(false);
     this.resize();
-    this.captureBackdrop();
+    if(!this.snapshotPrepared)this.captureBackdrop();
+    this.snapshotPrepared=false;
     this.buildParticles();
     this.cfg=normalizeTransition(config);
     this.startedAt=performance.now();
     this.seed=Math.random()*1000;
     this.running=true;
     this.host?.classList.add('transition-canvas-active');
+
+    // Paint immediately. Waiting for the first rAF leaves one browser paint where
+    // the always-present Scene backdrop can leak through during a mode switch.
+    this.draw(.001,this.startedAt);
     this.raf=requestAnimationFrame(now=>this.frame(now));
   }
 
@@ -1958,7 +2067,10 @@ function renderDisplay(){
   const reveal=byId(state.active_reveal_id);
   const mode=state.mode||'scene';
   const signature=displaySignature(state);
-  if(displayInitialized&&signature!==lastDisplaySignature)playDisplayTransition(state?.transition_state);
+  if(displayInitialized&&signature!==lastDisplaySignature){
+    getTransitionCanvasRenderer()?.preparePreviousMode(lastDisplayMode);
+    playDisplayTransition(state?.transition_state);
+  }
   els.previewHeading.textContent=mode==='map'?'World Map':mode==='reveal'?'Reveal':mode==='title'?'Title Screen':mode==='blackout'?'Blackout':'Scene View';
   document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));
 
@@ -2001,6 +2113,7 @@ function renderDisplay(){
   // Hide the character HUD there to keep the map presentation uncluttered.
   els.partyHud.classList.toggle('hidden',mode==='map'||state.hud_visible===false);
   lastDisplaySignature=signature;
+  lastDisplayMode=mode;
   displayInitialized=true;
 }
 
