@@ -10,9 +10,10 @@ let displayInitialized=false,lastDisplaySignature='',displayTransitionTimer=null
 const interactiveMapCache=new Map();
 let interactiveMapLoadToken=0;
 let mapState=null,mapStateSaveTimer=null,mapBridgeReady=false;
-let mapMotionChannel=null,mapMotionReady=false,lastMapMotionSentAt=0;
+let mapMotionChannel=null,mapMotionReady=false,lastMapMotionSentAt=0,lastMapCameraSentAt=0;
 let browserMapMotionChannel=null;
-let mapMirrorPollTimer=null,lastPolledMapMirrorSignature='';
+let mapMirrorPollTimer=null,mapCameraPollTimer=null,lastPolledMapMirrorSignature='',lastPolledMapCameraSignature='';
+let mapCameraPersistTimer=null;
 let playerMapStatePollTimer=null,lastPlayerMapStateUpdatedAt='';
 let mapStatePersistBusy=false,mapStatePersistPending=null,lastMapStatePersistAt=0;
 
@@ -179,6 +180,11 @@ function mapSourceForRole(source,role){
   const nl=String.fromCharCode(10);
   const bridgeLines=[
     "  const aLiveRole="+JSON.stringify(role)+";",
+    "  function aCollectLiveView(){",
+    "    const r=wrap.getBoundingClientRect();",
+    "    const fitScale=Math.max(.0001,Math.min(r.width/W,r.height/H));",
+    "    return {centerX:(r.width/2-tx)/Math.max(scale,.0001),centerY:(r.height/2-ty)/Math.max(scale,.0001),zoom:scale/fitScale};",
+    "  }",
     "  function aCollectLiveMirror(){",
     "    const r=wrap.getBoundingClientRect();",
     "    const fitScale=Math.max(.0001,Math.min(r.width/W,r.height/H));",
@@ -200,7 +206,20 @@ function mapSourceForRole(source,role){
     "      const justArrived=!!activeRoute.travelled&&!!activeRoute.completedAt&&(Date.now()-Date.parse(activeRoute.completedAt)<5000);",
     "      travel={active:!!journeyActive,planned:!journeyActive&&!activeRoute.travelled,arrived:justArrived,routeName:activeRoute.name||'Planned Route',destination:destination,totalDays:days,currentDay:journeyActive?currentDay:(activeRoute.travelled?days:0),remainingDays:Math.max(0,days-(journeyActive?currentDay:(activeRoute.travelled?days:0))),progress:days?Math.max(0,Math.min(1,(journeyActive?currentDay:(activeRoute.travelled?days:0))/days)):0};",
     "    }",
-    "    return {version:4,data:JSON.parse(JSON.stringify(data)),controls:controls,view:{centerX:(r.width/2-tx)/Math.max(scale,.0001),centerY:(r.height/2-ty)/Math.max(scale,.0001),zoom:scale/fitScale},liveParty:party?{x:Number(party.x)||0,y:Number(party.y)||0,visible:party.visible!==false}:null,travel:travel};",
+    "    return {version:5,data:JSON.parse(JSON.stringify(data)),controls:controls,view:aCollectLiveView(),liveParty:party?{x:Number(party.x)||0,y:Number(party.y)||0,visible:party.visible!==false}:null,travel:travel};",
+    "  }",
+    "  function aApplyLiveView(view){",
+    "    if(!view)return false;",
+    "    try{",
+    "      const r=wrap.getBoundingClientRect();",
+    "      const fitScale=Math.max(.0001,Math.min(r.width/W,r.height/H));",
+    "      const zoom=Math.max(.12,Math.min(8,Number(view.zoom)||1));",
+    "      scale=fitScale*zoom;",
+    "      tx=r.width/2-(Number(view.centerX)||W/2)*scale;",
+    "      ty=r.height/2-(Number(view.centerY)||H/2)*scale;",
+    "      applyTransform();",
+    "      return true;",
+    "    }catch(err){console.warn('Aestra live view apply failed',err);return false}",
     "  }",
     "  function aApplyLiveMirror(mirror){",
     "    if(!mirror)return false;",
@@ -214,13 +233,13 @@ function mapSourceForRole(source,role){
     "      const fog=document.getElementById('fogOpacity');if(fog&&data.fog&&controls.fogOpacity==null)fog.value=data.fog.opacity||82;",
     "      renderAll();if(typeof syncLegendFilters==='function')syncLegendFilters();",
     "      if(aLiveRole==='player'&&window.aestraUpdateTravelHud)window.aestraUpdateTravelHud(payload.travel||null);",
-    "      const applyView=()=>{if(!payload.view)return;const r=wrap.getBoundingClientRect();const fitScale=Math.max(.0001,Math.min(r.width/W,r.height/H));const zoom=Math.max(.12,Math.min(8,Number(payload.view.zoom)||1));scale=fitScale*zoom;tx=r.width/2-(Number(payload.view.centerX)||W/2)*scale;ty=r.height/2-(Number(payload.view.centerY)||H/2)*scale;applyTransform()};",
+    "      const applyView=()=>{if(payload.view)aApplyLiveView(payload.view)};",
     "      applyView();if(aLiveRole==='player')setTimeout(applyView,55);",
     "      if(aLiveRole==='player'){const exit=document.getElementById('presentationExit');if(exit)exit.style.display='none';const toggle=document.getElementById('presentationToggle');if(toggle)toggle.style.display='none'}",
     "      return true;",
     "    }catch(err){console.warn('Aestra live mirror apply failed',err);return false}",
     "  }",
-    "  window.AestraLiveBridge={version:3,role:aLiveRole,collect:aCollectLiveMirror,apply:aApplyLiveMirror,applyParty:(x,y)=>{try{data.travel.party.x=Number(x)||0;data.travel.party.y=Number(y)||0;data.travel.party.visible=true;renderTravel();return true}catch(err){return false}},present:()=>{try{setPresentation(true);return true}catch(err){return false}}};",
+    "  window.AestraLiveBridge={version:5,role:aLiveRole,collect:aCollectLiveMirror,collectView:aCollectLiveView,apply:aApplyLiveMirror,applyView:aApplyLiveView,applyParty:(x,y)=>{try{data.travel.party.x=Number(x)||0;data.travel.party.y=Number(y)||0;data.travel.party.visible=true;renderTravel();return true}catch(err){return false}},present:()=>{try{setPresentation(true);return true}catch(err){return false}}};",
     "  parent.postMessage({type:'aestra-map-ready',role:aLiveRole},'*');"
   ];
   const bridgeCode=bridgeLines.join(nl)+nl+nl;
@@ -420,6 +439,72 @@ function sendMapMirror(mirror){
   }
 
   queueMapStateSave(mirror);
+}
+
+function applyMapCameraToPlayer(view){
+  if(!shouldReceivePlayerMap()||!view)return false;
+  const win=els.worldMapFrame?.contentWindow;
+  if(!win)return false;
+  try{
+    const bridge=win.AestraLiveBridge;
+    if(bridge?.applyView)return bridge.applyView(view)===true;
+  }catch(err){
+    console.warn('Direct camera motion apply failed',err);
+  }
+  return false;
+}
+
+function persistFinalMapCamera(){
+  clearTimeout(mapCameraPersistTimer);
+  mapCameraPersistTimer=setTimeout(()=>{
+    if(!canGMControl()||state?.mode!=='map')return;
+    const win=els.worldMapFrame?.contentWindow;
+    try{
+      const bridge=win?.AestraLiveBridge;
+      const mirror=bridge?.collect?.();
+      if(!mirror)return;
+      // Save the resting camera position without rebroadcasting the heavy mirror.
+      mapState={
+        campaign_id:CAMPAIGN_ID,
+        state:mirror,
+        updated_by:user.id,
+        updated_at:new Date().toISOString()
+      };
+      const signature=JSON.stringify({...mirror,view:null});
+      lastPolledMapMirrorSignature=signature;
+      queueMapStateSave(mirror);
+    }catch(err){
+      console.warn('Could not persist final camera position',err);
+    }
+  },260);
+}
+
+function sendMapCameraMotion(view){
+  if(!canGMControl()||!view)return;
+  const centerX=Number(view.centerX),centerY=Number(view.centerY),zoom=Number(view.zoom);
+  if(!Number.isFinite(centerX)||!Number.isFinite(centerY)||!Number.isFinite(zoom))return;
+  const now=performance.now();
+  if(now-lastMapCameraSentAt<28)return;
+  lastMapCameraSentAt=now;
+  const camera={centerX,centerY,zoom};
+
+  if(mapState?.state)mapState.state={...mapState.state,view:camera};
+
+  try{
+    browserMapMotionChannel?.postMessage({kind:'camera-motion',view:camera});
+  }catch(err){
+    console.warn('Local camera motion broadcast failed',err);
+  }
+
+  if(mapMotionReady&&mapMotionChannel){
+    mapMotionChannel.send({
+      type:'broadcast',
+      event:'camera-motion',
+      payload:{view:camera}
+    }).catch(err=>console.warn('Camera motion broadcast failed',err));
+  }
+
+  persistFinalMapCamera();
 }
 
 function applyPartyMotionToPlayer(x,y){
@@ -1444,6 +1529,32 @@ function startPlayerMapStatePolling(){
 
 function startMapMirrorPolling(){
   clearInterval(mapMirrorPollTimer);
+  clearInterval(mapCameraPollTimer);
+
+  // Camera path: tiny view-only updates at ~30 fps. No full map render on player.
+  mapCameraPollTimer=setInterval(()=>{
+    if(!canGMControl()||state?.mode!=='map')return;
+    const win=els.worldMapFrame?.contentWindow;
+    if(!win)return;
+    try{
+      const bridge=win.AestraLiveBridge;
+      if(!bridge?.collectView||bridge.role!=='gm')return;
+      const view=bridge.collectView();
+      if(!view)return;
+      const signature=[
+        Number(view.centerX).toFixed(3),
+        Number(view.centerY).toFixed(3),
+        Number(view.zoom).toFixed(5)
+      ].join('|');
+      if(signature===lastPolledMapCameraSignature)return;
+      lastPolledMapCameraSignature=signature;
+      sendMapCameraMotion(view);
+    }catch(err){
+      // iframe may be between srcdoc reloads; the next poll will retry.
+    }
+  },32);
+
+  // Heavy path: only broadcast when actual map content/layers change.
   mapMirrorPollTimer=setInterval(()=>{
     if(!canGMControl()||state?.mode!=='map')return;
     const win=els.worldMapFrame?.contentWindow;
@@ -1453,14 +1564,14 @@ function startMapMirrorPolling(){
       if(!bridge?.collect||bridge.role!=='gm')return;
       const mirror=bridge.collect();
       if(!mirror)return;
-      const signature=JSON.stringify(mirror);
+      const signature=JSON.stringify({...mirror,view:null});
       if(signature===lastPolledMapMirrorSignature)return;
       lastPolledMapMirrorSignature=signature;
       sendMapMirror(mirror);
     }catch(err){
       // iframe may be between srcdoc reloads; the next poll will retry.
     }
-  },90);
+  },110);
 }
 
 async function subscribeRealtime(){
@@ -1470,6 +1581,7 @@ async function subscribeRealtime(){
       browserMapMotionChannel.addEventListener('message',event=>{
         const p=event.data||{};
         if(p.kind==='mirror'&&p.mirror)applyMapMirrorToPlayer(p.mirror);
+        else if(p.kind==='camera-motion'&&p.view)applyMapCameraToPlayer(p.view);
         else if(p.kind==='party-motion')applyPartyMotionToPlayer(p.x,p.y);
         else if(Number.isFinite(Number(p.x))&&Number.isFinite(Number(p.y)))applyPartyMotionToPlayer(p.x,p.y);
       });
@@ -1481,6 +1593,10 @@ async function subscribeRealtime(){
   await supabase.realtime.setAuth();
   mapMotionChannel=supabase.channel('aestra-map-motion:'+CAMPAIGN_ID,{config:{private:true}});
   mapMotionChannel
+    .on('broadcast',{event:'camera-motion'},payload=>{
+      const p=payload?.payload||{};
+      if(p.view)applyMapCameraToPlayer(p.view);
+    })
     .on('broadcast',{event:'party-motion'},payload=>{
       const p=payload?.payload||{};
       applyPartyMotionToPlayer(p.x,p.y);
