@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#080b0f" />
 <title>Aestra Live Table</title>
 <link rel="icon" href="aestra-icon.svg" type="image/svg+xml" />
-<link rel="stylesheet" href="live-table.css?v=3" />
+<link rel="stylesheet" href="live-table.css?v=4" />
 </head>
 <body>
 <div id="authGate" class="auth-gate">
@@ -52,6 +52,7 @@
 
       <div id="playerDisplay" class="player-display" aria-live="polite">
         <div id="backdrop" class="backdrop"></div>
+        <iframe id="worldMapFrame" class="world-map-frame hidden" title="Aestra interactive world map" referrerpolicy="no-referrer"></iframe>
         <div class="atmosphere"></div>
         <div id="locationTitle" class="location-title">
           <span id="locationSubtitle"></span>
@@ -94,7 +95,13 @@
           <button id="addSceneBtn" class="icon-btn" type="button" title="Add scene">＋</button>
         </div>
         <div id="sceneStrip" class="scene-strip"></div>
-        <button id="setMapAssetBtn" type="button" class="wide">Choose World Map</button>
+        <div class="map-tool-stack">
+          <button id="setMapAssetBtn" type="button" class="wide">Choose World Map</button>
+          <button id="importInteractiveMapBtn" type="button" class="wide primary">Import Interactive Map</button>
+          <button id="openMapEditorBtn" type="button" class="wide">Open Map Editor</button>
+          <input id="interactiveMapFile" type="file" accept=".html,text/html" hidden />
+          <p id="mapImportStatus" class="map-import-status">Import your Aestra interactive-map HTML once, then use World Map mode from this control deck.</p>
+        </div>
       </div>
 
       <div class="control-column reveal-column">
@@ -162,6 +169,6 @@
 </dialog>
 
 <script src="config.js"></script>
-<script type="module" src="live-table.js?v=3"></script>
+<script type="module" src="live-table.js?v=4"></script>
 </body>
 </html>
