@@ -25,3 +25,9 @@ dialog{width:min(520px,calc(100% - 24px));border:1px solid var(--line);border-ra
 @media(max-width:980px){.gm-controls{grid-template-columns:1fr}.reveal-grid{max-height:none}.player-display{min-height:360px}.reveal-layer{inset:50px 7% 92px;grid-template-columns:1fr 220px}.party-hud{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:640px){.gm-header,.section-head{align-items:flex-start;flex-direction:column}.player-display{min-height:430px}.party-hud{left:8px;right:8px;bottom:8px;grid-template-columns:repeat(2,minmax(0,1fr))}.party-card{grid-template-columns:35px 1fr;padding:6px}.party-portrait{width:35px;height:35px}.location-title{top:18px}.reveal-layer{inset:58px 6% 115px;display:flex;flex-direction:column;padding:14px;gap:10px}.reveal-layer img{max-height:65%}.reveal-copy{text-align:center}.pin-card{top:76px;width:100px}.reveal-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 @media(prefers-reduced-motion:reduce){.player-display.scene-transitioning::before,.player-display.scene-transitioning::after,.player-display.scene-transitioning .backdrop,.player-display.scene-transitioning .location-title,.player-display.scene-transitioning .atmosphere{animation-duration:.18s!important}}
+
+.scene-actions{display:grid;grid-template-columns:repeat(3,auto);gap:5px;align-items:center}
+.scene-actions button{min-height:32px;padding:0 7px;font-size:8px;border:1px solid var(--line);background:#141b23;color:inherit;border-radius:8px}
+button.danger{border-color:rgba(201,100,104,.42)!important;color:#efb0b3!important;background:rgba(96,28,34,.18)!important}
+button.danger:hover{border-color:#c96468!important;background:rgba(119,35,43,.3)!important}
+@media(max-width:760px){.scene-card{grid-template-columns:62px 1fr}.scene-actions{grid-column:1/-1;grid-template-columns:repeat(3,1fr)}}
