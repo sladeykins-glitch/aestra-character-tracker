@@ -9,6 +9,7 @@ let interactiveMapLoadToken=0;
 let mapState=null,mapStateSaveTimer=null,mapBridgeReady=false;
 let mapMotionChannel=null,mapMotionReady=false,lastMapMotionSentAt=0;
 let browserMapMotionChannel=null;
+let mapMirrorPollTimer=null,lastPolledMapMirrorSignature='';
 
 const esc=s=>String(s??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const byId=id=>assets.find(a=>a.id===id)||null;
@@ -259,6 +260,14 @@ function mapSourceForRole(source,role){
   const scopedBridge="  if (document.readyState === 'complete') {\\n    setTimeout(dismissBootOverlay, 240);\\n  } else {\\n    window.addEventListener('load', () => setTimeout(dismissBootOverlay, 240), { once:true });\\n  }\\n\\n  // Aestra Live Table in-scope bridge. This must live before the atlas IIFE closes\\n  // so it can access data, renderers, camera variables and transient route/draw state.\\n  const aLiveRole="+JSON.stringify(role)+";\\n  let aApplyingLiveMirror=false;\\n\\n  function aApplyLiveMirror(mirror){\\n    if(!mirror) return;\\n    try {\\n      aApplyingLiveMirror=true;\\n      const payload=(mirror.version===2&&mirror.data)?mirror:{version:1,data:mirror};\\n      if(payload.data){\\n        data=JSON.parse(JSON.stringify(payload.data));\\n        normalizeData();\\n      }\\n      if(payload.layers){\\n        for(const [id,value] of Object.entries(payload.layers)){\\n          const el=document.getElementById(id);\\n          if(!el) continue;\\n          if(el.type==='checkbox') el.checked=!!value; else el.value=value;\\n        }\\n      }\\n      if(payload.liveParty&&data.travel&&data.travel.party){\\n        data.travel.party.x=Number(payload.liveParty.x)||0;\\n        data.travel.party.y=Number(payload.liveParty.y)||0;\\n        data.travel.party.visible=payload.liveParty.visible!==false;\\n      }\\n      const fog=document.getElementById('fogOpacity');\\n      if(fog&&data.fog) fog.value=data.fog.opacity||82;\\n      renderAll();\\n      if(typeof syncLegendFilters==='function') syncLegendFilters();\\n      if(payload.view){\\n        const r=wrap.getBoundingClientRect();\\n        const fitScale=Math.max(.0001,Math.min(r.width/W,r.height/H));\\n        const zoom=Math.max(.12,Math.min(8,Number(payload.view.zoom)||1));\\n        scale=fitScale*zoom;\\n        tx=r.width/2-(Number(payload.view.centerX)||W/2)*scale;\\n        ty=r.height/2-(Number(payload.view.centerY)||H/2)*scale;\\n        applyTransform();\\n      }\\n      if(aLiveRole==='player'){\\n        setPresentation(true);\\n        const exit=document.getElementById('presentationExit'); if(exit) exit.style.display='none';\\n        const toggle=document.getElementById('presentationToggle'); if(toggle) toggle.style.display='none';\\n      }\\n    } catch(err){\\n      console.warn('Aestra in-scope mirror apply failed',err);\\n    } finally {\\n      setTimeout(()=>{aApplyingLiveMirror=false;},80);\\n    }\\n  }\\n\\n  window.addEventListener('message',event=>{\\n    const m=event.data||{};\\n    if(m.type==='aestra-map-mirror-apply'&&aLiveRole==='player') aApplyLiveMirror(m.mirror);\\n    else if(m.type==='aestra-map-state-apply'&&aLiveRole==='player') aApplyLiveMirror({version:1,data:m.state});\\n    else if(m.type==='aestra-map-party-motion-apply'&&aLiveRole==='player'&&data.travel&&data.travel.party){\\n      data.travel.party.x=Number(m.x)||0;\\n      data.travel.party.y=Number(m.y)||0;\\n      data.travel.party.visible=true;\\n      renderTravel();\\n    }\\n  });\\n\\n  parent.postMessage({type:'aestra-map-ready',role:aLiveRole},'*');\\n  if(aLiveRole==='gm'){\\n    setTimeout(()=>{ if(!aApplyingLiveMirror) aEmitLiveMirrorNow(); },220);\\n  } else {\\n    setTimeout(()=>{\\n      setPresentation(true);\\n      const exit=document.getElementById('presentationExit'); if(exit) exit.style.display='none';\\n      const toggle=document.getElementById('presentationToggle'); if(toggle) toggle.style.display='none';\\n    },140);\\n  }\\n})();";
   if(preparedSource.includes(scopeCloseMarker)) preparedSource=preparedSource.replace(scopeCloseMarker,scopedBridge);
 
+  // Direct same-origin iframe API. srcdoc is not sandboxed, so the Live Table can
+  // call this bridge without relying on postMessage timing or scope leakage.
+  const directBridgeClose="\\n})();\\n";
+  const directBridgeCode="\\n  window.AestraLiveBridge={\\n    version:3,\\n    role:"+JSON.stringify(role)+",\\n    collect:function(){\\n      try{return aCollectLiveMirror()}catch(err){console.warn('Aestra collect failed',err);return null}\\n    },\\n    apply:function(mirror){\\n      if(!mirror)return false;\\n      try{\\n        const payload=(mirror.version===2&&mirror.data)?mirror:{version:1,data:mirror};\\n        if(payload.data){data=JSON.parse(JSON.stringify(payload.data));normalizeData()}\\n        if(payload.layers){for(const [id,value] of Object.entries(payload.layers)){const el=document.getElementById(id);if(!el)continue;if(el.type==='checkbox')el.checked=!!value;else el.value=value}}\\n        if(payload.liveParty&&data.travel&&data.travel.party){data.travel.party.x=Number(payload.liveParty.x)||0;data.travel.party.y=Number(payload.liveParty.y)||0;data.travel.party.visible=payload.liveParty.visible!==false}\\n        const fog=document.getElementById('fogOpacity');if(fog&&data.fog)fog.value=data.fog.opacity||82;\\n        renderAll();\\n        if(typeof syncLegendFilters==='function')syncLegendFilters();\\n        if(payload.view){const r=wrap.getBoundingClientRect();const fitScale=Math.max(.0001,Math.min(r.width/W,r.height/H));const zoom=Math.max(.12,Math.min(8,Number(payload.view.zoom)||1));scale=fitScale*zoom;tx=r.width/2-(Number(payload.view.centerX)||W/2)*scale;ty=r.height/2-(Number(payload.view.centerY)||H/2)*scale;applyTransform()}\\n        if("+JSON.stringify(role)+"==='player'){setPresentation(true);const exit=document.getElementById('presentationExit');if(exit)exit.style.display='none';const toggle=document.getElementById('presentationToggle');if(toggle)toggle.style.display='none'}\\n        return true;\\n      }catch(err){console.warn('Aestra direct apply failed',err);return false}\\n    },\\n    applyParty:function(x,y){\\n      try{if(!data.travel||!data.travel.party)return false;data.travel.party.x=Number(x)||0;data.travel.party.y=Number(y)||0;data.travel.party.visible=true;renderTravel();return true}catch(err){return false}\\n    },\\n    present:function(){\\n      try{setPresentation(true);const exit=document.getElementById('presentationExit');if(exit)exit.style.display='none';const toggle=document.getElementById('presentationToggle');if(toggle)toggle.style.display='none';return true}catch(err){return false}\\n    }\\n  };\\n";
+  if(preparedSource.includes(directBridgeClose)){
+    preparedSource=preparedSource.replace(directBridgeClose,directBridgeCode+directBridgeClose);
+  }
+
   // Presentation mode lives inside the atlas' own DOMContentLoaded scope, so
   // force it from inside that scope for player displays.
   if(role==='player'){
@@ -320,10 +329,17 @@ async function mountInteractiveMap(asset,role='player'){
 function sendMapStateToFrame(){
   if(!mapState?.state||!els.worldMapFrame?.contentWindow)return;
   const stored=mapState.state;
+  const win=els.worldMapFrame.contentWindow;
+  try{
+    const bridge=win.AestraLiveBridge;
+    if(bridge?.apply&&bridge.apply(stored))return;
+  }catch(err){
+    console.warn('Direct player map state apply failed',err);
+  }
   if(stored?.version===2&&stored?.data){
-    els.worldMapFrame.contentWindow.postMessage({type:'aestra-map-mirror-apply',mirror:stored},'*');
+    win.postMessage({type:'aestra-map-mirror-apply',mirror:stored},'*');
   }else{
-    els.worldMapFrame.contentWindow.postMessage({type:'aestra-map-state-apply',state:stored},'*');
+    win.postMessage({type:'aestra-map-state-apply',state:stored},'*');
   }
 }
 
@@ -349,10 +365,15 @@ function queueMapStateSave(nextState){
 
 function applyMapMirrorToPlayer(mirror){
   if(!(DISPLAY_QUERY||!isGM)||!mirror)return;
-  els.worldMapFrame?.contentWindow?.postMessage({
-    type:'aestra-map-mirror-apply',
-    mirror
-  },'*');
+  const win=els.worldMapFrame?.contentWindow;
+  if(!win)return;
+  try{
+    const bridge=win.AestraLiveBridge;
+    if(bridge?.apply&&bridge.apply(mirror))return;
+  }catch(err){
+    console.warn('Direct live mirror apply failed',err);
+  }
+  win.postMessage({type:'aestra-map-mirror-apply',mirror},'*');
 }
 
 function sendMapMirror(mirror){
@@ -396,11 +417,15 @@ function applyPartyMotionToPlayer(x,y){
   if(!(DISPLAY_QUERY||!isGM))return;
   const nx=Number(x),ny=Number(y);
   if(!Number.isFinite(nx)||!Number.isFinite(ny))return;
-  els.worldMapFrame?.contentWindow?.postMessage({
-    type:'aestra-map-party-motion-apply',
-    x:nx,
-    y:ny
-  },'*');
+  const win=els.worldMapFrame?.contentWindow;
+  if(!win)return;
+  try{
+    const bridge=win.AestraLiveBridge;
+    if(bridge?.applyParty&&bridge.applyParty(nx,ny))return;
+  }catch(err){
+    console.warn('Direct party motion apply failed',err);
+  }
+  win.postMessage({type:'aestra-map-party-motion-apply',x:nx,y:ny},'*');
 }
 
 function sendPartyMotion(x,y){
@@ -814,6 +839,27 @@ function addAiPromptChip(value){
   els.aiPrompt.focus();
 }
 
+function startMapMirrorPolling(){
+  clearInterval(mapMirrorPollTimer);
+  mapMirrorPollTimer=setInterval(()=>{
+    if(!isGM||DISPLAY_QUERY||state?.mode!=='map')return;
+    const win=els.worldMapFrame?.contentWindow;
+    if(!win)return;
+    try{
+      const bridge=win.AestraLiveBridge;
+      if(!bridge?.collect||bridge.role!=='gm')return;
+      const mirror=bridge.collect();
+      if(!mirror)return;
+      const signature=JSON.stringify(mirror);
+      if(signature===lastPolledMapMirrorSignature)return;
+      lastPolledMapMirrorSignature=signature;
+      sendMapMirror(mirror);
+    }catch(err){
+      // iframe may be between srcdoc reloads; the next poll will retry.
+    }
+  },90);
+}
+
 async function subscribeRealtime(){
   if('BroadcastChannel' in window){
     try{
@@ -860,6 +906,7 @@ async function subscribeRealtime(){
       if(DISPLAY_QUERY||!isGM)sendMapStateToFrame();
     })
     .subscribe();
+  startMapMirrorPolling();
 }
 
 function wire(){
