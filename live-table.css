@@ -878,3 +878,151 @@ body:not(.display-only) .player-display.map-live::before{content:'GM MAP CONTROL
     max-height:68vh;
   }
 }
+
+
+/* Scene Cast */
+.scene-cast{
+  position:absolute;
+  z-index:6;
+  left:50%;
+  bottom:26px;
+  transform:translateX(-50%);
+  width:min(92%,1180px);
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+  gap:clamp(8px,1.2vw,18px);
+  pointer-events:none;
+}
+.scene-cast.hidden{display:none}
+.scene-cast-member{
+  position:relative;
+  flex:0 1 auto;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:flex-end;
+  min-width:0;
+  opacity:1;
+  transform:translateY(0) scale(1);
+  filter:brightness(1);
+  transition:
+    transform .24s ease,
+    opacity .24s ease,
+    filter .24s ease;
+  transform-origin:50% 100%;
+}
+.scene-cast-member img{
+  display:block;
+  width:auto;
+  height:auto;
+  max-height:52vh;
+  max-width:min(18vw,220px);
+  object-fit:contain;
+  border-radius:8px;
+  border:1px solid rgba(238,225,194,.14);
+  box-shadow:
+    0 12px 30px rgba(0,0,0,.34),
+    0 0 18px rgba(221,192,116,.035);
+  background:transparent;
+}
+.scene-cast-member strong{
+  margin-top:6px;
+  padding:0 3px;
+  max-width:100%;
+  color:#f1e9db;
+  font:700 10px/1.15 Georgia,serif;
+  text-align:center;
+  text-shadow:0 2px 10px rgba(0,0,0,.9);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.scene-cast[data-count="1"] .scene-cast-member img{max-width:min(34vw,380px);max-height:58vh}
+.scene-cast[data-count="2"] .scene-cast-member img{max-width:min(27vw,320px);max-height:56vh}
+.scene-cast[data-count="3"] .scene-cast-member img{max-width:min(22vw,260px);max-height:54vh}
+.scene-cast[data-count="4"] .scene-cast-member img{max-width:min(18vw,220px);max-height:51vh}
+.scene-cast[data-count="5"] .scene-cast-member img,
+.scene-cast[data-count="6"] .scene-cast-member img{max-width:min(15vw,185px);max-height:47vh}
+.scene-cast.has-active .scene-cast-member:not(.is-active){
+  opacity:.48;
+  filter:brightness(.72) saturate(.78);
+  transform:translateY(5px) scale(.97);
+}
+.scene-cast .scene-cast-member.is-active{
+  opacity:1;
+  filter:brightness(1.08) saturate(1.04);
+  transform:translateY(-8px) scale(1.055);
+}
+.scene-cast .scene-cast-member.is-active img{
+  border-color:rgba(226,194,112,.34);
+  box-shadow:
+    0 15px 34px rgba(0,0,0,.4),
+    0 0 24px rgba(222,188,99,.10);
+}
+.scene-cast-member.is-entering{
+  animation:aestraCastJoin .34s cubic-bezier(.18,.82,.24,1) both;
+}
+.scene-cast-member.is-leaving{
+  animation:aestraCastLeave .28s ease-in both;
+  pointer-events:none;
+}
+@keyframes aestraCastJoin{
+  0%{opacity:0;transform:translateY(18px) scale(.94);filter:blur(3px) brightness(.8)}
+  68%{opacity:1;transform:translateY(-3px) scale(1.015);filter:blur(0) brightness(1.03)}
+  100%{opacity:1;transform:translateY(0) scale(1);filter:blur(0) brightness(1)}
+}
+@keyframes aestraCastLeave{
+  0%{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}
+  100%{opacity:0;transform:translateY(13px) scale(.96);filter:blur(2px)}
+}
+
+.scene-cast-panel{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+.scene-cast-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.scene-cast-head h3{margin:0;font:700 14px Georgia,serif;letter-spacing:.04em}
+.scene-cast-head-actions{display:flex;align-items:center;gap:6px}
+.scene-cast-count{display:grid;place-items:center;min-width:38px;height:24px;padding:0 7px;border:1px solid rgba(213,185,104,.24);border-radius:999px;color:#d5bd7a;font-size:8px;font-weight:800}
+.scene-cast-head button{min-height:28px;padding:0 8px;border:1px solid var(--line);border-radius:8px;background:#141b23;color:#aab4ba;font-size:8px}
+.scene-cast-head button:disabled{opacity:.35}
+.scene-cast-help{margin:7px 0 8px;color:var(--muted);font-size:8px;line-height:1.4}
+.scene-cast-tray{display:grid;gap:6px}
+.scene-cast-empty{margin:0;padding:10px;border:1px dashed rgba(126,142,154,.24);border-radius:9px;color:var(--muted);font-size:8px;text-align:center}
+.scene-cast-chip{
+  display:grid;
+  grid-template-columns:34px minmax(0,1fr) auto;
+  gap:7px;
+  align-items:center;
+  padding:6px;
+  border:1px solid var(--line);
+  border-radius:9px;
+  background:#0e141b;
+  cursor:grab;
+  transition:border-color .15s ease,background .15s ease,opacity .15s ease;
+}
+.scene-cast-chip.dragging{opacity:.45}
+.scene-cast-chip.drag-over{border-color:#c8a64e;background:rgba(47,39,22,.7)}
+.scene-cast-chip.is-active{border-color:rgba(214,180,88,.46);background:rgba(45,37,21,.56)}
+.scene-cast-chip img{width:34px;height:34px;object-fit:cover;border-radius:7px;border:1px solid rgba(231,205,136,.18)}
+.scene-cast-chip-main{min-width:0}
+.scene-cast-chip-main strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:700 9px Georgia,serif;color:#eee4cf}
+.scene-cast-chip-main small{display:block;margin-top:2px;color:#76828a;font-size:7px}
+.scene-cast-chip-actions{display:flex;gap:4px}
+.scene-cast-chip-actions button{min-height:28px;padding:0 7px;border:1px solid var(--line);border-radius:7px;background:#141b23;color:#aeb8be;font-size:7px}
+.scene-cast-chip-actions .cast-speak.is-active{color:#efd58a;border-color:rgba(213,181,95,.42)}
+.scene-cast-chip-actions .cast-remove{color:#d99ca0;border-color:rgba(201,100,104,.24)}
+.card-actions .cast-action{border-color:rgba(103,178,194,.28);color:#a5d5de}
+.card-actions .cast-action.is-present{border-color:rgba(213,181,95,.38);color:#e5ca80}
+
+@media(max-width:760px){
+  .scene-cast{width:96%;bottom:18px;gap:6px}
+  .scene-cast-member img,
+  .scene-cast[data-count="4"] .scene-cast-member img,
+  .scene-cast[data-count="5"] .scene-cast-member img,
+  .scene-cast[data-count="6"] .scene-cast-member img{max-width:18vw;max-height:42vh}
+  .scene-cast[data-count="1"] .scene-cast-member img{max-width:58vw;max-height:52vh}
+  .scene-cast[data-count="2"] .scene-cast-member img{max-width:38vw;max-height:50vh}
+  .scene-cast[data-count="3"] .scene-cast-member img{max-width:28vw;max-height:46vh}
+}
+@media(prefers-reduced-motion:reduce){
+  .scene-cast-member.is-entering,.scene-cast-member.is-leaving{animation:none!important}
+}
