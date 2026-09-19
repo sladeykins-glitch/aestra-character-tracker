@@ -561,15 +561,15 @@ class SceneAtmosphereRenderer{
   }
 
   targetCount(type){
-    const intensity=[0,.65,1,1.45][this.cfg.intensity]||1;
+    const intensity=[0,.85,1.3,1.85][this.cfg.intensity]||1;
     const base={
-      rain:150,
-      snow:90,
-      ash:72,
-      wind:28,
-      mist:12,
-      magic:30,
-      heat:18
+      rain:190,
+      snow:120,
+      ash:95,
+      wind:40,
+      mist:16,
+      magic:42,
+      heat:26
     }[type]||0;
     const stormBoost=type==='rain'&&this.cfg.effects.includes('storm')?1.7:1;
     return Math.round(base*intensity*stormBoost*this.quality);
@@ -734,9 +734,9 @@ class SceneAtmosphereRenderer{
       p.x+=p.vx*p.z*dt;
       p.y+=p.vy*p.z*dt;
       if(p.y>h+50||p.x>w+70)this.recycle(p);
-      const alpha=(storm?.34:.24)*p.z;
+      const alpha=(storm?.48:.34)*p.z;
       ctx.strokeStyle='rgba(205,225,235,'+alpha+')';
-      ctx.lineWidth=Math.max(.55,p.z*1.15);
+      ctx.lineWidth=Math.max(.7,p.z*1.45);
       ctx.beginPath();
       ctx.moveTo(p.x,p.y);
       ctx.lineTo(p.x-p.size*.22,p.y-p.size);
@@ -753,7 +753,7 @@ class SceneAtmosphereRenderer{
       p.x+=(p.vx+Math.sin(p.phase)*16)*dt;
       p.y+=p.vy*p.z*dt;
       if(p.y>h+12||p.x<-20||p.x>w+20)this.recycle(p);
-      ctx.globalAlpha=.35+.48*p.z;
+      ctx.globalAlpha=.48+.5*p.z;
       ctx.fillStyle='rgba(245,249,250,.92)';
       ctx.beginPath();
       ctx.arc(p.x,p.y,p.size*p.z,0,Math.PI*2);
@@ -770,7 +770,7 @@ class SceneAtmosphereRenderer{
       p.x+=(p.vx+Math.sin(p.phase)*10)*dt;
       p.y+=p.vy*p.z*dt;
       if(p.y>h+16||p.x<-20||p.x>w+20)this.recycle(p);
-      ctx.globalAlpha=.22+.42*p.z;
+      ctx.globalAlpha=.34+.48*p.z;
       ctx.fillStyle=p.ember?'rgba(242,132,58,.88)':'rgba(190,184,170,.72)';
       ctx.beginPath();
       ctx.arc(p.x,p.y,p.size*p.z,0,Math.PI*2);
@@ -787,8 +787,8 @@ class SceneAtmosphereRenderer{
       p.x+=p.vx*p.z*dt;
       p.y+=p.vy*dt+Math.sin(p.phase+p.x*.01)*3*dt;
       if(p.x>w+80)this.recycle(p);
-      ctx.strokeStyle='rgba(226,218,193,'+( .035+.08*p.z)+')';
-      ctx.lineWidth=.6+p.z*.7;
+      ctx.strokeStyle='rgba(226,218,193,'+(.055+.12*p.z)+')';
+      ctx.lineWidth=.75+p.z*.9;
       ctx.beginPath();
       ctx.moveTo(p.x,p.y);
       ctx.lineTo(p.x-p.size,p.y+2);
@@ -805,10 +805,10 @@ class SceneAtmosphereRenderer{
       p.x+=p.vx*dt;
       p.y+=p.vy*dt;
       if(p.x>w+p.size)this.recycle(p);
-      const alpha=.018+p.life*.055;
+      const alpha=.03+p.life*.085;
       const g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.size);
-      g.addColorStop(0,'rgba(224,234,230,'+alpha+')');
-      g.addColorStop(.55,'rgba(211,226,224,'+(alpha*.68)+')');
+      g.addColorStop(0,'rgba(224,234,230,'+Math.min(.22,alpha*1.18)+')');
+      g.addColorStop(.55,'rgba(211,226,224,'+(alpha*.82)+')');
       g.addColorStop(1,'rgba(211,226,224,0)');
       ctx.fillStyle=g;
       ctx.beginPath();
@@ -830,8 +830,8 @@ class SceneAtmosphereRenderer{
       const pulse=.55+.45*Math.sin(now*.0015+p.phase);
       const r=p.size*(2.5+p.z*2);
       const g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,r);
-      g.addColorStop(0,'rgba(153,224,239,'+(.24*pulse)+')');
-      g.addColorStop(.45,'rgba(171,115,221,'+(.14*pulse)+')');
+      g.addColorStop(0,'rgba(153,224,239,'+(.36*pulse)+')');
+      g.addColorStop(.45,'rgba(171,115,221,'+(.22*pulse)+')');
       g.addColorStop(1,'rgba(171,115,221,0)');
       ctx.fillStyle=g;
       ctx.beginPath();
@@ -850,7 +850,7 @@ class SceneAtmosphereRenderer{
       p.phase+=dt*.75;
       p.y+=p.vy*dt;
       if(p.y<h*.48)this.recycle(p);
-      const alpha=.018+.018*p.z;
+      const alpha=.03+.028*p.z;
       ctx.strokeStyle='rgba(255,190,112,'+alpha+')';
       ctx.beginPath();
       const length=p.size;
@@ -868,11 +868,11 @@ class SceneAtmosphereRenderer{
   drawLightning(now,intensity){
     if(!this.lightningAt)this.lightningAt=now+2600+Math.random()*6200;
     if(now>=this.lightningAt){
-      this.flash=.28+.34*intensity;
+      this.flash=.42+.42*intensity;
       this.lightningAt=now+3300+Math.random()*7600;
     }
     if(this.flash>0){
-      this.flash*=.80;
+      this.flash*=.76;
       if(this.flash<.015)this.flash=0;
       this.setFlash(this.flash);
     }else{
