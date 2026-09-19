@@ -231,7 +231,7 @@ async function mountInteractiveMap(asset,role='player'){
     const source=await fetchInteractiveMapSource(asset);
     if(token!==interactiveMapLoadToken)return;
     if(frame.dataset.assetId===asset.id&&frame.dataset.role===role&&frame.srcdoc){
-      if(mapState?.state)sendMapStateToFrame();
+      if(role==='player'&&mapState?.state)sendMapStateToFrame();
       return;
     }
     mapBridgeReady=false;
@@ -246,7 +246,7 @@ async function mountInteractiveMap(asset,role='player'){
               : 'Player atlas bridge connected — waiting for GM mirror…';
           }
         }catch(_){}
-        if(mapState?.state)sendMapStateToFrame();
+        if(role==='player'&&mapState?.state)sendMapStateToFrame();
         if(role==='player'&&supabase){
           try{
             const {data}=await supabase.from('live_table_map_state').select('state,updated_at').eq('campaign_id',CAMPAIGN_ID).maybeSingle();
@@ -421,7 +421,7 @@ function handleMapBridgeMessage(event){
   const message=event.data||{};
   if(message.type==='aestra-map-ready'){
     mapBridgeReady=true;
-    if(mapState?.state)sendMapStateToFrame();
+    if(shouldReceivePlayerMap()&&mapState?.state)sendMapStateToFrame();
     if(els.mapImportStatus&&state?.mode==='map'){
       els.mapImportStatus.textContent=shouldReceivePlayerMap()
         ? 'Player map connected.'
