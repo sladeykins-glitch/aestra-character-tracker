@@ -7,6 +7,7 @@ let displayInitialized=false,lastDisplaySignature='',displayTransitionTimer=null
 const interactiveMapCache=new Map();
 let interactiveMapLoadToken=0;
 let mapState=null,mapStateSaveTimer=null,mapBridgeReady=false;
+let mapMotionChannel=null,mapMotionReady=false,lastMapMotionSentAt=0;
 
 const esc=s=>String(s??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const byId=id=>assets.find(a=>a.id===id)||null;
@@ -139,6 +140,12 @@ async function fetchInteractiveMapSource(asset){
 function mapSourceForRole(source,role){
   let preparedSource=source;
 
+  if(role==='gm'){
+    const dragBlock="  window.addEventListener('pointermove', e => {\n    if (!draggingPartyToken) return;\n    partyTokenSelected = true;\n    syncPartyTokenState();\n    const pos = screenToMap(e.clientX, e.clientY);\n    data.travel.party.x = Math.max(0, Math.min(W, pos.x));\n    data.travel.party.y = Math.max(0, Math.min(H, pos.y));\n    data.travel.party.visible = true;\n    renderTravel();\n  });";
+    const dragWithLive="  window.addEventListener('pointermove', e => {\n    if (!draggingPartyToken) return;\n    partyTokenSelected = true;\n    syncPartyTokenState();\n    const pos = screenToMap(e.clientX, e.clientY);\n    data.travel.party.x = Math.max(0, Math.min(W, pos.x));\n    data.travel.party.y = Math.max(0, Math.min(H, pos.y));\n    data.travel.party.visible = true;\n    renderTravel();\n    try { parent.postMessage({type:'aestra-map-party-motion',x:data.travel.party.x,y:data.travel.party.y},'*'); } catch (_) {}\n  });";
+    if(preparedSource.includes(dragBlock))preparedSource=preparedSource.replace(dragBlock,dragWithLive);
+  }
+
   const oldPartyMarkup="core.innerHTML='<span class=\"party-symbol\">✦</span><span class=\"party-label\">Party</span>';";
   const caravanMarkup="core.innerHTML='<span class=\"party-symbol party-caravan\" aria-hidden=\"true\"><svg viewBox=\"0 0 72 52\" xmlns=\"http://www.w3.org/2000/svg\"><path class=\"caravan-canopy\" d=\"M17 24c1-9 7-15 18-15 12 0 20 6 21 15H17Z\"/><path class=\"caravan-body\" d=\"M13 23h47l-4 17H18l-5-17Z\"/><path class=\"caravan-trim\" d=\"M18 25h37M26 11v27M44 11v27\"/><path class=\"caravan-tongue\" d=\"M59 32h9l3 4\"/><circle class=\"caravan-wheel\" cx=\"25\" cy=\"42\" r=\"6\"/><circle class=\"caravan-wheel\" cx=\"50\" cy=\"42\" r=\"6\"/><circle class=\"caravan-hub\" cx=\"25\" cy=\"42\" r=\"2\"/><circle class=\"caravan-hub\" cx=\"50\" cy=\"42\" r=\"2\"/><circle class=\"caravan-lantern\" cx=\"62\" cy=\"28\" r=\"2.4\"/></svg></span><span class=\"party-label\">Party Caravan</span>';";
   if(preparedSource.includes(oldPartyMarkup))preparedSource=preparedSource.replace(oldPartyMarkup,caravanMarkup);
@@ -180,7 +187,7 @@ function mapSourceForRole(source,role){
     'function enforcePlayerPresentation(){if(role!=="player")return;var app=document.getElementById("app");if(app)app.classList.add("presentation");var exit=document.getElementById("presentationExit");if(exit)exit.style.display="none";var toggle=document.getElementById("presentationToggle");if(toggle)toggle.style.display="none"}'+
     'function configure(){document.body.classList.add("aestra-live-embedded");try{if(role==="player"){enforcePlayerPresentation();setTimeout(enforcePlayerPresentation,300);setTimeout(enforcePlayerPresentation,900)}else{var app=document.getElementById("app");if(app)app.classList.remove("presentation");if(typeof gmMode!=="undefined"){gmMode=true;if(typeof syncModeLabels==="function")syncModeLabels()}if(typeof renderAll==="function")renderAll()}}catch(e){console.warn("Aestra bridge configure failed",e)}'+
     'try{var originalSave=saveLocal;saveLocal=function(silent){originalSave(silent);sendState()}}catch(e){console.warn("Aestra bridge save hook failed",e)}'+
-    'window.addEventListener("message",function(ev){var m=ev.data||{};if(m.type==="aestra-map-state-apply"){applyState(m.state);if(role==="player")setTimeout(enforcePlayerPresentation,40)}});'+
+    'window.addEventListener("message",function(ev){var m=ev.data||{};if(m.type==="aestra-map-state-apply"){applyState(m.state);if(role==="player")setTimeout(enforcePlayerPresentation,40)}else if(m.type==="aestra-map-party-motion-apply"&&role==="player"){try{data.travel.party.x=Number(m.x);data.travel.party.y=Number(m.y);data.travel.party.visible=true;if(typeof renderTravel==="function")renderTravel()}catch(e){}}});'+
     'parent.postMessage({type:"aestra-map-ready",role:role},"*");if(role==="gm")setTimeout(sendState,250)}'+
     'if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",function(){setTimeout(configure,120)});else setTimeout(configure,120)})();<\/script>';
 
@@ -243,6 +250,18 @@ function queueMapStateSave(nextState){
   mapStateSaveTimer=setTimeout(()=>persistMapState(nextState),260);
 }
 
+function sendPartyMotion(x,y){
+  if(!mapMotionReady||!mapMotionChannel||!isGM||DISPLAY_QUERY)return;
+  const now=performance.now();
+  if(now-lastMapMotionSentAt<45)return;
+  lastMapMotionSentAt=now;
+  mapMotionChannel.send({
+    type:'broadcast',
+    event:'party-motion',
+    payload:{x:Number(x),y:Number(y)}
+  }).catch(err=>console.warn('Party motion broadcast failed',err));
+}
+
 function handleMapBridgeMessage(event){
   if(event.source!==els.worldMapFrame?.contentWindow)return;
   const message=event.data||{};
@@ -254,6 +273,10 @@ function handleMapBridgeMessage(event){
         ? 'Player map connected.'
         : 'GM map control is live — changes sync to the player display.';
     }
+    return;
+  }
+  if(message.type==='aestra-map-party-motion'&&isGM&&!DISPLAY_QUERY){
+    sendPartyMotion(message.x,message.y);
     return;
   }
   if(message.type==='aestra-map-state'&&isGM&&!DISPLAY_QUERY&&message.state){
@@ -625,7 +648,21 @@ function addAiPromptChip(value){
   els.aiPrompt.focus();
 }
 
-function subscribeRealtime(){
+async function subscribeRealtime(){
+  await supabase.realtime.setAuth();
+  mapMotionChannel=supabase.channel('aestra-map-motion:'+CAMPAIGN_ID,{config:{private:true}});
+  mapMotionChannel
+    .on('broadcast',{event:'party-motion'},payload=>{
+      const p=payload?.payload||{};
+      if((DISPLAY_QUERY||!isGM)&&Number.isFinite(Number(p.x))&&Number.isFinite(Number(p.y))){
+        els.worldMapFrame?.contentWindow?.postMessage({
+          type:'aestra-map-party-motion-apply',
+          x:Number(p.x),
+          y:Number(p.y)
+        },'*');
+      }
+    })
+    .subscribe(status=>{mapMotionReady=status==='SUBSCRIBED'});
   supabase.channel('aestra-live-state')
     .on('postgres_changes',{event:'*',schema:'public',table:'live_table_state',filter:'campaign_id=eq.'+CAMPAIGN_ID},payload=>{if(payload.new){state=payload.new;renderAll()}})
     .subscribe();
@@ -696,7 +733,7 @@ async function startApp(){
   await checkRole();
   await Promise.all([loadState(),loadAssets(),loadParty(),loadMapState()]);
   renderAll();
-  subscribeRealtime();
+  await subscribeRealtime();
 }
 
 async function boot(){
