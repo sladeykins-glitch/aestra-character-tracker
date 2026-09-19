@@ -321,6 +321,41 @@ function setBackdrop(asset){
   els.backdrop.style.backgroundImage=asset?.image_url?'url("'+asset.image_url.replace(/"/g,'%22')+'")':'';
 }
 
+const TRANSITION_STYLE_KEYS=['soft-fade','dream','crystal-flash','relic-glitch','darkness','memory','impact'];
+const TRANSITION_DURATIONS=[800,1250,1800,3000];
+
+function normalizeTransition(raw){
+  const source=raw&&typeof raw==='object'?raw:{};
+  return {
+    style:TRANSITION_STYLE_KEYS.includes(source.style)?source.style:'soft-fade',
+    duration_ms:TRANSITION_DURATIONS.includes(Number(source.duration_ms))?Number(source.duration_ms):1250
+  };
+}
+
+function transitionState(){
+  return normalizeTransition(state?.transition_state);
+}
+
+function transitionLabel(style){
+  return ({
+    'soft-fade':'Soft Fade',
+    dream:'Dream',
+    'crystal-flash':'Crystal Flash',
+    'relic-glitch':'Relic Glitch',
+    darkness:'Darkness',
+    memory:'Memory',
+    impact:'Impact'
+  })[style]||'Soft Fade';
+}
+
+function transitionNonce(){
+  return Number(state?.transition_state?.nonce)||0;
+}
+
+function nextTransitionNonce(){
+  return transitionNonce()+1;
+}
+
 function displaySignature(s){
   if(!s)return '';
   return [
@@ -332,22 +367,54 @@ function displaySignature(s){
     s.pinned_right_id||'',
     s.location_title||'',
     s.location_subtitle||'',
-    s.hud_visible===false?'hud-off':'hud-on'
+    s.hud_visible===false?'hud-off':'hud-on',
+    Number(s.transition_state?.nonce)||0
   ].join('|');
 }
 
-function playDisplayTransition(){
+function playDisplayTransition(config=transitionState()){
   if(!displayInitialized)return;
   const display=els.playerDisplay;
   if(!display)return;
+  const cfg=normalizeTransition(config);
   if(displayTransitionTimer)clearTimeout(displayTransitionTimer);
-  display.classList.remove('display-transitioning');
+
+  display.classList.remove(
+    'display-transitioning',
+    'transition-active',
+    ...TRANSITION_STYLE_KEYS.map(style=>'transition-style-'+style)
+  );
+  display.style.setProperty('--transition-duration',cfg.duration_ms+'ms');
   void display.offsetWidth;
-  display.classList.add('display-transitioning');
+  display.classList.add('transition-active','transition-style-'+cfg.style);
+
   displayTransitionTimer=setTimeout(()=>{
-    display.classList.remove('display-transitioning');
+    display.classList.remove('transition-active','transition-style-'+cfg.style);
     displayTransitionTimer=null;
-  },1250);
+  },cfg.duration_ms+120);
+}
+
+function renderTransitionControls(){
+  if(!state)return;
+  const cfg=transitionState();
+  if(els.transitionStyle)els.transitionStyle.value=cfg.style;
+  if(els.transitionDuration)els.transitionDuration.value=String(cfg.duration_ms);
+  if(els.transitionStatus)els.transitionStatus.textContent=transitionLabel(cfg.style)+' · '+(cfg.duration_ms/1000).toFixed(cfg.duration_ms%1000?2:0)+'s';
+}
+
+async function setTransitionSetting(key,value){
+  if(!canGMControl())return;
+  const current=transitionState();
+  const next={...current,nonce:transitionNonce()};
+  if(key==='style')next.style=TRANSITION_STYLE_KEYS.includes(value)?value:'soft-fade';
+  if(key==='duration_ms')next.duration_ms=TRANSITION_DURATIONS.includes(Number(value))?Number(value):1250;
+  await patchState({transition_state:next});
+}
+
+async function previewTransition(){
+  if(!canGMControl())return;
+  const cfg=transitionState();
+  await patchState({transition_state:{...cfg,nonce:nextTransitionNonce()}});
 }
 
 async function fetchInteractiveMapSource(asset){
@@ -1433,7 +1500,7 @@ function renderDisplay(){
   const reveal=byId(state.active_reveal_id);
   const mode=state.mode||'scene';
   const signature=displaySignature(state);
-  if(displayInitialized&&signature!==lastDisplaySignature)playDisplayTransition();
+  if(displayInitialized&&signature!==lastDisplaySignature)playDisplayTransition(state?.transition_state);
   els.previewHeading.textContent=mode==='map'?'World Map':mode==='reveal'?'Reveal':mode==='title'?'Title Screen':mode==='blackout'?'Blackout':'Scene View';
   document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));
 
@@ -1576,7 +1643,8 @@ function captureCurrentCueSnapshot(){
     reveal_style:state?.reveal_style||'focus',
     hud_visible:state?.hud_visible!==false,
     scene_effects:normalizeCueEffects(state?.scene_effects),
-    audio:cueAudioSnapshot()
+    audio:cueAudioSnapshot(),
+    transition:transitionState()
   };
 }
 
@@ -1594,7 +1662,8 @@ function cueSnapshotSignature(snapshot){
     reveal_style:s.reveal_style||'focus',
     hud_visible:s.hud_visible!==false,
     scene_effects:normalizeCueEffects(s.scene_effects),
-    audio:s.audio?normalizeCueAudio(s.audio):null
+    audio:s.audio?normalizeCueAudio(s.audio):null,
+    transition:normalizeTransition(s.transition)
   });
 }
 
@@ -1619,6 +1688,7 @@ function cueSummary(snapshot){
   pieces.push(s.hud_visible===false?'HUD off':'HUD on');
   const pinCount=[s.pinned_left_id,s.pinned_right_id].filter(Boolean).length;
   if(pinCount)pieces.push(pinCount+' pinned');
+  patch.transition_state={...normalizeTransition(s.transition),nonce:nextTransitionNonce()};
   const cueAudio=normalizeCueAudio(s.audio);
   if(cueAudio){
     const music=audioById(cueAudio.music_id)?.name;
@@ -1627,6 +1697,7 @@ function cueSummary(snapshot){
     if(ambience)pieces.push('≋ '+ambience);
     if(!music&&!ambience)pieces.push('Audio off');
   }
+  pieces.push(transitionLabel(normalizeTransition(s.transition).style));
   return pieces.join(' · ');
 }
 
@@ -2214,7 +2285,7 @@ function renderRecent(){
   els.recentList.querySelectorAll('[data-recent]').forEach(b=>b.addEventListener('click',()=>showReveal(b.dataset.recent)));
 }
 
-function renderAll(){renderDisplay();renderScenes();renderAudioControls();renderCueSequence();renderCuePresets();renderRevealGrid();renderRecent();syncLiveAudio()}
+function renderAll(){renderDisplay();renderScenes();renderAudioControls();renderTransitionControls();renderCueSequence();renderCuePresets();renderRevealGrid();renderRecent();syncLiveAudio()}
 
 async function patchState(patch){
   if(!canGMControl())return null;
@@ -2689,6 +2760,9 @@ function wire(){
   els.audioFadeMs?.addEventListener('change',()=>setAudioCrossfade(els.audioFadeMs.value));
   els.audioMuteBtn?.addEventListener('click',toggleAudioMute);
   els.audioEmergencyBtn?.addEventListener('click',emergencyAudioFade);
+  els.transitionStyle?.addEventListener('change',()=>setTransitionSetting('style',els.transitionStyle.value));
+  els.transitionDuration?.addEventListener('change',()=>setTransitionSetting('duration_ms',els.transitionDuration.value));
+  els.previewTransitionBtn?.addEventListener('click',previewTransition);
   els.saveCuePresetBtn?.addEventListener('click',saveCuePreset);
   els.nextCueBtn?.addEventListener('click',nextCueInSequence);
   els.quickNextCueBtn?.addEventListener('click',nextCueInSequence);
