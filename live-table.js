@@ -3,6 +3,9 @@ const CAMPAIGN_ID=CONFIG.campaignId;
 const DISPLAY_QUERY=new URLSearchParams(location.search).get('display')==='1';
 const els=Object.fromEntries([...document.querySelectorAll('[id]')].map(el=>[el.id,el]));
 let supabase=null,user=null,isGM=false,state=null,assets=[],party=[],recent=[],filterKind='all',previewUrl='';
+const IS_PLAYER_DISPLAY=DISPLAY_QUERY;
+const canGMControl=()=>isGM&&!IS_PLAYER_DISPLAY;
+const shouldReceivePlayerMap=()=>IS_PLAYER_DISPLAY||!isGM;
 let displayInitialized=false,lastDisplaySignature='',displayTransitionTimer=null;
 const interactiveMapCache=new Map();
 let interactiveMapLoadToken=0;
@@ -36,9 +39,9 @@ async function checkRole(){
   const {data,error}=await supabase.from('profiles').select('is_gm').eq('id',user.id).maybeSingle();
   if(error)throw error;
   isGM=data?.is_gm===true;
-  const displayOnly=DISPLAY_QUERY||!isGM;
+  const displayOnly=IS_PLAYER_DISPLAY||!isGM;
   document.body.classList.toggle('display-only',displayOnly);
-  if(!isGM){
+  if(displayOnly){
     els.gmControls?.classList.add('hidden');
     els.gmQuickControls?.classList.add('hidden');
     els.gmHeader?.classList.add('hidden');
@@ -49,7 +52,7 @@ async function loadState(){
   const {data,error}=await supabase.from('live_table_state').select('*').eq('campaign_id',CAMPAIGN_ID).maybeSingle();
   if(error)throw error;
   state=data;
-  if(!state&&isGM){
+  if(!state&&canGMControl()){
     const fresh={campaign_id:CAMPAIGN_ID,mode:'scene',hud_visible:true,updated_by:user.id};
     const r=await supabase.from('live_table_state').insert(fresh).select().single();
     if(r.error)throw r.error;
@@ -396,7 +399,7 @@ function sendMapStateToFrame(){
 }
 
 async function persistMapState(nextState){
-  if(!isGM||DISPLAY_QUERY||!nextState)return;
+  if(!canGMControl()||!nextState)return;
   if(mapStatePersistBusy){
     mapStatePersistPending=nextState;
     return;
@@ -427,7 +430,7 @@ async function persistMapState(nextState){
 }
 
 function queueMapStateSave(nextState){
-  if(!isGM||DISPLAY_QUERY||!nextState)return;
+  if(!canGMControl()||!nextState)return;
   mapStatePersistPending=nextState;
   if(mapStatePersistBusy)return;
   const wait=Math.max(0,170-(performance.now()-lastMapStatePersistAt));
@@ -440,7 +443,7 @@ function queueMapStateSave(nextState){
 }
 
 function applyMapMirrorToPlayer(mirror){
-  if(!(DISPLAY_QUERY||!isGM)||!mirror)return;
+  if(!shouldReceivePlayerMap()||!mirror)return;
   const win=els.worldMapFrame?.contentWindow;
   if(!win)return;
   try{
@@ -453,7 +456,7 @@ function applyMapMirrorToPlayer(mirror){
 }
 
 function sendMapMirror(mirror){
-  if(!isGM||DISPLAY_QUERY||!mirror)return;
+  if(!canGMControl()||!mirror)return;
 
   mapState={
     campaign_id:CAMPAIGN_ID,
@@ -490,7 +493,7 @@ function sendMapMirror(mirror){
 }
 
 function applyPartyMotionToPlayer(x,y){
-  if(!(DISPLAY_QUERY||!isGM))return;
+  if(!shouldReceivePlayerMap())return;
   const nx=Number(x),ny=Number(y);
   if(!Number.isFinite(nx)||!Number.isFinite(ny))return;
   const win=els.worldMapFrame?.contentWindow;
@@ -505,7 +508,7 @@ function applyPartyMotionToPlayer(x,y){
 }
 
 function sendPartyMotion(x,y){
-  if(!isGM||DISPLAY_QUERY)return;
+  if(!canGMControl())return;
   const nx=Number(x),ny=Number(y);
   if(!Number.isFinite(nx)||!Number.isFinite(ny))return;
   const now=performance.now();
@@ -532,21 +535,21 @@ function handleMapBridgeMessage(event){
     mapBridgeReady=true;
     if(mapState?.state)sendMapStateToFrame();
     if(els.mapImportStatus&&state?.mode==='map'){
-      els.mapImportStatus.textContent=(DISPLAY_QUERY||!isGM)
+      els.mapImportStatus.textContent=shouldReceivePlayerMap()
         ? 'Player map connected.'
         : 'Full GM map mirror is live — drawings, layers, routes and view sync to players.';
     }
     return;
   }
-  if(message.type==='aestra-map-mirror'&&isGM&&!DISPLAY_QUERY&&message.mirror){
+  if(message.type==='aestra-map-mirror'&&canGMControl()&&message.mirror){
     sendMapMirror(message.mirror);
     return;
   }
-  if(message.type==='aestra-map-party-motion'&&isGM&&!DISPLAY_QUERY){
+  if(message.type==='aestra-map-party-motion'&&canGMControl()){
     sendPartyMotion(message.x,message.y);
     return;
   }
-  if(message.type==='aestra-map-state'&&isGM&&!DISPLAY_QUERY&&message.state){
+  if(message.type==='aestra-map-state'&&canGMControl()&&message.state){
     mapState={campaign_id:CAMPAIGN_ID,state:message.state,updated_by:user.id,updated_at:new Date().toISOString()};
     queueMapStateSave(message.state);
   }
@@ -574,7 +577,7 @@ function renderDisplay(){
   const backdropAsset=mode==='map'?(interactiveMapLive?scene:(map||scene)):scene;
   setBackdrop(backdropAsset);
   if(interactiveMapLive){
-    const mapRole=(DISPLAY_QUERY||!isGM)?'player':'gm';
+    const mapRole=shouldReceivePlayerMap()?'player':'gm';
     mountInteractiveMap(map,mapRole);
   }else{
     interactiveMapLoadToken++;
@@ -653,7 +656,7 @@ function renderRecent(){
 function renderAll(){renderDisplay();renderScenes();renderRevealGrid();renderRecent()}
 
 async function patchState(patch){
-  if(!isGM)return;
+  if(!canGMControl())return;
   const payload={...patch,updated_by:user.id,updated_at:new Date().toISOString()};
   const {data,error}=await supabase.from('live_table_state').update(payload).eq('campaign_id',CAMPAIGN_ID).select().single();
   if(error){alert(error.message);return}
@@ -681,7 +684,7 @@ async function pinAsset(id){
 }
 
 async function removeAssetFromDisplay(id){
-  if(!state||!isGM)return;
+  if(!state||!canGMControl())return;
   const patch={};
   if(state.active_scene_id===id){
     patch.active_scene_id=null;
@@ -703,7 +706,7 @@ async function removeAssetFromDisplay(id){
 }
 
 async function deleteAsset(id){
-  if(!isGM)return;
+  if(!canGMControl())return;
   const asset=byId(id);
   if(!asset)return;
   if(!confirm('Delete "'+asset.name+'" permanently? This removes it from the Live Table library and deletes its uploaded file.'))return;
@@ -736,7 +739,7 @@ function injectLiveMapPresentation(source){
 }
 
 async function importInteractiveMap(){
-  if(!isGM)return;
+  if(!canGMControl())return;
   const file=els.interactiveMapFile.files?.[0];
   if(!file)return;
   els.mapImportStatus.textContent='Preparing interactive map…';
@@ -830,7 +833,7 @@ function previewSelectedFile(){
 
 async function uploadAsset(e){
   e.preventDefault();
-  if(!isGM)return;
+  if(!canGMControl())return;
   const file=els.assetFile.files?.[0];
   if(!file){els.assetMessage.textContent='Choose an image first.';return}
   if(file.size>15*1024*1024){els.assetMessage.textContent='That image is larger than 15 MB.';return}
@@ -865,7 +868,7 @@ async function uploadAsset(e){
 }
 
 async function generateAiBackdrop(){
-  if(!isGM)return;
+  if(!canGMControl())return;
   const name=els.aiSceneName.value.trim();
   const subtitle=els.aiSceneSubtitle.value.trim();
   const prompt=els.aiPrompt.value.trim();
@@ -917,7 +920,7 @@ function addAiPromptChip(value){
 
 function startPlayerMapStatePolling(){
   clearInterval(playerMapStatePollTimer);
-  if(!DISPLAY_QUERY)return;
+  if(!IS_PLAYER_DISPLAY)return;
   playerMapStatePollTimer=setInterval(async()=>{
     if(state?.mode!=='map'||!supabase)return;
     try{
@@ -945,7 +948,7 @@ function startPlayerMapStatePolling(){
 function startMapMirrorPolling(){
   clearInterval(mapMirrorPollTimer);
   mapMirrorPollTimer=setInterval(()=>{
-    if(!isGM||DISPLAY_QUERY||state?.mode!=='map')return;
+    if(!canGMControl()||state?.mode!=='map')return;
     const win=els.worldMapFrame?.contentWindow;
     if(!win)return;
     try{
@@ -1006,7 +1009,7 @@ async function subscribeRealtime(){
     .on('postgres_changes',{event:'*',schema:'public',table:'live_table_map_state',filter:'campaign_id=eq.'+CAMPAIGN_ID},payload=>{
       if(!payload.new)return;
       mapState=payload.new;
-      if(DISPLAY_QUERY||!isGM)sendMapStateToFrame();
+      ifshouldReceivePlayerMap()sendMapStateToFrame();
     })
     .subscribe();
   startMapMirrorPolling();
