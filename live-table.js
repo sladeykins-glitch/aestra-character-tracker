@@ -147,6 +147,11 @@ async function fetchInteractiveMapSource(asset){
 function mapSourceForRole(source,role){
   let preparedSource=source;
 
+  preparedSource=preparedSource
+    .replace('>Travel active route</button>','>Begin Journey</button>')
+    .replace('The party star will travel the snapped hex path and settle at the destination.','The party caravan will travel the snapped hex path and settle at the destination.')
+    .replace("const duration=Math.max(2200,Math.min(12000,days*250));","const duration=Math.max(3200,Math.min(24000,days*650));");
+
   const oldPartyMarkup="core.innerHTML='<span class=\"party-symbol\">✦</span><span class=\"party-label\">Party</span>';";
   const caravanMarkup="core.innerHTML='<span class=\"party-symbol party-caravan\" aria-hidden=\"true\"><svg viewBox=\"0 0 72 52\" xmlns=\"http://www.w3.org/2000/svg\"><path class=\"caravan-canopy\" d=\"M17 24c1-9 7-15 18-15 12 0 20 6 21 15H17Z\"/><path class=\"caravan-body\" d=\"M13 23h47l-4 17H18l-5-17Z\"/><path class=\"caravan-trim\" d=\"M18 25h37M26 11v27M44 11v27\"/><path class=\"caravan-tongue\" d=\"M59 32h9l3 4\"/><circle class=\"caravan-wheel\" cx=\"25\" cy=\"42\" r=\"6\"/><circle class=\"caravan-wheel\" cx=\"50\" cy=\"42\" r=\"6\"/><circle class=\"caravan-hub\" cx=\"25\" cy=\"42\" r=\"2\"/><circle class=\"caravan-hub\" cx=\"50\" cy=\"42\" r=\"2\"/><circle class=\"caravan-lantern\" cx=\"62\" cy=\"28\" r=\"2.4\"/></svg></span><span class=\"party-label\">Party Caravan</span>';";
   if(preparedSource.includes(oldPartyMarkup))preparedSource=preparedSource.replace(oldPartyMarkup,caravanMarkup);
@@ -181,7 +186,21 @@ function mapSourceForRole(source,role){
     "    document.querySelectorAll('input[type=checkbox][id]').forEach(el=>{controls[el.id]=!!el.checked});",
     "    ['hexSize','hexOpacity','fogOpacity'].forEach(id=>{const el=document.getElementById(id);if(el)controls[id]=el.value});",
     "    const party=journeyDisplayPos||(data.travel&&data.travel.party)||null;",
-    "    return {version:3,data:JSON.parse(JSON.stringify(data)),controls:controls,view:{centerX:(r.width/2-tx)/Math.max(scale,.0001),centerY:(r.height/2-ty)/Math.max(scale,.0001),zoom:scale/fitScale},liveParty:party?{x:Number(party.x)||0,y:Number(party.y)||0,visible:party.visible!==false}:null};",
+    "    const activeRoute=(data.travel&&data.travel.routes||[]).find(route=>route.id===data.travel.activeRouteId)||null;",
+    "    let travel=null;",
+    "    if(activeRoute&&activeRoute.points&&activeRoute.points.length>=2){",
+    "      const path=routeHexPath(activeRoute.points);",
+    "      const days=Math.max(0,path.length-1);",
+    "      let currentDay=0;",
+    "      const pos=journeyDisplayPos||(data.travel&&data.travel.party);",
+    "      if(pos&&path.length){let nearest=0,best=Infinity;for(let i=0;i<path.length;i++){const d=Math.hypot(path[i].x-pos.x,path[i].y-pos.y);if(d<best){best=d;nearest=i}}currentDay=Math.max(0,Math.min(days,nearest))}",
+    "      const end=path[path.length-1];",
+    "      let destination='Destination';",
+    "      if(end&&Array.isArray(data.markers)&&data.markers.length){let best=null,bestD=Infinity;for(const m of data.markers){const d=Math.hypot((m.x||0)-end.x,(m.y||0)-end.y);if(d<bestD){bestD=d;best=m}}if(best&&bestD<120)destination=best.name||destination}",
+    "      const justArrived=!!activeRoute.travelled&&!!activeRoute.completedAt&&(Date.now()-Date.parse(activeRoute.completedAt)<5000);",
+    "      travel={active:!!journeyActive,planned:!journeyActive&&!activeRoute.travelled,arrived:justArrived,routeName:activeRoute.name||'Planned Route',destination:destination,totalDays:days,currentDay:journeyActive?currentDay:(activeRoute.travelled?days:0),remainingDays:Math.max(0,days-(journeyActive?currentDay:(activeRoute.travelled?days:0))),progress:days?Math.max(0,Math.min(1,(journeyActive?currentDay:(activeRoute.travelled?days:0))/days)):0};",
+    "    }",
+    "    return {version:4,data:JSON.parse(JSON.stringify(data)),controls:controls,view:{centerX:(r.width/2-tx)/Math.max(scale,.0001),centerY:(r.height/2-ty)/Math.max(scale,.0001),zoom:scale/fitScale},liveParty:party?{x:Number(party.x)||0,y:Number(party.y)||0,visible:party.visible!==false}:null,travel:travel};",
     "  }",
     "  function aApplyLiveMirror(mirror){",
     "    if(!mirror)return false;",
@@ -194,6 +213,7 @@ function mapSourceForRole(source,role){
     "      if(payload.liveParty&&data.travel&&data.travel.party){data.travel.party.x=Number(payload.liveParty.x)||0;data.travel.party.y=Number(payload.liveParty.y)||0;data.travel.party.visible=payload.liveParty.visible!==false}",
     "      const fog=document.getElementById('fogOpacity');if(fog&&data.fog&&controls.fogOpacity==null)fog.value=data.fog.opacity||82;",
     "      renderAll();if(typeof syncLegendFilters==='function')syncLegendFilters();",
+    "      if(aLiveRole==='player'&&window.aestraUpdateTravelHud)window.aestraUpdateTravelHud(payload.travel||null);",
     "      const applyView=()=>{if(!payload.view)return;const r=wrap.getBoundingClientRect();const fitScale=Math.max(.0001,Math.min(r.width/W,r.height/H));const zoom=Math.max(.12,Math.min(8,Number(payload.view.zoom)||1));scale=fitScale*zoom;tx=r.width/2-(Number(payload.view.centerX)||W/2)*scale;ty=r.height/2-(Number(payload.view.centerY)||H/2)*scale;applyTransform()};",
     "      applyView();if(aLiveRole==='player')setTimeout(applyView,55);",
     "      if(aLiveRole==='player'){const exit=document.getElementById('presentationExit');if(exit)exit.style.display='none';const toggle=document.getElementById('presentationToggle');if(toggle)toggle.style.display='none'}",
@@ -217,9 +237,31 @@ function mapSourceForRole(source,role){
   }
 
   const playerStyle=role==='player'
-    ? '<style id="aestra-live-table-runtime-style">#app.presentation #presentationExit{display:none!important}#app.presentation #presentationToggle{display:none!important}body.aestra-live-embedded{background:#05080b!important}</style>'
+    ? '<style id="aestra-live-table-runtime-style">'+
+      '#app.presentation #presentationExit{display:none!important}#app.presentation #presentationToggle{display:none!important}body.aestra-live-embedded{background:#05080b!important}'+
+      '#aestraTravelHud{position:fixed;left:50%;top:24px;transform:translate(-50%,-18px);z-index:9998;width:min(560px,calc(100vw - 72px));opacity:0;pointer-events:none;transition:opacity .35s ease,transform .35s ease;font-family:Inter,system-ui,sans-serif}'+
+      '#aestraTravelHud.show{opacity:1;transform:translate(-50%,0)}'+
+      '#aestraTravelHud .travel-panel{position:relative;overflow:hidden;border:1px solid rgba(224,185,104,.34);border-radius:16px;padding:12px 16px 13px;background:linear-gradient(180deg,rgba(5,9,13,.92),rgba(5,8,11,.78));box-shadow:0 16px 36px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.035);backdrop-filter:blur(10px)}'+
+      '#aestraTravelHud .travel-panel:before{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent,rgba(90,194,215,.05),transparent);pointer-events:none}'+
+      '#aestraTravelHud .travel-kicker{font-family:Georgia,serif;color:#d9bd7d;font-size:10px;letter-spacing:.24em;text-transform:uppercase}'+
+      '#aestraTravelHud .travel-title-row{display:flex;align-items:end;justify-content:space-between;gap:16px;margin-top:4px}'+
+      '#aestraTravelHud .travel-route{font-family:Georgia,serif;color:#f3ead8;font-size:20px;letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'+
+      '#aestraTravelHud .travel-day{color:#d8c69b;font-size:11px;letter-spacing:.08em;white-space:nowrap}'+
+      '#aestraTravelHud .travel-destination{margin-top:3px;color:#99b9c1;font-size:10px;letter-spacing:.09em;text-transform:uppercase}'+
+      '#aestraTravelHud .travel-bar{height:3px;margin-top:10px;border-radius:999px;overflow:hidden;background:rgba(255,255,255,.08)}'+
+      '#aestraTravelHud .travel-fill{height:100%;width:0;background:linear-gradient(90deg,#9f7a3e,#e0c178,#8fd2df);box-shadow:0 0 10px rgba(135,210,225,.28);transition:width .18s linear}'+
+      '#aestraTravelHud .travel-meta{display:flex;justify-content:space-between;margin-top:7px;color:#a8a197;font-size:9px;letter-spacing:.08em;text-transform:uppercase}'+
+      '#aestraTravelHud.arrived .travel-panel{animation:aestraArrival 1.2s ease both;border-color:rgba(219,190,120,.6)}'+
+      '@keyframes aestraArrival{0%{box-shadow:0 0 0 rgba(0,0,0,0)}35%{box-shadow:0 0 38px rgba(205,173,94,.24),0 16px 36px rgba(0,0,0,.42)}100%{box-shadow:0 16px 36px rgba(0,0,0,.42)}}'+
+      '</style>'
     : '<style id="aestra-live-table-runtime-style">body.aestra-live-embedded{background:#05080b!important}</style>';
-  return preparedSource.includes('</body>')?preparedSource.replace('</body>',playerStyle+'</body>'):preparedSource+playerStyle;
+
+  const travelHud=role==='player'
+    ? '<div id="aestraTravelHud"><div class="travel-panel"><div class="travel-kicker">JOURNEY</div><div class="travel-title-row"><div class="travel-route">Travelling</div><div class="travel-day">DAY 0 / 0</div></div><div class="travel-destination">Destination</div><div class="travel-bar"><div class="travel-fill"></div></div><div class="travel-meta"><span class="travel-elapsed">0 days travelled</span><span class="travel-remaining">0 days remaining</span></div></div></div><script>(function(){var hideTimer=null;window.aestraUpdateTravelHud=function(t){var hud=document.getElementById("aestraTravelHud");if(!hud)return;if(!t){hud.classList.remove("show","arrived");return}var show=!!(t.active||t.arrived);if(!show){hud.classList.remove("show","arrived");return}clearTimeout(hideTimer);hud.classList.toggle("arrived",!!t.arrived);hud.querySelector(".travel-kicker").textContent=t.arrived?"DESTINATION REACHED":"JOURNEY";hud.querySelector(".travel-route").textContent=t.routeName||"Travelling";hud.querySelector(".travel-day").textContent="DAY "+Math.min(t.totalDays||0,t.currentDay||0)+" / "+(t.totalDays||0);hud.querySelector(".travel-destination").textContent=t.arrived?(t.destination||"Destination"):("BOUND FOR "+(t.destination||"Destination"));hud.querySelector(".travel-fill").style.width=((t.arrived?1:(t.progress||0))*100)+"%";hud.querySelector(".travel-elapsed").textContent=(t.currentDay||0)+" days travelled";hud.querySelector(".travel-remaining").textContent=(t.remainingDays||0)+" days remaining";hud.classList.add("show");if(t.arrived){hideTimer=setTimeout(function(){hud.classList.remove("show","arrived")},3200)}}})();<\\/script>'
+    : '';
+
+  const addition=playerStyle+travelHud;
+  return preparedSource.includes('</body>')?preparedSource.replace('</body>',addition+'</body>'):preparedSource+addition;
 }
 
 async function mountInteractiveMap(asset,role='player'){
