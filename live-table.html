@@ -55,15 +55,9 @@
         <iframe id="worldMapFrame" class="world-map-frame hidden" title="Aestra interactive world map" referrerpolicy="no-referrer"></iframe>
         <div class="atmosphere"></div>
         <div id="sceneEffects" class="scene-effects" aria-hidden="true">
-          <div class="scene-fx scene-fx-rain"></div>
-          <div class="scene-fx scene-fx-storm"></div>
-          <div class="scene-fx scene-fx-mist"></div>
-          <div class="scene-fx scene-fx-wind"></div>
-          <div class="scene-fx scene-fx-snow"></div>
-          <div class="scene-fx scene-fx-ash"></div>
-          <div class="scene-fx scene-fx-heat"></div>
-          <div class="scene-fx scene-fx-magic"></div>
-          <div class="scene-fx scene-fx-cold"></div>
+          <canvas id="sceneFxCanvas" class="scene-fx-canvas"></canvas>
+          <div class="scene-fx-grade"></div>
+          <div class="scene-fx-flash"></div>
         </div>
         <div id="locationTitle" class="location-title">
           <span id="locationSubtitle"></span>
