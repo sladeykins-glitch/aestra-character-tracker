@@ -10,6 +10,8 @@ let mapState=null,mapStateSaveTimer=null,mapBridgeReady=false;
 let mapMotionChannel=null,mapMotionReady=false,lastMapMotionSentAt=0;
 let browserMapMotionChannel=null;
 let mapMirrorPollTimer=null,lastPolledMapMirrorSignature='';
+let playerMapStatePollTimer=null,lastPlayerMapStateUpdatedAt='';
+let mapStatePersistBusy=false,mapStatePersistPending=null,lastMapStatePersistAt=0;
 
 const esc=s=>String(s??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const byId=id=>assets.find(a=>a.id===id)||null;
@@ -311,16 +313,25 @@ async function mountInteractiveMap(asset,role='player'){
     mapBridgeReady=false;
     frame.removeAttribute('src');
     frame.onload=()=>{
-      setTimeout(()=>{
+      setTimeout(async()=>{
         try{
           const bridge=frame.contentWindow?.AestraLiveBridge;
           if(els.mapImportStatus&&bridge){
             els.mapImportStatus.textContent=(role==='gm')
               ? 'GM atlas bridge connected — full live mirroring active.'
-              : 'Player atlas bridge connected — Presentation view synced.';
+              : 'Player atlas bridge connected — waiting for GM mirror…';
           }
         }catch(_){}
         if(mapState?.state)sendMapStateToFrame();
+        if(role==='player'&&supabase){
+          try{
+            const {data}=await supabase.from('live_table_map_state').select('state,updated_at').eq('campaign_id',CAMPAIGN_ID).maybeSingle();
+            if(data?.state){
+              lastPlayerMapStateUpdatedAt=data.updated_at||'';
+              applyMapMirrorToPlayer(data.state);
+            }
+          }catch(_){}
+        }
       },180);
     };
     frame.srcdoc=mapSourceForRole(source,role);
@@ -356,23 +367,47 @@ function sendMapStateToFrame(){
 }
 
 async function persistMapState(nextState){
-  if(!isGM||!nextState)return;
-  const payload={
-    campaign_id:CAMPAIGN_ID,
-    state:nextState,
-    updated_by:user.id,
-    updated_at:new Date().toISOString()
-  };
-  const {data,error}=await supabase.from('live_table_map_state').upsert(payload,{onConflict:'campaign_id'}).select().single();
-  if(error){console.error('Map sync save failed',error);return}
-  mapState=data;
-  if(els.mapImportStatus)els.mapImportStatus.textContent='Full GM map mirror is live — player display synced.';
+  if(!isGM||DISPLAY_QUERY||!nextState)return;
+  if(mapStatePersistBusy){
+    mapStatePersistPending=nextState;
+    return;
+  }
+  mapStatePersistBusy=true;
+  try{
+    const payload={
+      campaign_id:CAMPAIGN_ID,
+      state:nextState,
+      updated_by:user.id,
+      updated_at:new Date().toISOString()
+    };
+    const {data,error}=await supabase.from('live_table_map_state').upsert(payload,{onConflict:'campaign_id'}).select().single();
+    if(error){console.error('Map sync save failed',error);return}
+    mapState=data;
+    lastMapStatePersistAt=performance.now();
+    if(els.mapImportStatus)els.mapImportStatus.textContent='Full GM map mirror is live — player display synced.';
+  }finally{
+    mapStatePersistBusy=false;
+    if(mapStatePersistPending){
+      const pending=mapStatePersistPending;
+      mapStatePersistPending=null;
+      const wait=Math.max(0,170-(performance.now()-lastMapStatePersistAt));
+      clearTimeout(mapStateSaveTimer);
+      mapStateSaveTimer=setTimeout(()=>persistMapState(pending),wait);
+    }
+  }
 }
 
 function queueMapStateSave(nextState){
   if(!isGM||DISPLAY_QUERY||!nextState)return;
+  mapStatePersistPending=nextState;
+  if(mapStatePersistBusy)return;
+  const wait=Math.max(0,170-(performance.now()-lastMapStatePersistAt));
   clearTimeout(mapStateSaveTimer);
-  mapStateSaveTimer=setTimeout(()=>persistMapState(nextState),320);
+  mapStateSaveTimer=setTimeout(()=>{
+    const pending=mapStatePersistPending;
+    mapStatePersistPending=null;
+    if(pending)persistMapState(pending);
+  },wait);
 }
 
 function applyMapMirrorToPlayer(mirror){
@@ -851,6 +886,33 @@ function addAiPromptChip(value){
   els.aiPrompt.focus();
 }
 
+function startPlayerMapStatePolling(){
+  clearInterval(playerMapStatePollTimer);
+  if(!DISPLAY_QUERY)return;
+  playerMapStatePollTimer=setInterval(async()=>{
+    if(state?.mode!=='map'||!supabase)return;
+    try{
+      const {data,error}=await supabase
+        .from('live_table_map_state')
+        .select('state,updated_at')
+        .eq('campaign_id',CAMPAIGN_ID)
+        .maybeSingle();
+      if(error||!data?.state)return;
+      if(data.updated_at===lastPlayerMapStateUpdatedAt)return;
+      lastPlayerMapStateUpdatedAt=data.updated_at||'';
+      mapState={
+        campaign_id:CAMPAIGN_ID,
+        state:data.state,
+        updated_at:data.updated_at
+      };
+      applyMapMirrorToPlayer(data.state);
+      if(els.mapImportStatus)els.mapImportStatus.textContent='Player Display receiving live GM map.';
+    }catch(err){
+      console.warn('Player map poll failed',err);
+    }
+  },220);
+}
+
 function startMapMirrorPolling(){
   clearInterval(mapMirrorPollTimer);
   mapMirrorPollTimer=setInterval(()=>{
@@ -919,6 +981,7 @@ async function subscribeRealtime(){
     })
     .subscribe();
   startMapMirrorPolling();
+  startPlayerMapStatePolling();
 }
 
 function wire(){
