@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#080b0f" />
 <title>Aestra Live Table</title>
 <link rel="icon" href="aestra-icon.svg" type="image/svg+xml" />
-<link rel="stylesheet" href="live-table.css?v=5" />
+<link rel="stylesheet" href="live-table.css?v=6" />
 </head>
 <body>
 <div id="authGate" class="auth-gate">
@@ -125,9 +125,26 @@
         <div class="section-head compact"><div><p class="eyebrow">Session Tray</p><h2>Recent</h2></div></div>
         <div id="recentList" class="recent-list"></div>
         <div class="ai-box">
-          <span>AI Backdrops</span>
-          <p>Prompt-based scene generation will plug into this panel next.</p>
-          <button type="button" disabled>Generate with AI</button>
+          <span>AI Backdrop Creator</span>
+          <label>Scene name<input id="aiSceneName" maxlength="80" placeholder="Whispering Forest" /></label>
+          <label>Location subtitle<input id="aiSceneSubtitle" maxlength="120" placeholder="Northern Wilds" /></label>
+          <label>Describe the scene<textarea id="aiPrompt" rows="5" placeholder="Moonlit ancient forest, colossal roots, waterfalls, broken relic architecture, drifting mist..."></textarea></label>
+          <div class="ai-prompt-chips" aria-label="Prompt helpers">
+            <button type="button" data-ai-chip="night">Night</button>
+            <button type="button" data-ai-chip="mist">Mist</button>
+            <button type="button" data-ai-chip="ancient ruins">Ancient ruins</button>
+            <button type="button" data-ai-chip="crystal glow">Crystal glow</button>
+            <button type="button" data-ai-chip="dangerous atmosphere">Dangerous</button>
+          </div>
+          <label>Quality
+            <select id="aiQuality">
+              <option value="low">Low · faster / cheaper</option>
+              <option value="medium" selected>Medium</option>
+              <option value="high">High</option>
+            </select>
+          </label>
+          <button id="generateBackdropBtn" type="button" class="primary">Generate Backdrop</button>
+          <p id="aiStatus" class="ai-status">Generated artwork will be saved automatically as a Scene backdrop.</p>
         </div>
       </div>
     </section>
@@ -169,6 +186,6 @@
 </dialog>
 
 <script src="config.js"></script>
-<script type="module" src="live-table.js?v=4"></script>
+<script type="module" src="live-table.js?v=5"></script>
 </body>
 </html>
