@@ -17,6 +17,8 @@ let mapCameraPersistTimer=null;
 let playerMapStatePollTimer=null,lastPlayerMapStateUpdatedAt='';
 let mapStatePersistBusy=false,mapStatePersistPending=null,lastMapStatePersistAt=0;
 let cueSequenceDragId='';
+let sceneCastDragId='';
+const sceneCastLeaveTimers=new Map();
 const cuePreloadedUrls=new Set();
 const cuePreloadedAudioUrls=new Set();
 const cueAudioPreloaders=new Map();
@@ -2136,16 +2138,215 @@ function renderScenes(){
   els.sceneStrip.querySelectorAll('[data-delete]').forEach(b=>b.addEventListener('click',()=>deleteAsset(b.dataset.delete)));
 }
 
+function normalizeSceneCast(raw=state?.scene_cast){
+  const source=raw&&typeof raw==='object'?raw:{};
+  const ids=Array.isArray(source.ids)
+    ? [...new Set(source.ids.filter(id=>typeof id==='string'&&byId(id)?.kind==='npc'))].slice(0,6)
+    : [];
+  const active_id=ids.includes(source.active_id)?source.active_id:null;
+  return {ids,active_id};
+}
+
+function sceneCastMemberElement(asset){
+  const el=document.createElement('article');
+  el.className='scene-cast-member is-entering';
+  el.dataset.castId=asset.id;
+  const img=document.createElement('img');
+  img.src=asset.image_url;
+  img.alt=asset.name;
+  const name=document.createElement('strong');
+  name.textContent=asset.name;
+  el.append(img,name);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>el.classList.remove('is-entering')));
+  return el;
+}
+
+function renderPlayerSceneCast(){
+  const host=els.sceneCast;
+  if(!host)return;
+  const cast=normalizeSceneCast();
+  const visible=state?.mode==='scene'&&cast.ids.length>0;
+  host.classList.toggle('hidden',!visible);
+  host.setAttribute('aria-hidden',visible?'false':'true');
+  host.dataset.count=String(cast.ids.length);
+  host.classList.toggle('has-active',Boolean(cast.active_id));
+
+  const desired=new Set(cast.ids);
+  for(const existing of [...host.querySelectorAll('.scene-cast-member')]){
+    const id=existing.dataset.castId;
+    if(desired.has(id)){
+      const timer=sceneCastLeaveTimers.get(id);
+      if(timer){clearTimeout(timer);sceneCastLeaveTimers.delete(id)}
+      existing.classList.remove('is-leaving');
+      continue;
+    }
+    if(!visible){
+      const timer=sceneCastLeaveTimers.get(id);
+      if(timer)clearTimeout(timer);
+      sceneCastLeaveTimers.delete(id);
+      existing.remove();
+      continue;
+    }
+    if(existing.classList.contains('is-leaving'))continue;
+    existing.classList.add('is-leaving');
+    const timer=setTimeout(()=>{
+      if(existing.isConnected)existing.remove();
+      sceneCastLeaveTimers.delete(id);
+    },300);
+    sceneCastLeaveTimers.set(id,timer);
+  }
+
+  for(const id of cast.ids){
+    const asset=byId(id);
+    if(!asset)continue;
+    let el=host.querySelector('.scene-cast-member[data-cast-id="'+CSS.escape(id)+'"]');
+    if(!el){
+      el=sceneCastMemberElement(asset);
+      host.appendChild(el);
+    }else{
+      const img=el.querySelector('img');
+      const label=el.querySelector('strong');
+      if(img&&img.src!==asset.image_url)img.src=asset.image_url;
+      if(label)label.textContent=asset.name;
+      host.appendChild(el);
+    }
+    el.classList.toggle('is-active',cast.active_id===id);
+  }
+}
+
+function renderSceneCastTray(){
+  if(!els.sceneCastTray)return;
+  const cast=normalizeSceneCast();
+  if(els.sceneCastCount)els.sceneCastCount.textContent=cast.ids.length+' / 6';
+  if(els.clearSceneCastBtn)els.clearSceneCastBtn.disabled=!cast.ids.length;
+
+  if(!cast.ids.length){
+    els.sceneCastTray.innerHTML='<p class="scene-cast-empty">No NPCs in the scene yet. Use ADD CAST in the NPC library.</p>';
+    return;
+  }
+
+  els.sceneCastTray.innerHTML=cast.ids.map((id,index)=>{
+    const npc=byId(id);
+    if(!npc)return '';
+    const active=cast.active_id===id;
+    return '<article class="scene-cast-chip'+(active?' is-active':'')+'" draggable="true" data-cast-chip="'+esc(id)+'">'+
+      '<img src="'+esc(npc.image_url)+'" alt="">'+
+      '<div class="scene-cast-chip-main"><strong>'+esc(npc.name)+'</strong><small>'+(active?'Speaking now':'NPC '+(index+1))+'</small></div>'+
+      '<div class="scene-cast-chip-actions">'+
+        '<button type="button" class="cast-speak'+(active?' is-active':'')+'" data-cast-speak="'+esc(id)+'">'+(active?'SPEAKING':'SPEAK')+'</button>'+
+        '<button type="button" class="cast-remove" data-cast-remove="'+esc(id)+'" title="Remove from scene">×</button>'+
+      '</div>'+
+    '</article>';
+  }).join('');
+
+  els.sceneCastTray.querySelectorAll('[data-cast-speak]').forEach(button=>
+    button.addEventListener('click',()=>setSceneCastSpeaker(button.dataset.castSpeak))
+  );
+  els.sceneCastTray.querySelectorAll('[data-cast-remove]').forEach(button=>
+    button.addEventListener('click',()=>removeNpcFromCast(button.dataset.castRemove))
+  );
+
+  els.sceneCastTray.querySelectorAll('[data-cast-chip]').forEach(chip=>{
+    chip.addEventListener('dragstart',event=>{
+      sceneCastDragId=chip.dataset.castChip||'';
+      chip.classList.add('dragging');
+      if(event.dataTransfer){
+        event.dataTransfer.effectAllowed='move';
+        event.dataTransfer.setData('text/plain',sceneCastDragId);
+      }
+    });
+    chip.addEventListener('dragend',()=>{
+      sceneCastDragId='';
+      chip.classList.remove('dragging');
+      els.sceneCastTray.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over'));
+    });
+    chip.addEventListener('dragover',event=>{
+      event.preventDefault();
+      if(sceneCastDragId&&sceneCastDragId!==chip.dataset.castChip)chip.classList.add('drag-over');
+    });
+    chip.addEventListener('dragleave',()=>chip.classList.remove('drag-over'));
+    chip.addEventListener('drop',event=>{
+      event.preventDefault();
+      chip.classList.remove('drag-over');
+      const source=sceneCastDragId||event.dataTransfer?.getData('text/plain')||'';
+      const rect=chip.getBoundingClientRect();
+      const after=event.clientY>rect.top+rect.height/2;
+      reorderSceneCast(source,chip.dataset.castChip||'',after);
+    });
+  });
+}
+
+function renderSceneCast(){
+  renderPlayerSceneCast();
+  renderSceneCastTray();
+}
+
+async function addNpcToCast(id){
+  if(!canGMControl())return;
+  const npc=byId(id);
+  if(!npc||npc.kind!=='npc')return;
+  const cast=normalizeSceneCast();
+  if(cast.ids.includes(id)){
+    await setSceneCastSpeaker(id);
+    return;
+  }
+  if(cast.ids.length>=6){
+    alert('Scene Cast can show up to 6 NPCs at once.');
+    return;
+  }
+  const ids=[...cast.ids,id];
+  await patchState({scene_cast:{ids,active_id:cast.active_id||id}});
+}
+
+async function removeNpcFromCast(id){
+  if(!canGMControl())return;
+  const cast=normalizeSceneCast();
+  if(!cast.ids.includes(id))return;
+  const ids=cast.ids.filter(item=>item!==id);
+  await patchState({scene_cast:{ids,active_id:cast.active_id===id?null:cast.active_id}});
+}
+
+async function setSceneCastSpeaker(id){
+  if(!canGMControl())return;
+  const cast=normalizeSceneCast();
+  if(!cast.ids.includes(id))return;
+  await patchState({scene_cast:{ids:cast.ids,active_id:cast.active_id===id?null:id}});
+}
+
+async function clearSceneCast(){
+  if(!canGMControl())return;
+  await patchState({scene_cast:{ids:[],active_id:null}});
+}
+
+async function reorderSceneCast(sourceId,targetId,after=false){
+  if(!canGMControl()||!sourceId||!targetId||sourceId===targetId)return;
+  const cast=normalizeSceneCast();
+  const from=cast.ids.indexOf(sourceId);
+  const to=cast.ids.indexOf(targetId);
+  if(from<0||to<0)return;
+  const ids=cast.ids.slice();
+  const [moved]=ids.splice(from,1);
+  const targetIndex=ids.indexOf(targetId);
+  ids.splice(Math.max(0,targetIndex+(after?1:0)),0,moved);
+  await patchState({scene_cast:{ids,active_id:cast.active_id}});
+}
+
 function revealCard(asset){
   const mapAction=asset.kind==='map'
     ? '<button type="button" data-map="'+asset.id+'">WORLD MAP</button>'
     : '<button type="button" data-pin="'+asset.id+'">PIN</button>';
+  const cast=normalizeSceneCast();
+  const inCast=asset.kind==='npc'&&cast.ids.includes(asset.id);
+  const speaking=inCast&&cast.active_id===asset.id;
+  const castAction=asset.kind==='npc'
+    ? '<button type="button" class="cast-action'+(inCast?' is-present':'')+'" data-cast-action="'+asset.id+'">'+(speaking?'SPEAKING':inCast?'SPEAK':'ADD CAST')+'</button>'
+    : '';
   const thumb=isInteractiveMap(asset)
     ? '<div class="reveal-thumb interactive-map-thumb"><span>✦</span><b>INTERACTIVE ATLAS</b></div>'
     : '<div class="reveal-thumb" style="background-image:url(\''+esc(asset.image_url)+'\')"></div>';
   return '<article class="reveal-card" data-kind="'+esc(asset.kind)+'">'+thumb+
     '<strong>'+esc(asset.name)+'</strong><small>'+esc(asset.subtitle||asset.kind.replace('_',' '))+'</small>'+
-    '<div class="card-actions"><button type="button" data-show="'+asset.id+'">SHOW</button>'+mapAction+'<button type="button" data-remove="'+asset.id+'">REMOVE</button><button type="button" class="danger" data-delete="'+asset.id+'">DELETE</button></div></article>';
+    '<div class="card-actions"><button type="button" data-show="'+asset.id+'">SHOW</button>'+mapAction+castAction+'<button type="button" data-remove="'+asset.id+'">REMOVE</button><button type="button" class="danger" data-delete="'+asset.id+'">DELETE</button></div></article>';
 }
 
 function renderRevealGrid(){
@@ -2154,6 +2355,7 @@ function renderRevealGrid(){
   els.revealGrid.querySelectorAll('[data-show]').forEach(b=>b.addEventListener('click',()=>showReveal(b.dataset.show)));
   els.revealGrid.querySelectorAll('[data-pin]').forEach(b=>b.addEventListener('click',()=>pinAsset(b.dataset.pin)));
   els.revealGrid.querySelectorAll('[data-map]').forEach(b=>b.addEventListener('click',()=>setWorldMap(b.dataset.map)));
+  els.revealGrid.querySelectorAll('[data-cast-action]').forEach(b=>b.addEventListener('click',()=>addNpcToCast(b.dataset.castAction)));
   els.revealGrid.querySelectorAll('[data-remove]').forEach(b=>b.addEventListener('click',()=>removeAssetFromDisplay(b.dataset.remove)));
   els.revealGrid.querySelectorAll('[data-delete]').forEach(b=>b.addEventListener('click',()=>deleteAsset(b.dataset.delete)));
 }
@@ -2218,6 +2420,7 @@ function captureCurrentCueSnapshot(){
     reveal_style:state?.reveal_style||'focus',
     hud_visible:state?.hud_visible!==false,
     scene_effects:normalizeCueEffects(state?.scene_effects),
+    scene_cast:normalizeSceneCast(),
     audio:cueAudioSnapshot(),
     transition:transitionState()
   };
@@ -2237,6 +2440,7 @@ function cueSnapshotSignature(snapshot){
     reveal_style:s.reveal_style||'focus',
     hud_visible:s.hud_visible!==false,
     scene_effects:normalizeCueEffects(s.scene_effects),
+    scene_cast:normalizeSceneCast(s.scene_cast),
     audio:s.audio?normalizeCueAudio(s.audio):null,
     transition:normalizeTransition(s.transition)
   });
@@ -2263,6 +2467,8 @@ function cueSummary(snapshot){
   pieces.push(s.hud_visible===false?'HUD off':'HUD on');
   const pinCount=[s.pinned_left_id,s.pinned_right_id].filter(Boolean).length;
   if(pinCount)pieces.push(pinCount+' pinned');
+  const castCount=normalizeSceneCast(s.scene_cast).ids.length;
+  if(castCount)pieces.push(castCount+' NPC'+(castCount===1?'':'s'));
   const cueAudio=normalizeCueAudio(s.audio);
   if(cueAudio){
     const music=audioById(cueAudio.music_id)?.name;
@@ -2375,7 +2581,8 @@ function buildCuePatch(snapshot){
     location_subtitle:String(s.location_subtitle||'').slice(0,180),
     reveal_style:typeof s.reveal_style==='string'?s.reveal_style:'focus',
     hud_visible:s.hud_visible!==false,
-    scene_effects:normalizeCueEffects(s.scene_effects)
+    scene_effects:normalizeCueEffects(s.scene_effects),
+    scene_cast:normalizeSceneCast(s.scene_cast)
   };
   patch.transition_state={...normalizeTransition(s.transition),nonce:nextTransitionNonce()};
   const cueAudio=normalizeCueAudio(s.audio);
@@ -2394,7 +2601,7 @@ function buildCuePatch(snapshot){
 
 function preloadCueSnapshot(snapshot){
   const s=snapshot||{};
-  const ids=[s.active_scene_id,s.active_reveal_id,s.pinned_left_id,s.pinned_right_id];
+  const ids=[s.active_scene_id,s.active_reveal_id,s.pinned_left_id,s.pinned_right_id,...normalizeSceneCast(s.scene_cast).ids];
   for(const id of ids){
     const asset=byId(id);
     const url=asset?.image_url||'';
@@ -2860,7 +3067,7 @@ function renderRecent(){
   els.recentList.querySelectorAll('[data-recent]').forEach(b=>b.addEventListener('click',()=>showReveal(b.dataset.recent)));
 }
 
-function renderAll(){renderDisplay();renderScenes();renderAudioControls();renderTransitionControls();renderCueSequence();renderCuePresets();renderRevealGrid();renderRecent();syncLiveAudio()}
+function renderAll(){renderDisplay();renderScenes();renderSceneCast();renderAudioControls();renderTransitionControls();renderCueSequence();renderCuePresets();renderRevealGrid();renderRecent();syncLiveAudio()}
 
 async function patchState(patch){
   if(!canGMControl())return null;
@@ -2910,6 +3117,13 @@ async function removeAssetFromDisplay(id){
   }
   if(state.pinned_left_id===id)patch.pinned_left_id=null;
   if(state.pinned_right_id===id)patch.pinned_right_id=null;
+  const cast=normalizeSceneCast();
+  if(cast.ids.includes(id)){
+    patch.scene_cast={
+      ids:cast.ids.filter(item=>item!==id),
+      active_id:cast.active_id===id?null:cast.active_id
+    };
+  }
   if(Object.keys(patch).length)await patchState(patch);
 }
 
@@ -3315,6 +3529,7 @@ function wire(){
   els.assetForm.addEventListener('submit',uploadAsset);
   els.returnSceneBtn.addEventListener('click',()=>patchState({mode:'scene',active_reveal_id:null}));
   els.clearPinsBtn.addEventListener('click',()=>patchState({pinned_left_id:null,pinned_right_id:null}));
+  els.clearSceneCastBtn?.addEventListener('click',clearSceneCast);
   els.hudToggle.addEventListener('change',()=>patchState({hud_visible:els.hudToggle.checked}));
   document.querySelectorAll('[data-scene-fx]').forEach(button=>button.addEventListener('click',()=>toggleSceneEffect(button.dataset.sceneFx)));
   els.sceneFxIntensity?.addEventListener('change',()=>setSceneEffectSetting('intensity',els.sceneFxIntensity.value));
