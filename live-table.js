@@ -293,7 +293,14 @@ function mapSourceForRole(source,role){
     "    present:function(){",
     "      try{setPresentation(true);const exit=document.getElementById('presentationExit');if(exit)exit.style.display='none';const toggle=document.getElementById('presentationToggle');if(toggle)toggle.style.display='none';return true}catch(err){return false}",
     "    }",
-    "  };"
+    "  };",
+    "  window.addEventListener('message',function(event){",
+    "    const m=event.data||{};",
+    "    if(m.type==='aestra-map-mirror-apply'&&window.AestraLiveBridge.role==='player')window.AestraLiveBridge.apply(m.mirror);",
+    "    else if(m.type==='aestra-map-state-apply'&&window.AestraLiveBridge.role==='player')window.AestraLiveBridge.apply({version:1,data:m.state});",
+    "    else if(m.type==='aestra-map-party-motion-apply'&&window.AestraLiveBridge.role==='player')window.AestraLiveBridge.applyParty(m.x,m.y);",
+    "  });",
+    "  parent.postMessage({type:'aestra-map-ready',role:window.AestraLiveBridge.role},'*');"
   ].join(lf)+lf;
   const closeIndex=preparedSource.lastIndexOf(iifeClose);
   if(closeIndex>=0){
@@ -321,7 +328,7 @@ function mapSourceForRole(source,role){
     'function applyMirror(mirror){if(!mirror)return;try{applyingRemote=true;var payload=(mirror.version===2&&mirror.data)?mirror:{version:1,data:mirror};if(payload.data){data=JSON.parse(JSON.stringify(payload.data));if(typeof normalizeData==="function")normalizeData()}if(payload.layers){Object.keys(payload.layers).forEach(function(id){var el=document.getElementById(id);if(!el)return;if(el.type==="checkbox")el.checked=!!payload.layers[id];else el.value=payload.layers[id]})}if(payload.liveParty&&data&&data.travel&&data.travel.party){data.travel.party.x=Number(payload.liveParty.x)||0;data.travel.party.y=Number(payload.liveParty.y)||0;data.travel.party.visible=payload.liveParty.visible!==false}var fog=document.getElementById("fogOpacity");if(fog&&data.fog)fog.value=data.fog.opacity||82;if(typeof renderAll==="function")renderAll();if(typeof syncLegendFilters==="function")syncLegendFilters();if(payload.view&&typeof wrap!=="undefined"){var r=wrap.getBoundingClientRect();var fitScale=Math.max(.0001,Math.min(r.width/W,r.height/H));var zoom=Math.max(.12,Math.min(8,Number(payload.view.zoom)||1));scale=fitScale*zoom;tx=r.width/2-(Number(payload.view.centerX)||W/2)*scale;ty=r.height/2-(Number(payload.view.centerY)||H/2)*scale;if(typeof applyTransform==="function")applyTransform()}}catch(e){console.warn("Aestra live mirror apply failed",e)}finally{setTimeout(function(){applyingRemote=false},120)}}'+
     'function enforcePlayerPresentation(){if(role!=="player")return;var app=document.getElementById("app");if(app)app.classList.add("presentation");var exit=document.getElementById("presentationExit");if(exit)exit.style.display="none";var toggle=document.getElementById("presentationToggle");if(toggle)toggle.style.display="none"}'+
     'function configure(){document.body.classList.add("aestra-live-embedded");try{if(role==="player"){enforcePlayerPresentation();setTimeout(enforcePlayerPresentation,300);setTimeout(enforcePlayerPresentation,900)}else{var app=document.getElementById("app");if(app)app.classList.remove("presentation");if(typeof gmMode!=="undefined"){gmMode=true;if(typeof syncModeLabels==="function")syncModeLabels()}if(typeof renderAll==="function")renderAll()}}catch(e){console.warn("Aestra bridge configure failed",e)}'+
-    'try{var originalSave=saveLocal;saveLocal=function(silent){originalSave(silent);sendState()}}catch(e){console.warn("Aestra bridge save hook failed",e)}'+
+    '/* legacy save hook intentionally disabled: full mirror is authoritative */'+
     'window.addEventListener("message",function(ev){var m=ev.data||{};if(m.type==="aestra-map-mirror-apply"){applyMirror(m.mirror);if(role==="player")setTimeout(enforcePlayerPresentation,25)}else if(m.type==="aestra-map-state-apply"){applyState(m.state);if(role==="player")setTimeout(enforcePlayerPresentation,40)}else if(m.type==="aestra-map-party-motion-apply"&&role==="player"){try{data.travel.party.x=Number(m.x);data.travel.party.y=Number(m.y);data.travel.party.visible=true;if(typeof renderTravel==="function")renderTravel()}catch(e){}}});'+
     'parent.postMessage({type:"aestra-map-ready",role:role},"*");if(role==="gm")setTimeout(function(){try{if(typeof aEmitLiveMirrorNow==="function")aEmitLiveMirrorNow();else sendState()}catch(e){sendState()}},220)}'+
     'if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",function(){setTimeout(configure,120)});else setTimeout(configure,120)})();<\/script>';
@@ -359,8 +366,8 @@ async function mountInteractiveMap(asset,role='player'){
           try{
             const {data}=await supabase.from('live_table_map_state').select('state,updated_at').eq('campaign_id',CAMPAIGN_ID).maybeSingle();
             if(data?.state){
-              lastPlayerMapStateUpdatedAt=data.updated_at||'';
-              applyMapMirrorToPlayer(data.state);
+              const applied=applyMapMirrorToPlayer(data.state);
+              if(applied)lastPlayerMapStateUpdatedAt=data.updated_at||'';
             }
           }catch(_){}
         }
@@ -443,16 +450,17 @@ function queueMapStateSave(nextState){
 }
 
 function applyMapMirrorToPlayer(mirror){
-  if(!shouldReceivePlayerMap()||!mirror)return;
+  if(!shouldReceivePlayerMap()||!mirror)return false;
   const win=els.worldMapFrame?.contentWindow;
-  if(!win)return;
+  if(!win)return false;
   try{
     const bridge=win.AestraLiveBridge;
-    if(bridge?.apply&&bridge.apply(mirror))return;
+    if(bridge?.apply&&bridge.apply(mirror))return true;
   }catch(err){
     console.warn('Direct live mirror apply failed',err);
   }
-  win.postMessage({type:'aestra-map-mirror-apply',mirror},'*');
+  try{win.postMessage({type:'aestra-map-mirror-apply',mirror},'*')}catch(_){}
+  return false;
 }
 
 function sendMapMirror(mirror){
@@ -550,8 +558,8 @@ function handleMapBridgeMessage(event){
     return;
   }
   if(message.type==='aestra-map-state'&&canGMControl()&&message.state){
-    mapState={campaign_id:CAMPAIGN_ID,state:message.state,updated_by:user.id,updated_at:new Date().toISOString()};
-    queueMapStateSave(message.state);
+    // Ignore the old plain-data bridge. Full versioned mirrors are authoritative.
+    return;
   }
 }
 
@@ -931,13 +939,14 @@ function startPlayerMapStatePolling(){
         .maybeSingle();
       if(error||!data?.state)return;
       if(data.updated_at===lastPlayerMapStateUpdatedAt)return;
-      lastPlayerMapStateUpdatedAt=data.updated_at||'';
       mapState={
         campaign_id:CAMPAIGN_ID,
         state:data.state,
         updated_at:data.updated_at
       };
-      applyMapMirrorToPlayer(data.state);
+      const applied=applyMapMirrorToPlayer(data.state);
+      if(!applied)return;
+      lastPlayerMapStateUpdatedAt=data.updated_at||'';
       if(els.mapImportStatus)els.mapImportStatus.textContent='Player Display receiving live GM map.';
     }catch(err){
       console.warn('Player map poll failed',err);
