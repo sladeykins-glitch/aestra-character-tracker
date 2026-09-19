@@ -535,6 +535,9 @@ function renderDisplay(){
   renderPinned(els.pinRight,state.pinned_right_id);
   els.hudToggle.checked=state.hud_visible!==false;
   renderParty();
+  // The world map already represents the party with the caravan marker.
+  // Hide the character HUD there to keep the map presentation uncluttered.
+  els.partyHud.classList.toggle('hidden',mode==='map'||state.hud_visible===false);
   lastDisplaySignature=signature;
   displayInitialized=true;
 }
