@@ -497,6 +497,402 @@ function sceneEffectState(){
   return {effects,intensity,fade_ms:fadeMs};
 }
 
+let sceneAtmosphereRenderer=null;
+
+class SceneAtmosphereRenderer{
+  constructor(canvas,host){
+    this.canvas=canvas;
+    this.host=host;
+    this.ctx=canvas?.getContext('2d',{alpha:true,desynchronized:true})||null;
+    this.cfg={effects:[],intensity:2,fade_ms:900};
+    this.particles=new Map();
+    this.running=false;
+    this.raf=0;
+    this.last=0;
+    this.width=0;
+    this.height=0;
+    this.pixelRatio=1;
+    this.quality=1;
+    this.frameSamples=[];
+    this.recoverFrames=0;
+    this.lightningAt=0;
+    this.flash=0;
+    this.prefersReduced=window.matchMedia?.('(prefers-reduced-motion: reduce)').matches===true;
+    this.resizeObserver=new ResizeObserver(()=>this.resize());
+    if(this.host)this.resizeObserver.observe(this.host);
+    document.addEventListener('visibilitychange',()=>{
+      if(document.hidden)this.stop();
+      else if(this.cfg.effects.length)this.start();
+    });
+    this.resize();
+  }
+
+  resize(){
+    if(!this.canvas||!this.host)return;
+    const rect=this.host.getBoundingClientRect();
+    if(!rect.width||!rect.height)return;
+    this.width=rect.width;
+    this.height=rect.height;
+    const dpr=Math.min(window.devicePixelRatio||1,1.35);
+    const qualityScale=this.quality>=.95?1:this.quality>=.68?.82:.66;
+    this.pixelRatio=dpr*qualityScale;
+    const w=Math.max(1,Math.round(this.width*this.pixelRatio));
+    const h=Math.max(1,Math.round(this.height*this.pixelRatio));
+    if(this.canvas.width!==w||this.canvas.height!==h){
+      this.canvas.width=w;
+      this.canvas.height=h;
+      this.canvas.style.width=this.width+'px';
+      this.canvas.style.height=this.height+'px';
+    }
+  }
+
+  setConfig(cfg){
+    this.cfg={
+      effects:Array.isArray(cfg?.effects)?cfg.effects.slice():[],
+      intensity:[1,2,3].includes(Number(cfg?.intensity))?Number(cfg.intensity):2,
+      fade_ms:Number(cfg?.fade_ms)||900
+    };
+    this.syncParticles();
+    if(this.cfg.effects.length&&!document.hidden&&!this.prefersReduced)this.start();
+    else{
+      this.stop();
+      this.drawStatic();
+    }
+  }
+
+  targetCount(type){
+    const intensity=[0,.65,1,1.45][this.cfg.intensity]||1;
+    const base={
+      rain:150,
+      snow:90,
+      ash:72,
+      wind:28,
+      mist:12,
+      magic:30,
+      heat:18
+    }[type]||0;
+    const stormBoost=type==='rain'&&this.cfg.effects.includes('storm')?1.7:1;
+    return Math.round(base*intensity*stormBoost*this.quality);
+  }
+
+  syncParticles(){
+    const active=new Set(this.cfg.effects);
+    if(active.has('storm'))active.add('rain');
+    const particleTypes=['rain','snow','ash','wind','mist','magic','heat'];
+    for(const type of particleTypes){
+      if(!active.has(type)){
+        this.particles.set(type,[]);
+        continue;
+      }
+      const arr=this.particles.get(type)||[];
+      const target=this.targetCount(type);
+      while(arr.length<target)arr.push(this.makeParticle(type,true));
+      if(arr.length>target)arr.length=target;
+      this.particles.set(type,arr);
+    }
+  }
+
+  makeParticle(type,initial=false){
+    const w=Math.max(1,this.width),h=Math.max(1,this.height);
+    const p={
+      type,
+      x:Math.random()*w,
+      y:initial?Math.random()*h:-20-Math.random()*80,
+      z:.35+Math.random()*.65,
+      vx:0,
+      vy:0,
+      size:1,
+      phase:Math.random()*Math.PI*2,
+      life:Math.random()
+    };
+    if(type==='rain'){
+      p.vx=70+Math.random()*75;
+      p.vy=650+Math.random()*720;
+      p.size=8+Math.random()*18;
+    }else if(type==='snow'){
+      p.vx=-18+Math.random()*36;
+      p.vy=32+Math.random()*72;
+      p.size=1.1+Math.random()*2.4;
+    }else if(type==='ash'){
+      p.vx=-12+Math.random()*24;
+      p.vy=18+Math.random()*48;
+      p.size=.7+Math.random()*2;
+      p.ember=Math.random()<.07;
+    }else if(type==='wind'){
+      p.x=initial?Math.random()*w:-60;
+      p.vx=170+Math.random()*280;
+      p.vy=-14+Math.random()*28;
+      p.size=16+Math.random()*42;
+    }else if(type==='mist'){
+      p.x=Math.random()*w;
+      p.y=h*(.25+Math.random()*.65);
+      p.vx=6+Math.random()*16;
+      p.vy=-2+Math.random()*4;
+      p.size=90+Math.random()*210;
+      p.life=.15+Math.random()*.38;
+    }else if(type==='magic'){
+      p.vx=-9+Math.random()*18;
+      p.vy=-15-Math.random()*35;
+      p.size=1.4+Math.random()*4.4;
+    }else if(type==='heat'){
+      p.x=Math.random()*w;
+      p.y=h*(.55+Math.random()*.5);
+      p.vx=-6+Math.random()*12;
+      p.vy=-9-Math.random()*20;
+      p.size=22+Math.random()*68;
+    }
+    return p;
+  }
+
+  recycle(p){
+    const replacement=this.makeParticle(p.type,false);
+    Object.assign(p,replacement);
+  }
+
+  start(){
+    if(this.running||!this.ctx)return;
+    this.running=true;
+    this.last=performance.now();
+    this.raf=requestAnimationFrame(t=>this.frame(t));
+  }
+
+  stop(){
+    this.running=false;
+    if(this.raf)cancelAnimationFrame(this.raf);
+    this.raf=0;
+    this.last=0;
+  }
+
+  frame(now){
+    if(!this.running||!this.ctx)return;
+    const dt=Math.min(.05,Math.max(.001,(now-this.last)/1000));
+    this.last=now;
+    this.trackPerformance(dt);
+    this.draw(dt,now);
+    this.raf=requestAnimationFrame(t=>this.frame(t));
+  }
+
+  trackPerformance(dt){
+    this.frameSamples.push(dt);
+    if(this.frameSamples.length<90)return;
+    const avg=this.frameSamples.reduce((a,b)=>a+b,0)/this.frameSamples.length;
+    this.frameSamples.length=0;
+    if(avg>.027&&this.quality>.5){
+      this.quality=this.quality>.8?.72:.5;
+      this.recoverFrames=0;
+      this.resize();
+      this.syncParticles();
+    }else if(avg<.019&&this.quality<1){
+      this.recoverFrames++;
+      if(this.recoverFrames>=3){
+        this.quality=this.quality<.7?.72:1;
+        this.recoverFrames=0;
+        this.resize();
+        this.syncParticles();
+      }
+    }else{
+      this.recoverFrames=0;
+    }
+  }
+
+  clear(){
+    if(!this.ctx)return;
+    this.ctx.setTransform(1,0,0,1,0,0);
+    this.ctx.clearRect(0,0,this.canvas.width,this.canvas.height);
+    this.ctx.setTransform(this.pixelRatio,0,0,this.pixelRatio,0,0);
+  }
+
+  drawStatic(){
+    this.clear();
+  }
+
+  draw(dt,now){
+    this.clear();
+    const ctx=this.ctx;
+    const w=this.width,h=this.height;
+    const intensity=this.cfg.intensity/3;
+    const effects=new Set(this.cfg.effects);
+    if(effects.has('storm'))effects.add('rain');
+
+    if(effects.has('mist'))this.drawMist(ctx,dt,w,h);
+    if(effects.has('wind'))this.drawWind(ctx,dt,w,h);
+    if(effects.has('rain'))this.drawRain(ctx,dt,w,h,effects.has('storm'));
+    if(effects.has('snow'))this.drawSnow(ctx,dt,w,h);
+    if(effects.has('ash'))this.drawAsh(ctx,dt,w,h);
+    if(effects.has('heat'))this.drawHeat(ctx,dt,w,h,now);
+    if(effects.has('magic'))this.drawMagic(ctx,dt,w,h,now);
+
+    if(effects.has('storm'))this.drawLightning(now,intensity);
+    else this.setFlash(0);
+  }
+
+  drawRain(ctx,dt,w,h,storm){
+    const arr=this.particles.get('rain')||[];
+    ctx.save();
+    ctx.lineCap='round';
+    for(const p of arr){
+      p.x+=p.vx*p.z*dt;
+      p.y+=p.vy*p.z*dt;
+      if(p.y>h+50||p.x>w+70)this.recycle(p);
+      const alpha=(storm?.34:.24)*p.z;
+      ctx.strokeStyle='rgba(205,225,235,'+alpha+')';
+      ctx.lineWidth=Math.max(.55,p.z*1.15);
+      ctx.beginPath();
+      ctx.moveTo(p.x,p.y);
+      ctx.lineTo(p.x-p.size*.22,p.y-p.size);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  drawSnow(ctx,dt,w,h){
+    const arr=this.particles.get('snow')||[];
+    ctx.save();
+    for(const p of arr){
+      p.phase+=dt*(.7+p.z);
+      p.x+=(p.vx+Math.sin(p.phase)*16)*dt;
+      p.y+=p.vy*p.z*dt;
+      if(p.y>h+12||p.x<-20||p.x>w+20)this.recycle(p);
+      ctx.globalAlpha=.35+.48*p.z;
+      ctx.fillStyle='rgba(245,249,250,.92)';
+      ctx.beginPath();
+      ctx.arc(p.x,p.y,p.size*p.z,0,Math.PI*2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  drawAsh(ctx,dt,w,h){
+    const arr=this.particles.get('ash')||[];
+    ctx.save();
+    for(const p of arr){
+      p.phase+=dt*(.4+p.z);
+      p.x+=(p.vx+Math.sin(p.phase)*10)*dt;
+      p.y+=p.vy*p.z*dt;
+      if(p.y>h+16||p.x<-20||p.x>w+20)this.recycle(p);
+      ctx.globalAlpha=.22+.42*p.z;
+      ctx.fillStyle=p.ember?'rgba(242,132,58,.88)':'rgba(190,184,170,.72)';
+      ctx.beginPath();
+      ctx.arc(p.x,p.y,p.size*p.z,0,Math.PI*2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  drawWind(ctx,dt,w,h){
+    const arr=this.particles.get('wind')||[];
+    ctx.save();
+    ctx.lineCap='round';
+    for(const p of arr){
+      p.x+=p.vx*p.z*dt;
+      p.y+=p.vy*dt+Math.sin(p.phase+p.x*.01)*3*dt;
+      if(p.x>w+80)this.recycle(p);
+      ctx.strokeStyle='rgba(226,218,193,'+( .035+.08*p.z)+')';
+      ctx.lineWidth=.6+p.z*.7;
+      ctx.beginPath();
+      ctx.moveTo(p.x,p.y);
+      ctx.lineTo(p.x-p.size,p.y+2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  drawMist(ctx,dt,w,h){
+    const arr=this.particles.get('mist')||[];
+    ctx.save();
+    ctx.filter='blur(22px)';
+    for(const p of arr){
+      p.x+=p.vx*dt;
+      p.y+=p.vy*dt;
+      if(p.x>w+p.size)this.recycle(p);
+      const alpha=.018+p.life*.055;
+      const g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.size);
+      g.addColorStop(0,'rgba(224,234,230,'+alpha+')');
+      g.addColorStop(.55,'rgba(211,226,224,'+(alpha*.68)+')');
+      g.addColorStop(1,'rgba(211,226,224,0)');
+      ctx.fillStyle=g;
+      ctx.beginPath();
+      ctx.ellipse(p.x,p.y,p.size,p.size*.42,0,0,Math.PI*2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  drawMagic(ctx,dt,w,h,now){
+    const arr=this.particles.get('magic')||[];
+    ctx.save();
+    ctx.globalCompositeOperation='lighter';
+    for(const p of arr){
+      p.phase+=dt*(.8+p.z);
+      p.x+=(p.vx+Math.sin(p.phase)*10)*dt;
+      p.y+=p.vy*p.z*dt;
+      if(p.y<-30||p.x<-30||p.x>w+30)this.recycle(p);
+      const pulse=.55+.45*Math.sin(now*.0015+p.phase);
+      const r=p.size*(2.5+p.z*2);
+      const g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,r);
+      g.addColorStop(0,'rgba(153,224,239,'+(.24*pulse)+')');
+      g.addColorStop(.45,'rgba(171,115,221,'+(.14*pulse)+')');
+      g.addColorStop(1,'rgba(171,115,221,0)');
+      ctx.fillStyle=g;
+      ctx.beginPath();
+      ctx.arc(p.x,p.y,r,0,Math.PI*2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  drawHeat(ctx,dt,w,h,now){
+    const arr=this.particles.get('heat')||[];
+    ctx.save();
+    ctx.globalCompositeOperation='screen';
+    ctx.lineWidth=1;
+    for(const p of arr){
+      p.phase+=dt*.75;
+      p.y+=p.vy*dt;
+      if(p.y<h*.48)this.recycle(p);
+      const alpha=.018+.018*p.z;
+      ctx.strokeStyle='rgba(255,190,112,'+alpha+')';
+      ctx.beginPath();
+      const length=p.size;
+      for(let i=0;i<=5;i++){
+        const t=i/5;
+        const x=p.x-length/2+t*length+Math.sin(p.phase+t*5+now*.001)*4;
+        const y=p.y+t*-5;
+        if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+      }
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  drawLightning(now,intensity){
+    if(!this.lightningAt)this.lightningAt=now+2600+Math.random()*6200;
+    if(now>=this.lightningAt){
+      this.flash=.28+.34*intensity;
+      this.lightningAt=now+3300+Math.random()*7600;
+    }
+    if(this.flash>0){
+      this.flash*=.80;
+      if(this.flash<.015)this.flash=0;
+      this.setFlash(this.flash);
+    }else{
+      this.setFlash(0);
+    }
+  }
+
+  setFlash(value){
+    if(!this.host)return;
+    this.host.style.setProperty('--scene-fx-flash',String(Math.max(0,Math.min(.75,value))));
+  }
+}
+
+function getSceneAtmosphereRenderer(){
+  if(!sceneAtmosphereRenderer&&els.sceneFxCanvas&&els.sceneEffects){
+    sceneAtmosphereRenderer=new SceneAtmosphereRenderer(els.sceneFxCanvas,els.sceneEffects);
+  }
+  return sceneAtmosphereRenderer;
+}
+
 function renderSceneEffects(mode=state?.mode||'scene'){
   const cfg=sceneEffectState();
   const sceneOnly=mode==='scene';
@@ -509,6 +905,7 @@ function renderSceneEffects(mode=state?.mode||'scene'){
       cfg.effects.forEach(effect=>host.classList.add('fx-'+effect));
     }
   }
+  getSceneAtmosphereRenderer()?.setConfig(sceneOnly?cfg:{...cfg,effects:[]});
 
   const buttons=[...document.querySelectorAll('[data-scene-fx]')];
   buttons.forEach(button=>{
