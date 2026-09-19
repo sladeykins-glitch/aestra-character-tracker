@@ -6,6 +6,7 @@ let supabase=null,user=null,isGM=false,state=null,assets=[],party=[],recent=[],f
 let displayInitialized=false,lastDisplaySignature='',displayTransitionTimer=null;
 const interactiveMapCache=new Map();
 let interactiveMapLoadToken=0;
+let mapState=null,mapStateSaveTimer=null,mapBridgeReady=false;
 
 const esc=s=>String(s??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const byId=id=>assets.find(a=>a.id===id)||null;
@@ -61,6 +62,12 @@ async function loadParty(){
   const {data,error}=await supabase.from('live_table_party').select('*').eq('campaign_id',CAMPAIGN_ID).order('name');
   if(error)throw error;
   party=data||[];
+}
+
+async function loadMapState(){
+  const {data,error}=await supabase.from('live_table_map_state').select('*').eq('campaign_id',CAMPAIGN_ID).maybeSingle();
+  if(error)throw error;
+  mapState=data||null;
 }
 
 function renderParty(){
@@ -130,10 +137,22 @@ async function fetchInteractiveMapSource(asset){
 }
 
 function mapSourceForRole(source,role){
-  if(role!=='player')return source;
-  const bridge='<style id="aestra-live-table-runtime-style">#app.presentation #presentationExit{display:none!important}body.aestra-live-embedded{background:#05080b!important}</style>'+
-    '<script id="aestra-live-table-runtime-bridge">(function(){function apply(){document.body.classList.add("aestra-live-embedded");var app=document.getElementById("app");if(app)app.classList.add("presentation");var exit=document.getElementById("presentationExit");if(exit)exit.style.display="none";var toggle=document.getElementById("presentationToggle");if(toggle)toggle.style.display="none"}if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",function(){setTimeout(apply,80)});else setTimeout(apply,80)})();<\/script>';
-  return source.includes('</body>')?source.replace('</body>',bridge+'</body>'):source+bridge;
+  const playerStyle=role==='player'
+    ? '<style id="aestra-live-table-runtime-style">#app.presentation #presentationExit{display:none!important}body.aestra-live-embedded{background:#05080b!important}</style>'
+    : '<style id="aestra-live-table-runtime-style">body.aestra-live-embedded{background:#05080b!important}</style>';
+
+  const bridge='<script id="aestra-live-table-runtime-bridge">(function(){'+
+    'var role='+JSON.stringify(role)+';var applyingRemote=false;'+
+    'function sendState(){if(role!=="gm"||applyingRemote)return;try{parent.postMessage({type:"aestra-map-state",state:JSON.parse(JSON.stringify(data))},"*")}catch(e){console.warn("Aestra map sync send failed",e)}}'+
+    'function applyState(next){if(!next)return;try{applyingRemote=true;data=JSON.parse(JSON.stringify(next));if(typeof normalizeData==="function")normalizeData();var fog=document.getElementById("fogOpacity");if(fog&&data.fog)fog.value=data.fog.opacity||82;if(typeof renderAll==="function")renderAll()}catch(e){console.warn("Aestra map sync apply failed",e)}finally{setTimeout(function(){applyingRemote=false},260)}}'+
+    'function configure(){document.body.classList.add("aestra-live-embedded");try{if(role==="player"){if(typeof setPresentation==="function")setPresentation(true);var exit=document.getElementById("presentationExit");if(exit)exit.style.display="none";var toggle=document.getElementById("presentationToggle");if(toggle)toggle.style.display="none"}else{var app=document.getElementById("app");if(app)app.classList.remove("presentation");if(typeof gmMode!=="undefined"){gmMode=true;if(typeof syncModeLabels==="function")syncModeLabels()}if(typeof renderAll==="function")renderAll()}}catch(e){console.warn("Aestra bridge configure failed",e)}'+
+    'try{var originalSave=saveLocal;saveLocal=function(silent){originalSave(silent);sendState()}}catch(e){console.warn("Aestra bridge save hook failed",e)}'+
+    'window.addEventListener("message",function(ev){var m=ev.data||{};if(m.type==="aestra-map-state-apply")applyState(m.state)});'+
+    'parent.postMessage({type:"aestra-map-ready",role:role},"*");if(role==="gm")setTimeout(sendState,250)}'+
+    'if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",function(){setTimeout(configure,120)});else setTimeout(configure,120)})();<\/script>';
+
+  const addition=playerStyle+bridge;
+  return source.includes('</body>')?source.replace('</body>',addition+'</body>'):source+addition;
 }
 
 async function mountInteractiveMap(asset,role='player'){
@@ -144,8 +163,13 @@ async function mountInteractiveMap(asset,role='player'){
   try{
     const source=await fetchInteractiveMapSource(asset);
     if(token!==interactiveMapLoadToken)return;
-    if(frame.dataset.assetId===asset.id&&frame.dataset.role===role&&frame.srcdoc)return;
+    if(frame.dataset.assetId===asset.id&&frame.dataset.role===role&&frame.srcdoc){
+      if(mapState?.state)sendMapStateToFrame();
+      return;
+    }
+    mapBridgeReady=false;
     frame.removeAttribute('src');
+    frame.onload=()=>{if(mapState?.state)sendMapStateToFrame()};
     frame.srcdoc=mapSourceForRole(source,role);
     frame.dataset.assetId=asset.id;
     frame.dataset.role=role;
@@ -158,6 +182,50 @@ async function mountInteractiveMap(asset,role='player'){
     frame.dataset.role=role;
   }finally{
     if(token===interactiveMapLoadToken)els.playerDisplay.classList.remove('map-loading');
+  }
+}
+
+function sendMapStateToFrame(){
+  if(!mapState?.state||!els.worldMapFrame?.contentWindow)return;
+  els.worldMapFrame.contentWindow.postMessage({type:'aestra-map-state-apply',state:mapState.state},'*');
+}
+
+async function persistMapState(nextState){
+  if(!isGM||!nextState)return;
+  const payload={
+    campaign_id:CAMPAIGN_ID,
+    state:nextState,
+    updated_by:user.id,
+    updated_at:new Date().toISOString()
+  };
+  const {data,error}=await supabase.from('live_table_map_state').upsert(payload,{onConflict:'campaign_id'}).select().single();
+  if(error){console.error('Map sync save failed',error);return}
+  mapState=data;
+  if(els.mapImportStatus)els.mapImportStatus.textContent='GM map control is live — player display synced.';
+}
+
+function queueMapStateSave(nextState){
+  if(!isGM||DISPLAY_QUERY||!nextState)return;
+  clearTimeout(mapStateSaveTimer);
+  mapStateSaveTimer=setTimeout(()=>persistMapState(nextState),260);
+}
+
+function handleMapBridgeMessage(event){
+  if(event.source!==els.worldMapFrame?.contentWindow)return;
+  const message=event.data||{};
+  if(message.type==='aestra-map-ready'){
+    mapBridgeReady=true;
+    if(mapState?.state)sendMapStateToFrame();
+    if(els.mapImportStatus&&state?.mode==='map'){
+      els.mapImportStatus.textContent=(DISPLAY_QUERY||!isGM)
+        ? 'Player map connected.'
+        : 'GM map control is live — changes sync to the player display.';
+    }
+    return;
+  }
+  if(message.type==='aestra-map-state'&&isGM&&!DISPLAY_QUERY&&message.state){
+    mapState={campaign_id:CAMPAIGN_ID,state:message.state,updated_by:user.id,updated_at:new Date().toISOString()};
+    queueMapStateSave(message.state);
   }
 }
 
@@ -183,7 +251,8 @@ function renderDisplay(){
   const backdropAsset=mode==='map'?(interactiveMapLive?scene:(map||scene)):scene;
   setBackdrop(backdropAsset);
   if(interactiveMapLive){
-    mountInteractiveMap(map,'player');
+    const mapRole=(DISPLAY_QUERY||!isGM)?'player':'gm';
+    mountInteractiveMap(map,mapRole);
   }else{
     interactiveMapLoadToken++;
     els.worldMapFrame.classList.add('hidden');
@@ -533,9 +602,17 @@ function subscribeRealtime(){
   supabase.channel('aestra-live-party')
     .on('postgres_changes',{event:'*',schema:'public',table:'live_table_party',filter:'campaign_id=eq.'+CAMPAIGN_ID},async()=>{await loadParty();renderParty()})
     .subscribe();
+  supabase.channel('aestra-live-map-state')
+    .on('postgres_changes',{event:'*',schema:'public',table:'live_table_map_state',filter:'campaign_id=eq.'+CAMPAIGN_ID},payload=>{
+      if(!payload.new)return;
+      mapState=payload.new;
+      if(DISPLAY_QUERY||!isGM)sendMapStateToFrame();
+    })
+    .subscribe();
 }
 
 function wire(){
+  window.addEventListener('message',handleMapBridgeMessage);
   els.authForm.addEventListener('submit',async e=>{
     e.preventDefault();setAuthMessage('Signing in…');
     try{
@@ -584,7 +661,7 @@ function wire(){
 async function startApp(){
   showApp();
   await checkRole();
-  await Promise.all([loadState(),loadAssets(),loadParty()]);
+  await Promise.all([loadState(),loadAssets(),loadParty(),loadMapState()]);
   renderAll();
   subscribeRealtime();
 }
