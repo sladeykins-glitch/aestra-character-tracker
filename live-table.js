@@ -164,177 +164,62 @@ function mapSourceForRole(source,role){
     '#partyToken .caravan-lantern{fill:#9ee8f2;stroke:#e5ffff;stroke-width:.8;filter:drop-shadow(0 0 3px #73d8e8)}'+
     '#app.party-token-active #partyToken .party-core,#app.party-token-dragging #partyToken .party-core{width:58px!important;height:47px!important;border-radius:14px!important;box-shadow:0 0 0 3px rgba(31,23,13,.72),0 0 25px rgba(228,178,76,.42),0 0 40px rgba(94,183,215,.18),0 10px 24px rgba(0,0,0,.4)!important}'+
     '#app.party-token-active #partyToken .party-symbol.party-caravan,#app.party-token-dragging #partyToken .party-symbol.party-caravan{width:52px;height:40px;filter:drop-shadow(0 2px 2px rgba(0,0,0,.78)) drop-shadow(0 0 7px rgba(231,190,97,.35))}'+
-    '#app.party-token-active #partyToken .party-core .party-label,#app.party-token-dragging #partyToken .party-core .party-label{top:54px!important}'+
     '</style>';
   preparedSource=preparedSource.includes('</head>')?preparedSource.replace('</head>',caravanStyle+'</head>'):caravanStyle+preparedSource;
 
-  // Install a live mirror inside the atlas' own script scope. This has access
-  // to transient route/drawing state as well as the persisted map data.
+  // This marker is inside the atlas' private IIFE, after data/camera variables
+  // exist. Expose one direct API here instead of trying to reach those lexicals
+  // from a second script outside the IIFE.
   const mirrorAnchor="  const saveKey = 'aestraMapDataV78';";
-  const mirrorHelpers=`
-  const aLiveMirrorLayerIds = [
-    'showTerrain','showMarkers','showRegions','showLabels','showDrawings','showHex',
-    'showFog','showWeather','showInfluence','showThreats','showCrystals','showNPCs',
-    'showParty','showCamps','subtleCamps','showHudScene','showHudObjectives','showHudClocks'
+  const nl=String.fromCharCode(10);
+  const bridgeLines=[
+    "  const aLiveRole="+JSON.stringify(role)+";",
+    "  function aCollectLiveMirror(){",
+    "    const r=wrap.getBoundingClientRect();",
+    "    const fitScale=Math.max(.0001,Math.min(r.width/W,r.height/H));",
+    "    const controls={};",
+    "    document.querySelectorAll('input[type=checkbox][id]').forEach(el=>{controls[el.id]=!!el.checked});",
+    "    ['hexSize','hexOpacity','fogOpacity'].forEach(id=>{const el=document.getElementById(id);if(el)controls[id]=el.value});",
+    "    const party=journeyDisplayPos||(data.travel&&data.travel.party)||null;",
+    "    return {version:3,data:JSON.parse(JSON.stringify(data)),controls:controls,view:{centerX:(r.width/2-tx)/Math.max(scale,.0001),centerY:(r.height/2-ty)/Math.max(scale,.0001),zoom:scale/fitScale},liveParty:party?{x:Number(party.x)||0,y:Number(party.y)||0,visible:party.visible!==false}:null};",
+    "  }",
+    "  function aApplyLiveMirror(mirror){",
+    "    if(!mirror)return false;",
+    "    try{",
+    "      const payload=(mirror.data)?mirror:{data:mirror};",
+    "      if(aLiveRole==='player'&&!document.getElementById('app').classList.contains('presentation'))setPresentation(true);",
+    "      if(payload.data){data=JSON.parse(JSON.stringify(payload.data));normalizeData()}",
+    "      const controls=payload.controls||payload.layers||{};",
+    "      Object.entries(controls).forEach(([id,value])=>{const el=document.getElementById(id);if(!el)return;if(el.type==='checkbox')el.checked=!!value;else el.value=value});",
+    "      if(payload.liveParty&&data.travel&&data.travel.party){data.travel.party.x=Number(payload.liveParty.x)||0;data.travel.party.y=Number(payload.liveParty.y)||0;data.travel.party.visible=payload.liveParty.visible!==false}",
+    "      const fog=document.getElementById('fogOpacity');if(fog&&data.fog&&controls.fogOpacity==null)fog.value=data.fog.opacity||82;",
+    "      renderAll();if(typeof syncLegendFilters==='function')syncLegendFilters();",
+    "      const applyView=()=>{if(!payload.view)return;const r=wrap.getBoundingClientRect();const fitScale=Math.max(.0001,Math.min(r.width/W,r.height/H));const zoom=Math.max(.12,Math.min(8,Number(payload.view.zoom)||1));scale=fitScale*zoom;tx=r.width/2-(Number(payload.view.centerX)||W/2)*scale;ty=r.height/2-(Number(payload.view.centerY)||H/2)*scale;applyTransform()};",
+    "      applyView();if(aLiveRole==='player')setTimeout(applyView,55);",
+    "      if(aLiveRole==='player'){const exit=document.getElementById('presentationExit');if(exit)exit.style.display='none';const toggle=document.getElementById('presentationToggle');if(toggle)toggle.style.display='none'}",
+    "      return true;",
+    "    }catch(err){console.warn('Aestra live mirror apply failed',err);return false}",
+    "  }",
+    "  window.AestraLiveBridge={version:3,role:aLiveRole,collect:aCollectLiveMirror,apply:aApplyLiveMirror,applyParty:(x,y)=>{try{data.travel.party.x=Number(x)||0;data.travel.party.y=Number(y)||0;data.travel.party.visible=true;renderTravel();return true}catch(err){return false}},present:()=>{try{setPresentation(true);return true}catch(err){return false}}};",
+    "  parent.postMessage({type:'aestra-map-ready',role:aLiveRole},'*');"
   ];
-  let aLiveMirrorTimer = null;
-  let aLiveMirrorLastSentAt = 0;
-  let aLiveMirrorLastSignature = '';
-
-  function aCollectLiveMirror() {
-    const r = wrap.getBoundingClientRect();
-    const fitScale = Math.max(.0001, Math.min(r.width / W, r.height / H));
-    const layers = {};
-    for (const id of aLiveMirrorLayerIds) {
-      const el = document.getElementById(id);
-      if (!el) continue;
-      layers[id] = el.type === 'checkbox' ? !!el.checked : el.value;
-    }
-    const liveParty = journeyDisplayPos || (data.travel && data.travel.party) || null;
-    return {
-      version: 2,
-      data: JSON.parse(JSON.stringify(data)),
-      layers,
-      view: {
-        centerX: (r.width / 2 - tx) / Math.max(scale, .0001),
-        centerY: (r.height / 2 - ty) / Math.max(scale, .0001),
-        zoom: scale / fitScale
-      },
-      liveParty: liveParty ? {
-        x: Number(liveParty.x) || 0,
-        y: Number(liveParty.y) || 0,
-        visible: liveParty.visible !== false
-      } : null
-    };
-  }
-
-  function aEmitLiveMirrorNow() {
-    if (!gmMode) return;
-    try {
-      const mirror = aCollectLiveMirror();
-      const signature = JSON.stringify(mirror);
-      if (signature === aLiveMirrorLastSignature) return;
-      aLiveMirrorLastSignature = signature;
-      aLiveMirrorLastSentAt = performance.now();
-      parent.postMessage({type:'aestra-map-mirror', mirror}, '*');
-    } catch (err) {
-      console.warn('Aestra live mirror failed', err);
-    }
-  }
-
-  function aScheduleLiveMirror(minGap = 65) {
-    if (!gmMode) return;
-    if (aLiveMirrorTimer) return;
-    const elapsed = performance.now() - aLiveMirrorLastSentAt;
-    const wait = Math.max(0, minGap - elapsed);
-    aLiveMirrorTimer = setTimeout(() => {
-      aLiveMirrorTimer = null;
-      aEmitLiveMirrorNow();
-    }, wait);
-  }
-
-  document.addEventListener('input', () => aScheduleLiveMirror(20));
-  document.addEventListener('change', () => aScheduleLiveMirror(20));
-  document.addEventListener('click', () => aScheduleLiveMirror(35));
-  window.addEventListener('pointermove', () => {
-    if (pointerDown || draggingPartyToken || markerDirectDrag || regionLabelDrag ||
-        labelDirectDrag || labelTransformDrag || worldPinDrag) {
-      aScheduleLiveMirror(55);
-    }
-  });
-  window.addEventListener('pointerup', () => aScheduleLiveMirror(15), true);
-  window.addEventListener('pointercancel', () => aScheduleLiveMirror(15), true);
-  window.addEventListener('wheel', () => aScheduleLiveMirror(55), {passive:true});
-  setInterval(() => {
-    if (gmMode && journeyActive) aScheduleLiveMirror(55);
-  }, 55);
-
-`;
+  const bridgeCode=bridgeLines.join(nl)+nl+nl;
   if(preparedSource.includes(mirrorAnchor)){
-    preparedSource=preparedSource.replace(mirrorAnchor,mirrorHelpers+mirrorAnchor);
-  }
-
-  // Programmatic camera moves (focus/centre/animated zoom) also need to be mirrored.
-  if(role==='gm'){
-    const transformMarker="    renderMarkers();\n\n    // Interior tint fades as the player zooms in.";
-    const transformLive="    renderMarkers();\n    if (typeof aScheduleLiveMirror === 'function') aScheduleLiveMirror(55);\n\n    // Interior tint fades as the player zooms in.";
-    if(preparedSource.includes(transformMarker))preparedSource=preparedSource.replace(transformMarker,transformLive);
-  }
-
-  // Inject a direct bridge immediately before the atlas IIFE closes.
-  // Use character codes for newlines so this match cannot be broken by escaping.
-  const lf=String.fromCharCode(10);
-  const iifeClose=lf+'})();'+lf;
-  const directBridgeCode=[
-    "  window.AestraLiveBridge={",
-    "    version:3,",
-    "    role:"+JSON.stringify(role)+",",
-    "    collect:function(){",
-    "      try{return aCollectLiveMirror()}catch(err){console.warn('Aestra collect failed',err);return null}",
-    "    },",
-    "    apply:function(mirror){",
-    "      if(!mirror)return false;",
-    "      try{",
-    "        const payload=(mirror.version===2&&mirror.data)?mirror:{version:1,data:mirror};",
-    "        if(payload.data){data=JSON.parse(JSON.stringify(payload.data));normalizeData()}",
-    "        if(payload.layers){for(const [id,value] of Object.entries(payload.layers)){const el=document.getElementById(id);if(!el)continue;if(el.type==='checkbox')el.checked=!!value;else el.value=value}}",
-    "        if(payload.liveParty&&data.travel&&data.travel.party){data.travel.party.x=Number(payload.liveParty.x)||0;data.travel.party.y=Number(payload.liveParty.y)||0;data.travel.party.visible=payload.liveParty.visible!==false}",
-    "        const fog=document.getElementById('fogOpacity');if(fog&&data.fog)fog.value=data.fog.opacity||82;",
-    "        renderAll();",
-    "        if(typeof syncLegendFilters==='function')syncLegendFilters();",
-    "        if(payload.view){const r=wrap.getBoundingClientRect();const fitScale=Math.max(.0001,Math.min(r.width/W,r.height/H));const zoom=Math.max(.12,Math.min(8,Number(payload.view.zoom)||1));scale=fitScale*zoom;tx=r.width/2-(Number(payload.view.centerX)||W/2)*scale;ty=r.height/2-(Number(payload.view.centerY)||H/2)*scale;applyTransform()}",
-    "        if("+JSON.stringify(role)+"==='player'){setPresentation(true);const exit=document.getElementById('presentationExit');if(exit)exit.style.display='none';const toggle=document.getElementById('presentationToggle');if(toggle)toggle.style.display='none'}",
-    "        return true;",
-    "      }catch(err){console.warn('Aestra direct apply failed',err);return false}",
-    "    },",
-    "    applyParty:function(x,y){",
-    "      try{if(!data.travel||!data.travel.party)return false;data.travel.party.x=Number(x)||0;data.travel.party.y=Number(y)||0;data.travel.party.visible=true;renderTravel();return true}catch(err){return false}",
-    "    },",
-    "    present:function(){",
-    "      try{setPresentation(true);const exit=document.getElementById('presentationExit');if(exit)exit.style.display='none';const toggle=document.getElementById('presentationToggle');if(toggle)toggle.style.display='none';return true}catch(err){return false}",
-    "    }",
-    "  };",
-    "  window.addEventListener('message',function(event){",
-    "    const m=event.data||{};",
-    "    if(m.type==='aestra-map-mirror-apply'&&window.AestraLiveBridge.role==='player')window.AestraLiveBridge.apply(m.mirror);",
-    "    else if(m.type==='aestra-map-state-apply'&&window.AestraLiveBridge.role==='player')window.AestraLiveBridge.apply({version:1,data:m.state});",
-    "    else if(m.type==='aestra-map-party-motion-apply'&&window.AestraLiveBridge.role==='player')window.AestraLiveBridge.applyParty(m.x,m.y);",
-    "  });",
-    "  parent.postMessage({type:'aestra-map-ready',role:window.AestraLiveBridge.role},'*');"
-  ].join(lf)+lf;
-  const closeIndex=preparedSource.lastIndexOf(iifeClose);
-  if(closeIndex>=0){
-    preparedSource=preparedSource.slice(0,closeIndex)+lf+directBridgeCode+preparedSource.slice(closeIndex);
+    preparedSource=preparedSource.replace(mirrorAnchor,bridgeCode+mirrorAnchor);
   }else{
-    console.warn('Aestra live bridge injection point was not found');
+    console.error('Aestra live bridge anchor not found');
   }
 
-  // Presentation mode lives inside the atlas' own DOMContentLoaded scope, so
-  // force it from inside that scope for player displays.
   if(role==='player'){
     const initMarker="  setTool('pan');\n  renderAll();\n  fit();\n  applyAmbientParallax();";
-    const playerInit="  setTool('pan');\n  renderAll();\n  fit();\n  applyAmbientParallax();\n  setTimeout(() => {\n    try {\n      setPresentation(true);\n      const exit=document.getElementById('presentationExit');\n      if(exit) exit.style.display='none';\n      const toggle=document.getElementById('presentationToggle');\n      if(toggle) toggle.style.display='none';\n    } catch (err) {\n      const app=document.getElementById('app');\n      if(app) app.classList.add('presentation');\n    }\n  }, 140);";
+    const playerInit="  setTool('pan');\n  renderAll();\n  fit();\n  applyAmbientParallax();\n  setTimeout(() => { try { setPresentation(true); const exit=document.getElementById('presentationExit'); if(exit) exit.style.display='none'; const toggle=document.getElementById('presentationToggle'); if(toggle) toggle.style.display='none'; } catch (_) {} }, 120);";
     if(preparedSource.includes(initMarker))preparedSource=preparedSource.replace(initMarker,playerInit);
   }
 
   const playerStyle=role==='player'
     ? '<style id="aestra-live-table-runtime-style">#app.presentation #presentationExit{display:none!important}#app.presentation #presentationToggle{display:none!important}body.aestra-live-embedded{background:#05080b!important}</style>'
     : '<style id="aestra-live-table-runtime-style">body.aestra-live-embedded{background:#05080b!important}</style>';
-
-  const bridge='<script id="aestra-live-table-runtime-bridge">(function(){'+
-    'var role='+JSON.stringify(role)+';var applyingRemote=false;'+
-    'function sendState(){if(role!=="gm"||applyingRemote)return;try{parent.postMessage({type:"aestra-map-state",state:JSON.parse(JSON.stringify(data))},"*")}catch(e){console.warn("Aestra map sync send failed",e)}}'+
-    'function applyState(next){if(!next)return;try{applyingRemote=true;data=JSON.parse(JSON.stringify(next));if(typeof normalizeData==="function")normalizeData();var fog=document.getElementById("fogOpacity");if(fog&&data.fog)fog.value=data.fog.opacity||82;if(typeof renderAll==="function")renderAll()}catch(e){console.warn("Aestra map sync apply failed",e)}finally{setTimeout(function(){applyingRemote=false},180)}}'+
-    'function applyMirror(mirror){if(!mirror)return;try{applyingRemote=true;var payload=(mirror.version===2&&mirror.data)?mirror:{version:1,data:mirror};if(payload.data){data=JSON.parse(JSON.stringify(payload.data));if(typeof normalizeData==="function")normalizeData()}if(payload.layers){Object.keys(payload.layers).forEach(function(id){var el=document.getElementById(id);if(!el)return;if(el.type==="checkbox")el.checked=!!payload.layers[id];else el.value=payload.layers[id]})}if(payload.liveParty&&data&&data.travel&&data.travel.party){data.travel.party.x=Number(payload.liveParty.x)||0;data.travel.party.y=Number(payload.liveParty.y)||0;data.travel.party.visible=payload.liveParty.visible!==false}var fog=document.getElementById("fogOpacity");if(fog&&data.fog)fog.value=data.fog.opacity||82;if(typeof renderAll==="function")renderAll();if(typeof syncLegendFilters==="function")syncLegendFilters();if(payload.view&&typeof wrap!=="undefined"){var r=wrap.getBoundingClientRect();var fitScale=Math.max(.0001,Math.min(r.width/W,r.height/H));var zoom=Math.max(.12,Math.min(8,Number(payload.view.zoom)||1));scale=fitScale*zoom;tx=r.width/2-(Number(payload.view.centerX)||W/2)*scale;ty=r.height/2-(Number(payload.view.centerY)||H/2)*scale;if(typeof applyTransform==="function")applyTransform()}}catch(e){console.warn("Aestra live mirror apply failed",e)}finally{setTimeout(function(){applyingRemote=false},120)}}'+
-    'function enforcePlayerPresentation(){if(role!=="player")return;var app=document.getElementById("app");if(app)app.classList.add("presentation");var exit=document.getElementById("presentationExit");if(exit)exit.style.display="none";var toggle=document.getElementById("presentationToggle");if(toggle)toggle.style.display="none"}'+
-    'function configure(){document.body.classList.add("aestra-live-embedded");try{if(role==="player"){enforcePlayerPresentation();setTimeout(enforcePlayerPresentation,300);setTimeout(enforcePlayerPresentation,900)}else{var app=document.getElementById("app");if(app)app.classList.remove("presentation");if(typeof gmMode!=="undefined"){gmMode=true;if(typeof syncModeLabels==="function")syncModeLabels()}if(typeof renderAll==="function")renderAll()}}catch(e){console.warn("Aestra bridge configure failed",e)}'+
-    '/* legacy save hook intentionally disabled: full mirror is authoritative */'+
-    'window.addEventListener("message",function(ev){var m=ev.data||{};if(m.type==="aestra-map-mirror-apply"){applyMirror(m.mirror);if(role==="player")setTimeout(enforcePlayerPresentation,25)}else if(m.type==="aestra-map-state-apply"){applyState(m.state);if(role==="player")setTimeout(enforcePlayerPresentation,40)}else if(m.type==="aestra-map-party-motion-apply"&&role==="player"){try{data.travel.party.x=Number(m.x);data.travel.party.y=Number(m.y);data.travel.party.visible=true;if(typeof renderTravel==="function")renderTravel()}catch(e){}}});'+
-    'parent.postMessage({type:"aestra-map-ready",role:role},"*");if(role==="gm")setTimeout(function(){try{if(typeof aEmitLiveMirrorNow==="function")aEmitLiveMirrorNow();else sendState()}catch(e){sendState()}},220)}'+
-    'if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",function(){setTimeout(configure,120)});else setTimeout(configure,120)})();<\/script>';
-
-  const addition=playerStyle+bridge;
-  return preparedSource.includes('</body>')?preparedSource.replace('</body>',addition+'</body>'):preparedSource+addition;
+  return preparedSource.includes('</body>')?preparedSource.replace('</body>',playerStyle+'</body>'):preparedSource+playerStyle;
 }
 
 async function mountInteractiveMap(asset,role='player'){
