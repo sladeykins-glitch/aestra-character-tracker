@@ -1632,7 +1632,9 @@ function renderCueSequence(){
       event.preventDefault();
       item.classList.remove('drag-over');
       const source=cueSequenceDragId||event.dataTransfer?.getData('text/plain')||'';
-      reorderCueSequence(source,item.dataset.sequenceId||'');
+      const rect=item.getBoundingClientRect();
+      const after=event.clientY>rect.top+rect.height/2;
+      reorderCueSequence(source,item.dataset.sequenceId||'',after);
     });
   });
 
@@ -1668,7 +1670,7 @@ async function saveCueSequenceNote(itemId,value){
   await patchState({cue_sequence:next});
 }
 
-async function reorderCueSequence(sourceId,targetId){
+async function reorderCueSequence(sourceId,targetId,after=false){
   if(!canGMControl()||!sourceId||!targetId||sourceId===targetId)return;
   const seq=cueSequence();
   const from=seq.findIndex(item=>item.id===sourceId);
@@ -1679,7 +1681,8 @@ async function reorderCueSequence(sourceId,targetId){
   const next=seq.slice();
   const [moved]=next.splice(from,1);
   const targetIndex=next.findIndex(item=>item.id===targetId);
-  next.splice(Math.max(0,targetIndex),0,moved);
+  const insertAt=Math.max(0,targetIndex+(after?1:0));
+  next.splice(insertAt,0,moved);
   const nextIndex=currentItemId?next.findIndex(item=>item.id===currentItemId):-1;
   await patchState({cue_sequence:next,cue_sequence_index:nextIndex});
 }
