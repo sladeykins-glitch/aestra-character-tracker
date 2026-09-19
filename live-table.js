@@ -499,6 +499,18 @@ function sceneEffectState(){
 
 let sceneAtmosphereRenderer=null;
 
+function drawImageCover(ctx,img,dx,dy,dw,dh){
+  const iw=img?.naturalWidth||img?.width||0;
+  const ih=img?.naturalHeight||img?.height||0;
+  if(!iw||!ih||!dw||!dh)return;
+  const scale=Math.max(dw/iw,dh/ih);
+  const sw=dw/scale;
+  const sh=dh/scale;
+  const sx=(iw-sw)/2;
+  const sy=(ih-sh)/2;
+  ctx.drawImage(img,sx,sy,sw,sh,dx,dy,dw,dh);
+}
+
 class SceneAtmosphereRenderer{
   constructor(canvas,host){
     this.canvas=canvas;
@@ -517,6 +529,20 @@ class SceneAtmosphereRenderer{
     this.recoverFrames=0;
     this.lightningAt=0;
     this.flash=0;
+    this.backdropSrc='';
+    this.backdropReady=false;
+    this.backdropImg=new Image();
+    this.backdropImg.crossOrigin='anonymous';
+    this.backdropImg.onload=()=>{
+      this.backdropReady=true;
+      this.refreshHeatBuffer();
+    };
+    this.backdropImg.onerror=()=>{
+      this.backdropReady=false;
+      this.clearHeatBuffer();
+    };
+    this.heatBuffer=document.createElement('canvas');
+    this.heatCtx=this.heatBuffer.getContext('2d',{alpha:true});
     this.prefersReduced=window.matchMedia?.('(prefers-reduced-motion: reduce)').matches===true;
     this.resizeObserver=new ResizeObserver(()=>this.resize());
     if(this.host)this.resizeObserver.observe(this.host);
@@ -544,6 +570,44 @@ class SceneAtmosphereRenderer{
       this.canvas.style.width=this.width+'px';
       this.canvas.style.height=this.height+'px';
     }
+    if(this.heatBuffer&&(this.heatBuffer.width!==w||this.heatBuffer.height!==h)){
+      this.heatBuffer.width=w;
+      this.heatBuffer.height=h;
+      this.refreshHeatBuffer();
+    }
+  }
+
+  setBackdropSource(src){
+    const next=src||'';
+    if(next===this.backdropSrc)return;
+    this.backdropSrc=next;
+    this.backdropReady=false;
+    if(!next){
+      this.backdropImg.removeAttribute('src');
+      this.clearHeatBuffer();
+      return;
+    }
+    this.backdropImg.src=next;
+  }
+
+  clearHeatBuffer(){
+    if(!this.heatCtx||!this.heatBuffer)return;
+    this.heatCtx.setTransform(1,0,0,1,0,0);
+    this.heatCtx.clearRect(0,0,this.heatBuffer.width,this.heatBuffer.height);
+  }
+
+  refreshHeatBuffer(){
+    if(!this.heatCtx||!this.heatBuffer)return;
+    this.clearHeatBuffer();
+    if(!this.backdropReady||!this.backdropImg?.naturalWidth)return;
+    drawImageCover(
+      this.heatCtx,
+      this.backdropImg,
+      0,
+      0,
+      this.heatBuffer.width,
+      this.heatBuffer.height
+    );
   }
 
   setConfig(cfg){
@@ -568,8 +632,7 @@ class SceneAtmosphereRenderer{
       ash:95,
       wind:40,
       mist:16,
-      magic:42,
-      heat:26
+      magic:42
     }[type]||0;
     const stormBoost=type==='rain'&&this.cfg.effects.includes('storm')?1.7:1;
     return Math.round(base*intensity*stormBoost*this.quality);
@@ -578,7 +641,7 @@ class SceneAtmosphereRenderer{
   syncParticles(){
     const active=new Set(this.cfg.effects);
     if(active.has('storm'))active.add('rain');
-    const particleTypes=['rain','snow','ash','wind','mist','magic','heat'];
+    const particleTypes=['rain','snow','ash','wind','mist','magic'];
     for(const type of particleTypes){
       if(!active.has(type)){
         this.particles.set(type,[]);
@@ -634,12 +697,6 @@ class SceneAtmosphereRenderer{
       p.vx=-9+Math.random()*18;
       p.vy=-15-Math.random()*35;
       p.size=1.4+Math.random()*4.4;
-    }else if(type==='heat'){
-      p.x=Math.random()*w;
-      p.y=h*(.55+Math.random()*.5);
-      p.vx=-6+Math.random()*12;
-      p.vy=-9-Math.random()*20;
-      p.size=22+Math.random()*68;
     }
     return p;
   }
@@ -714,12 +771,12 @@ class SceneAtmosphereRenderer{
     const effects=new Set(this.cfg.effects);
     if(effects.has('storm'))effects.add('rain');
 
+    if(effects.has('heat'))this.drawHeatHaze(ctx,w,h,now);
     if(effects.has('mist'))this.drawMist(ctx,dt,w,h);
     if(effects.has('wind'))this.drawWind(ctx,dt,w,h);
     if(effects.has('rain'))this.drawRain(ctx,dt,w,h,effects.has('storm'));
     if(effects.has('snow'))this.drawSnow(ctx,dt,w,h);
     if(effects.has('ash'))this.drawAsh(ctx,dt,w,h);
-    if(effects.has('heat'))this.drawHeat(ctx,dt,w,h,now);
     if(effects.has('magic'))this.drawMagic(ctx,dt,w,h,now);
 
     if(effects.has('storm'))this.drawLightning(now,intensity);
@@ -841,26 +898,65 @@ class SceneAtmosphereRenderer{
     ctx.restore();
   }
 
-  drawHeat(ctx,dt,w,h,now){
-    const arr=this.particles.get('heat')||[];
+  drawHeatHaze(ctx,w,h,now){
+    if(!this.backdropReady||!this.heatBuffer?.width||!this.heatBuffer?.height)return;
+
+    const intensity=this.cfg.intensity||2;
+    const strength={1:2.2,2:4.8,3:8.2}[intensity]||4.8;
+    const maxShift=strength*(.84+.16*this.quality);
+    const startY=Math.floor(h*.34);
+    const stripH=this.quality>=.95?4:this.quality>=.68?6:9;
+    const sourceScale=this.pixelRatio;
+
     ctx.save();
-    ctx.globalCompositeOperation='screen';
-    ctx.lineWidth=1;
-    for(const p of arr){
-      p.phase+=dt*.75;
-      p.y+=p.vy*dt;
-      if(p.y<h*.48)this.recycle(p);
-      const alpha=.03+.028*p.z;
-      ctx.strokeStyle='rgba(255,190,112,'+alpha+')';
-      ctx.beginPath();
-      const length=p.size;
-      for(let i=0;i<=5;i++){
-        const t=i/5;
-        const x=p.x-length/2+t*length+Math.sin(p.phase+t*5+now*.001)*4;
-        const y=p.y+t*-5;
-        if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
-      }
-      ctx.stroke();
+    ctx.globalAlpha={1:.58,2:.72,3:.86}[intensity]||.72;
+    ctx.imageSmoothingEnabled=true;
+
+    for(let y=startY;y<h;y+=stripH){
+      const depth=(y-startY)/Math.max(1,h-startY);
+      const weight=.12+Math.pow(depth,1.42)*.88;
+
+      // Several asynchronous waves stop the image looking like one simple sine wobble.
+      const waveA=Math.sin(y*.041+now*.00225);
+      const waveB=Math.sin(y*.017-now*.00137+1.7);
+      const waveC=Math.sin(y*.073+now*.00091+4.1);
+      const slow=Math.sin(now*.00047+y*.006);
+      const offset=(waveA+waveB*.68+waveC*.31+slow*.24)*maxShift*weight;
+
+      // Tiny vertical refraction helps sell rising hot air without making the image swim.
+      const rise=Math.sin(y*.027-now*.00162)*1.25*weight*intensity;
+
+      const sy=Math.max(0,Math.floor(y*sourceScale));
+      const sh=Math.max(1,Math.min(
+        this.heatBuffer.height-sy,
+        Math.ceil((stripH+2)*sourceScale)
+      ));
+      if(sh<=0)continue;
+
+      ctx.drawImage(
+        this.heatBuffer,
+        0,sy,this.heatBuffer.width,sh,
+        offset,y+rise,w,stripH+2
+      );
+    }
+
+    // A softer second pass over the lowest part creates the turbulent ground shimmer.
+    const lowerY=Math.floor(h*.64);
+    ctx.globalAlpha={1:.12,2:.19,3:.28}[intensity]||.19;
+    for(let y=lowerY;y<h;y+=stripH*2){
+      const depth=(y-lowerY)/Math.max(1,h-lowerY);
+      const offset=Math.sin(y*.029-now*.0031)*maxShift*(.45+depth*.8);
+      const sy=Math.max(0,Math.floor(y*sourceScale));
+      const sh=Math.max(1,Math.min(
+        this.heatBuffer.height-sy,
+        Math.ceil((stripH*2+3)*sourceScale)
+      ));
+      if(sh<=0)continue;
+      ctx.drawImage(
+        this.heatBuffer,
+        0,sy,this.heatBuffer.width,sh,
+        offset,y,w,stripH*2+3
+      );
     }
     ctx.restore();
   }
@@ -1000,6 +1096,7 @@ function renderDisplay(){
   renderPinned(els.pinRight,state.pinned_right_id);
   els.hudToggle.checked=state.hud_visible!==false;
   renderParty();
+  getSceneAtmosphereRenderer()?.setBackdropSource(mode==='scene'?(scene?.image_url||''):'');
   renderSceneEffects(mode);
   // The world map already represents the party with the caravan marker.
   // Hide the character HUD there to keep the map presentation uncluttered.
