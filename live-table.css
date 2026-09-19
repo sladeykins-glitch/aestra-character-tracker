@@ -516,3 +516,72 @@ body:not(.display-only) .player-display.map-live::before{content:'GM MAP CONTROL
 @media(prefers-reduced-motion:reduce){
   .scene-fx{animation:none!important}
 }
+
+
+/* Canvas atmosphere renderer v2 — overrides legacy DOM animation layers */
+.scene-effects{
+  --scene-fx-flash:0;
+  contain:layout paint style;
+}
+.scene-fx-canvas,
+.scene-fx-grade,
+.scene-fx-flash{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  pointer-events:none;
+}
+.scene-fx-canvas{
+  display:block;
+  z-index:1;
+}
+.scene-fx-grade{
+  z-index:0;
+  opacity:0;
+  transition:opacity var(--scene-fx-fade) ease,background var(--scene-fx-fade) ease,filter var(--scene-fx-fade) ease;
+}
+.scene-fx-flash{
+  z-index:2;
+  background:rgba(221,237,247,var(--scene-fx-flash));
+  mix-blend-mode:screen;
+  transition:background .045s linear;
+}
+.scene-effects.fx-storm .scene-fx-grade{
+  opacity:calc(var(--scene-fx-strength) * .62);
+  background:
+    linear-gradient(180deg,rgba(13,24,35,.42),rgba(3,7,12,.16)),
+    radial-gradient(circle at 72% 6%,rgba(187,217,235,.10),transparent 34%);
+}
+.scene-effects.fx-heat .scene-fx-grade{
+  opacity:calc(var(--scene-fx-strength) * .48);
+  background:
+    linear-gradient(180deg,rgba(235,153,78,.08),transparent 48%,rgba(129,55,20,.15)),
+    radial-gradient(circle at 48% 115%,rgba(239,159,79,.15),transparent 42%);
+  backdrop-filter:saturate(1.08) sepia(.08);
+}
+.scene-effects.fx-cold .scene-fx-grade{
+  opacity:calc(var(--scene-fx-strength) * .46);
+  background:
+    linear-gradient(180deg,rgba(83,155,193,.18),rgba(25,76,107,.06) 54%,rgba(13,40,63,.18)),
+    radial-gradient(circle at 50% 38%,transparent 42%,rgba(11,31,49,.16) 100%);
+  mix-blend-mode:screen;
+  backdrop-filter:saturate(.88) contrast(1.02);
+}
+.scene-effects.fx-magic .scene-fx-grade{
+  opacity:calc(var(--scene-fx-strength) * .36);
+  background:
+    radial-gradient(circle at 18% 26%,rgba(77,194,222,.16),transparent 28%),
+    radial-gradient(circle at 76% 60%,rgba(183,89,216,.14),transparent 31%),
+    linear-gradient(118deg,transparent 24%,rgba(216,181,88,.06) 48%,transparent 71%);
+  mix-blend-mode:screen;
+  backdrop-filter:saturate(1.12);
+}
+.scene-effects.fx-mist .scene-fx-grade{
+  opacity:calc(var(--scene-fx-strength) * .16);
+  background:linear-gradient(180deg,rgba(222,231,228,.06),rgba(202,218,218,.11));
+}
+@media(prefers-reduced-motion:reduce){
+  .scene-fx-canvas{display:none}
+  .scene-fx-flash{display:none}
+}
