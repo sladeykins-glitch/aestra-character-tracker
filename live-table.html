@@ -90,6 +90,16 @@
         <button id="returnSceneBtn" class="primary" type="button">Return to Scene</button>
         <button id="clearPinsBtn" type="button">Clear Pinned</button>
         <label class="switch"><input id="hudToggle" type="checkbox" checked /><span>Party HUD</span></label>
+
+        <div id="cueQuickRun" class="cue-quick-run">
+          <div class="cue-quick-status">
+            <div><span>LIVE NOW</span><strong id="cueQuickLive">Not started</strong></div>
+            <i></i>
+            <div><span>UP NEXT</span><strong id="cueQuickNext">No cues queued</strong></div>
+          </div>
+          <button id="quickPrevCueBtn" type="button" class="cue-quick-prev" title="Previous cue">‹ PREV</button>
+          <button id="quickNextCueBtn" type="button" class="primary cue-quick-next">START SESSION ›</button>
+        </div>
       </div>
     </section>
 
@@ -136,11 +146,40 @@
           <p id="sceneFxStatus" class="scene-fx-status">No scene effects active.</p>
         </div>
 
+        <div id="cueSequencePanel" class="cue-sequence-panel">
+          <div class="cue-sequence-head">
+            <div>
+              <p class="eyebrow">Tonight's Session</p>
+              <h3>Session Run</h3>
+            </div>
+            <button id="resetCueRunBtn" type="button" class="cue-run-reset">Reset Run</button>
+          </div>
+
+          <div class="cue-run-now">
+            <div>
+              <span>LIVE NOW</span>
+              <strong id="cueRunLive">Not started</strong>
+            </div>
+            <div>
+              <span>UP NEXT</span>
+              <strong id="cueRunNext">Add cues from the library below</strong>
+            </div>
+          </div>
+
+          <div class="cue-run-controls">
+            <button id="prevCueBtn" type="button">‹ Previous</button>
+            <button id="nextCueBtn" type="button" class="primary">START SESSION ›</button>
+          </div>
+
+          <p class="cue-sequence-help">Drag cues into order. Notes are GM-only. Your position is remembered if the browser refreshes.</p>
+          <div id="cueSequenceList" class="cue-sequence-list"></div>
+        </div>
+
         <div id="cuePresetsPanel" class="cue-presets-panel">
           <div class="cue-presets-head">
             <div>
               <p class="eyebrow">Session Cues</p>
-              <h3>Scene Presets</h3>
+              <h3>Cue Library</h3>
             </div>
             <span id="cuePresetCount" class="cue-preset-count">0</span>
           </div>
@@ -148,7 +187,7 @@
             <input id="cuePresetName" type="text" maxlength="60" placeholder="Rübenberg Festival — Storm" />
             <button id="saveCuePresetBtn" type="button" class="primary">Save Current</button>
           </div>
-          <p class="cue-preset-help">Saves the current display mode, backdrop or reveal, location title, pinned visuals, Party HUD and atmosphere.</p>
+          <p class="cue-preset-help">Save presentation setups here, then add them to Tonight's Session in the order you expect to use them.</p>
           <div id="cuePresetList" class="cue-preset-list"></div>
         </div>
 
