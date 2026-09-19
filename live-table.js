@@ -274,20 +274,16 @@ async function mountInteractiveMap(asset,role='player'){
 }
 
 function sendMapStateToFrame(){
-  if(!mapState?.state||!els.worldMapFrame?.contentWindow)return;
+  if(!mapState?.state||!els.worldMapFrame?.contentWindow)return false;
   const stored=mapState.state;
   const win=els.worldMapFrame.contentWindow;
   try{
     const bridge=win.AestraLiveBridge;
-    if(bridge?.apply&&bridge.apply(stored))return;
+    if(bridge?.apply)return bridge.apply(stored)===true;
   }catch(err){
-    console.warn('Direct player map state apply failed',err);
+    console.warn('Direct map state apply failed',err);
   }
-  if(stored?.version===2&&stored?.data){
-    win.postMessage({type:'aestra-map-mirror-apply',mirror:stored},'*');
-  }else{
-    win.postMessage({type:'aestra-map-state-apply',state:stored},'*');
-  }
+  return false;
 }
 
 async function persistMapState(nextState){
@@ -340,11 +336,10 @@ function applyMapMirrorToPlayer(mirror){
   if(!win)return false;
   try{
     const bridge=win.AestraLiveBridge;
-    if(bridge?.apply&&bridge.apply(mirror))return true;
+    if(bridge?.apply)return bridge.apply(mirror)===true;
   }catch(err){
     console.warn('Direct live mirror apply failed',err);
   }
-  try{win.postMessage({type:'aestra-map-mirror-apply',mirror},'*')}catch(_){}
   return false;
 }
 
@@ -906,8 +901,6 @@ async function subscribeRealtime(){
       if(shouldReceivePlayerMap())sendMapStateToFrame();
     })
     .subscribe();
-  startMapMirrorPolling();
-  startPlayerMapStatePolling();
 }
 
 function wire(){
@@ -962,7 +955,17 @@ async function startApp(){
   await checkRole();
   await Promise.all([loadState(),loadAssets(),loadParty(),loadMapState()]);
   renderAll();
-  await subscribeRealtime();
+
+  // The full GM -> Player mirror uses ordinary database reads/writes and
+  // remains active even if Realtime websocket setup fails.
+  startMapMirrorPolling();
+  startPlayerMapStatePolling();
+
+  try{
+    await subscribeRealtime();
+  }catch(err){
+    console.warn('Realtime unavailable; map polling remains active.',err);
+  }
 }
 
 async function boot(){
