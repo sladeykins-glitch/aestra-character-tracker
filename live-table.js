@@ -137,22 +137,34 @@ async function fetchInteractiveMapSource(asset){
 }
 
 function mapSourceForRole(source,role){
+  let preparedSource=source;
+
+  // Presentation mode lives inside the atlas' own DOMContentLoaded scope, so
+  // force it from inside that scope for player displays instead of relying
+  // only on the external iframe bridge.
+  if(role==='player'){
+    const initMarker="  setTool('pan');\n  renderAll();\n  fit();\n  applyAmbientParallax();";
+    const playerInit="  setTool('pan');\n  renderAll();\n  fit();\n  applyAmbientParallax();\n  setTimeout(() => {\n    try {\n      setPresentation(true);\n      const exit=document.getElementById('presentationExit');\n      if(exit) exit.style.display='none';\n      const toggle=document.getElementById('presentationToggle');\n      if(toggle) toggle.style.display='none';\n    } catch (err) {\n      const app=document.getElementById('app');\n      if(app) app.classList.add('presentation');\n    }\n  }, 140);";
+    if(preparedSource.includes(initMarker))preparedSource=preparedSource.replace(initMarker,playerInit);
+  }
+
   const playerStyle=role==='player'
-    ? '<style id="aestra-live-table-runtime-style">#app.presentation #presentationExit{display:none!important}body.aestra-live-embedded{background:#05080b!important}</style>'
+    ? '<style id="aestra-live-table-runtime-style">#app.presentation #presentationExit{display:none!important}#app.presentation #presentationToggle{display:none!important}body.aestra-live-embedded{background:#05080b!important}</style>'
     : '<style id="aestra-live-table-runtime-style">body.aestra-live-embedded{background:#05080b!important}</style>';
 
   const bridge='<script id="aestra-live-table-runtime-bridge">(function(){'+
     'var role='+JSON.stringify(role)+';var applyingRemote=false;'+
     'function sendState(){if(role!=="gm"||applyingRemote)return;try{parent.postMessage({type:"aestra-map-state",state:JSON.parse(JSON.stringify(data))},"*")}catch(e){console.warn("Aestra map sync send failed",e)}}'+
     'function applyState(next){if(!next)return;try{applyingRemote=true;data=JSON.parse(JSON.stringify(next));if(typeof normalizeData==="function")normalizeData();var fog=document.getElementById("fogOpacity");if(fog&&data.fog)fog.value=data.fog.opacity||82;if(typeof renderAll==="function")renderAll()}catch(e){console.warn("Aestra map sync apply failed",e)}finally{setTimeout(function(){applyingRemote=false},260)}}'+
-    'function configure(){document.body.classList.add("aestra-live-embedded");try{if(role==="player"){if(typeof setPresentation==="function")setPresentation(true);var exit=document.getElementById("presentationExit");if(exit)exit.style.display="none";var toggle=document.getElementById("presentationToggle");if(toggle)toggle.style.display="none"}else{var app=document.getElementById("app");if(app)app.classList.remove("presentation");if(typeof gmMode!=="undefined"){gmMode=true;if(typeof syncModeLabels==="function")syncModeLabels()}if(typeof renderAll==="function")renderAll()}}catch(e){console.warn("Aestra bridge configure failed",e)}'+
+    'function enforcePlayerPresentation(){if(role!=="player")return;var app=document.getElementById("app");if(app)app.classList.add("presentation");var exit=document.getElementById("presentationExit");if(exit)exit.style.display="none";var toggle=document.getElementById("presentationToggle");if(toggle)toggle.style.display="none"}'+
+    'function configure(){document.body.classList.add("aestra-live-embedded");try{if(role==="player"){enforcePlayerPresentation();setTimeout(enforcePlayerPresentation,300);setTimeout(enforcePlayerPresentation,900)}else{var app=document.getElementById("app");if(app)app.classList.remove("presentation");if(typeof gmMode!=="undefined"){gmMode=true;if(typeof syncModeLabels==="function")syncModeLabels()}if(typeof renderAll==="function")renderAll()}}catch(e){console.warn("Aestra bridge configure failed",e)}'+
     'try{var originalSave=saveLocal;saveLocal=function(silent){originalSave(silent);sendState()}}catch(e){console.warn("Aestra bridge save hook failed",e)}'+
-    'window.addEventListener("message",function(ev){var m=ev.data||{};if(m.type==="aestra-map-state-apply")applyState(m.state)});'+
+    'window.addEventListener("message",function(ev){var m=ev.data||{};if(m.type==="aestra-map-state-apply"){applyState(m.state);if(role==="player")setTimeout(enforcePlayerPresentation,40)}});'+
     'parent.postMessage({type:"aestra-map-ready",role:role},"*");if(role==="gm")setTimeout(sendState,250)}'+
     'if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",function(){setTimeout(configure,120)});else setTimeout(configure,120)})();<\/script>';
 
   const addition=playerStyle+bridge;
-  return source.includes('</body>')?source.replace('</body>',addition+'</body>'):source+addition;
+  return preparedSource.includes('</body>')?preparedSource.replace('</body>',addition+'</body>'):preparedSource+addition;
 }
 
 async function mountInteractiveMap(asset,role='player'){
