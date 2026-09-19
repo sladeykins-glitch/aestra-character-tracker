@@ -31,3 +31,14 @@ dialog{width:min(520px,calc(100% - 24px));border:1px solid var(--line);border-ra
 button.danger{border-color:rgba(201,100,104,.42)!important;color:#efb0b3!important;background:rgba(96,28,34,.18)!important}
 button.danger:hover{border-color:#c96468!important;background:rgba(119,35,43,.3)!important}
 @media(max-width:760px){.scene-card{grid-template-columns:62px 1fr}.scene-actions{grid-column:1/-1;grid-template-columns:repeat(3,1fr)}}
+
+.world-map-frame{position:absolute;inset:0;width:100%;height:100%;border:0;z-index:3;background:#05080b}
+.world-map-frame.hidden{display:none}
+.player-display.map-live .backdrop{opacity:0}
+.player-display.map-live .location-title{display:none!important}
+.player-display.map-live .atmosphere{opacity:.16}
+.map-tool-stack{display:grid;gap:7px;margin-top:10px}
+.map-tool-stack .wide{margin-top:0}
+.map-import-status{margin:2px 0 0;color:var(--muted);font-size:9px;line-height:1.45}
+.display-only .world-map-frame{pointer-events:auto}
+body:not(.display-only) .world-map-frame{pointer-events:none}
