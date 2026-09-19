@@ -73,9 +73,10 @@ body:not(.display-only) .player-display.map-live::before{content:'GM MAP CONTROL
   z-index:9;
   left:16px;
   right:auto;
-  bottom:20px;
+  top:20px;
+  bottom:auto;
   width:min(260px,calc(100% - 32px));
-  max-height:calc(100% - 138px);
+  max-height:calc(100% - 40px);
   display:flex;
   flex-direction:column;
   gap:8px;
@@ -208,9 +209,10 @@ body:not(.display-only) .player-display.map-live::before{content:'GM MAP CONTROL
 .display-only .party-hud{
   left:18px;
   right:auto;
-  bottom:20px;
+  top:20px;
+  bottom:auto;
   width:min(270px,calc(100vw - 36px));
-  max-height:calc(100vh - 150px);
+  max-height:calc(100vh - 40px);
 }
 
 /* Keep pinned art from fighting with the party stack. */
@@ -226,9 +228,10 @@ body:not(.display-only) .player-display.map-live::before{content:'GM MAP CONTROL
   .party-hud{
     left:12px;
     right:auto;
-    bottom:12px;
+    top:12px;
+    bottom:auto;
     width:min(236px,calc(100% - 24px));
-    max-height:calc(100% - 116px);
+    max-height:calc(100% - 24px);
     grid-template-columns:none;
   }
   .party-card{
@@ -243,7 +246,8 @@ body:not(.display-only) .player-display.map-live::before{content:'GM MAP CONTROL
   .party-hud{
     left:8px;
     right:auto;
-    bottom:8px;
+    top:8px;
+    bottom:auto;
     width:min(210px,calc(100% - 16px));
     max-height:46%;
     padding:25px 6px 6px;
