@@ -406,6 +406,57 @@ async function uploadAsset(e){
   }
 }
 
+async function generateAiBackdrop(){
+  if(!isGM)return;
+  const name=els.aiSceneName.value.trim();
+  const subtitle=els.aiSceneSubtitle.value.trim();
+  const prompt=els.aiPrompt.value.trim();
+  const quality=els.aiQuality.value;
+  if(!name){els.aiStatus.textContent='Give the scene a name first.';els.aiSceneName.focus();return}
+  if(!prompt){els.aiStatus.textContent='Describe the backdrop you want first.';els.aiPrompt.focus();return}
+  els.generateBackdropBtn.disabled=true;
+  els.aiStatus.textContent='Generating Aestra backdrop…';
+  try{
+    const {data,error}=await supabase.functions.invoke('generate-live-table-backdrop',{
+      body:{campaignId:CAMPAIGN_ID,name,subtitle,prompt,quality}
+    });
+    if(error){
+      let message=error.message||'Generation failed.';
+      try{
+        if(error.context){
+          const details=await error.context.json();
+          if(details?.error)message=details.error;
+        }
+      }catch(_){}
+      throw new Error(message);
+    }
+    if(data?.error)throw new Error(data.error);
+    if(!data?.asset)throw new Error('No scene was returned.');
+    assets=[data.asset,...assets.filter(a=>a.id!==data.asset.id)];
+    els.aiStatus.textContent='Backdrop created and saved. Putting it live now…';
+    await activateScene(data.asset.id);
+    els.aiStatus.textContent='Backdrop created, saved, and live.';
+    els.aiSceneName.value='';
+    els.aiSceneSubtitle.value='';
+    els.aiPrompt.value='';
+    renderAll();
+  }catch(err){
+    console.error(err);
+    const msg=err?.message||'Could not generate the backdrop.';
+    els.aiStatus.textContent=msg.includes('OPENAI_API_KEY')
+      ? 'AI generator is installed, but the OpenAI API key still needs to be added to the Supabase function secrets.'
+      : msg;
+  }finally{
+    els.generateBackdropBtn.disabled=false;
+  }
+}
+
+function addAiPromptChip(value){
+  const current=els.aiPrompt.value.trim();
+  els.aiPrompt.value=current?current.replace(/[,. ]*$/,'')+', '+value:value;
+  els.aiPrompt.focus();
+}
+
 function subscribeRealtime(){
   supabase.channel('aestra-live-state')
     .on('postgres_changes',{event:'*',schema:'public',table:'live_table_state',filter:'campaign_id=eq.'+CAMPAIGN_ID},payload=>{if(payload.new){state=payload.new;renderAll()}})
@@ -460,6 +511,8 @@ function wire(){
   els.importInteractiveMapBtn.addEventListener('click',()=>els.interactiveMapFile.click());
   els.interactiveMapFile.addEventListener('change',importInteractiveMap);
   els.openMapEditorBtn.addEventListener('click',openMapEditor);
+  els.generateBackdropBtn.addEventListener('click',generateAiBackdrop);
+  document.querySelectorAll('[data-ai-chip]').forEach(b=>b.addEventListener('click',()=>addAiPromptChip(b.dataset.aiChip)));
 }
 
 async function startApp(){
