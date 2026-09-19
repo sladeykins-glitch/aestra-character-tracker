@@ -16,6 +16,8 @@ let mapMirrorPollTimer=null,mapCameraPollTimer=null,mapJourneyPollTimer=null,las
 let mapCameraPersistTimer=null;
 let playerMapStatePollTimer=null,lastPlayerMapStateUpdatedAt='';
 let mapStatePersistBusy=false,mapStatePersistPending=null,lastMapStatePersistAt=0;
+let cueSequenceDragId='';
+const cuePreloadedUrls=new Set();
 
 const esc=s=>String(s??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const byId=id=>assets.find(a=>a.id===id)||null;
@@ -1306,6 +1308,34 @@ function scenePresets(){
     .slice(0,36);
 }
 
+function cueSequence(){
+  const raw=state?.cue_sequence;
+  if(!Array.isArray(raw))return [];
+  return raw
+    .filter(item=>item&&typeof item==='object'&&typeof item.id==='string'&&typeof item.preset_id==='string')
+    .map(item=>({
+      id:item.id,
+      preset_id:item.preset_id,
+      notes:typeof item.notes==='string'?item.notes.slice(0,240):''
+    }))
+    .slice(0,80);
+}
+
+function cueSequenceIndex(){
+  const seq=cueSequence();
+  const raw=Number(state?.cue_sequence_index);
+  if(!Number.isInteger(raw)||raw<0)return -1;
+  return Math.min(raw,Math.max(-1,seq.length-1));
+}
+
+function cuePresetById(id){
+  return scenePresets().find(p=>p.id===id)||null;
+}
+
+function cueItemPreset(item){
+  return item?cuePresetById(item.preset_id):null;
+}
+
 function normalizeCueEffects(raw){
   const effects=Array.isArray(raw?.effects)
     ? [...new Set(raw.effects.filter(effect=>SCENE_EFFECT_KEYS.includes(effect)))]
@@ -1399,12 +1429,14 @@ function renderCuePresets(){
       '<small class="cue-preset-summary">'+esc(cueSummary(snapshot))+'</small>'+
       '<div class="cue-preset-actions">'+
         '<button type="button" class="cue-go" data-cue-go="'+esc(p.id)+'">'+(isCurrent?'LIVE':'GO')+'</button>'+
+        '<button type="button" class="cue-add-run" data-cue-add-run="'+esc(p.id)+'" title="Add this cue to Tonight\'s Session">ADD</button>'+
         '<button type="button" class="cue-update" data-cue-update="'+esc(p.id)+'" title="Replace this cue with the current Live Table setup">UPDATE</button>'+
         '<button type="button" class="cue-delete" data-cue-delete="'+esc(p.id)+'" title="Delete cue">×</button>'+
       '</div>'+
     '</article>';
   }).join('');
   els.cuePresetList.querySelectorAll('[data-cue-go]').forEach(b=>b.addEventListener('click',()=>applyCuePreset(b.dataset.cueGo)));
+  els.cuePresetList.querySelectorAll('[data-cue-add-run]').forEach(b=>b.addEventListener('click',()=>addCueToSequence(b.dataset.cueAddRun)));
   els.cuePresetList.querySelectorAll('[data-cue-update]').forEach(b=>b.addEventListener('click',()=>updateCuePreset(b.dataset.cueUpdate)));
   els.cuePresetList.querySelectorAll('[data-cue-delete]').forEach(b=>b.addEventListener('click',()=>deleteCuePreset(b.dataset.cueDelete)));
 }
@@ -1436,17 +1468,23 @@ async function updateCuePreset(id){
 
 async function deleteCuePreset(id){
   if(!canGMControl())return;
-  const preset=scenePresets().find(p=>p.id===id);
+  const preset=cuePresetById(id);
   if(!preset)return;
   if(!confirm('Delete cue "'+(preset.name||'Untitled Cue')+'"?'))return;
-  await patchState({scene_presets:scenePresets().filter(p=>p.id!==id)});
+  const seq=cueSequence();
+  const currentIndex=cueSequenceIndex();
+  const currentItemId=currentIndex>=0?seq[currentIndex]?.id:null;
+  const nextSeq=seq.filter(item=>item.preset_id!==id);
+  const nextIndex=currentItemId?nextSeq.findIndex(item=>item.id===currentItemId):-1;
+  await patchState({
+    scene_presets:scenePresets().filter(p=>p.id!==id),
+    cue_sequence:nextSeq,
+    cue_sequence_index:nextIndex
+  });
 }
 
-async function applyCuePreset(id){
-  if(!canGMControl())return;
-  const preset=scenePresets().find(p=>p.id===id);
-  if(!preset)return;
-  const s=preset.snapshot||{};
+function buildCuePatch(snapshot){
+  const s=snapshot||{};
   const assetId=idValue=>idValue&&byId(idValue)?idValue:null;
   const sceneId=assetId(s.active_scene_id);
   const revealId=assetId(s.active_reveal_id);
@@ -1455,8 +1493,7 @@ async function applyCuePreset(id){
   if(mode==='map'&&!mapId)mode=sceneId?'scene':'title';
   if(mode==='reveal'&&!revealId)mode=sceneId?'scene':'title';
   if(mode==='scene'&&s.active_scene_id&&!sceneId)mode='title';
-
-  await patchState({
+  return {
     mode,
     active_scene_id:sceneId,
     active_reveal_id:revealId,
@@ -1468,7 +1505,219 @@ async function applyCuePreset(id){
     reveal_style:typeof s.reveal_style==='string'?s.reveal_style:'focus',
     hud_visible:s.hud_visible!==false,
     scene_effects:normalizeCueEffects(s.scene_effects)
+  };
+}
+
+function preloadCueSnapshot(snapshot){
+  const s=snapshot||{};
+  const ids=[s.active_scene_id,s.active_reveal_id,s.pinned_left_id,s.pinned_right_id];
+  for(const id of ids){
+    const asset=byId(id);
+    const url=asset?.image_url||'';
+    if(!url||cuePreloadedUrls.has(url)||isInteractiveMap(asset))continue;
+    cuePreloadedUrls.add(url);
+    const img=new Image();
+    img.decoding='async';
+    img.src=url;
+  }
+}
+
+function preloadNextCueArtwork(){
+  const seq=cueSequence();
+  const index=cueSequenceIndex();
+  const nextIndex=index<0?0:index+1;
+  const preset=cueItemPreset(seq[nextIndex]);
+  if(preset)preloadCueSnapshot(preset.snapshot);
+}
+
+async function applyCuePreset(id){
+  if(!canGMControl())return;
+  const preset=cuePresetById(id);
+  if(!preset)return;
+  preloadCueSnapshot(preset.snapshot);
+  await patchState(buildCuePatch(preset.snapshot));
+}
+
+function cueRunName(item){
+  const preset=cueItemPreset(item);
+  return preset?.name||'Missing Cue';
+}
+
+function renderCueSequence(){
+  if(!els.cueSequenceList)return;
+  const seq=cueSequence();
+  const index=cueSequenceIndex();
+  const currentItem=index>=0?seq[index]:null;
+  const nextItem=seq[index<0?0:index+1]||null;
+  const liveName=currentItem?cueRunName(currentItem):'Not started';
+  const nextName=nextItem?cueRunName(nextItem):(seq.length?'End of session run':'No cues queued');
+
+  if(els.cueRunLive)els.cueRunLive.textContent=liveName;
+  if(els.cueRunNext)els.cueRunNext.textContent=nextName;
+  if(els.cueQuickLive)els.cueQuickLive.textContent=liveName;
+  if(els.cueQuickNext)els.cueQuickNext.textContent=nextName;
+
+  const canPrev=index>0;
+  const canNext=seq.length>0&&(index<0||index<seq.length-1);
+  const nextLabel=!seq.length?'NO CUES':index<0?'START SESSION ›':index<seq.length-1?'NEXT CUE ›':'END OF RUN';
+
+  for(const button of [els.prevCueBtn,els.quickPrevCueBtn]){
+    if(button)button.disabled=!canPrev;
+  }
+  for(const button of [els.nextCueBtn,els.quickNextCueBtn]){
+    if(!button)continue;
+    button.disabled=!canNext;
+    button.textContent=nextLabel;
+  }
+  if(els.resetCueRunBtn)els.resetCueRunBtn.disabled=index<0;
+
+  if(!seq.length){
+    els.cueSequenceList.innerHTML='<p class="cue-sequence-empty">Use ADD on a cue below to build tonight\'s sequence.</p>';
+    return;
+  }
+
+  els.cueSequenceList.innerHTML=seq.map((item,i)=>{
+    const preset=cueItemPreset(item);
+    const live=i===index;
+    const next=i===(index<0?0:index+1);
+    const mode=preset?.snapshot?.mode||'scene';
+    return '<article class="cue-sequence-item'+(live?' is-live':'')+(next?' is-next':'')+'" draggable="true" data-sequence-id="'+esc(item.id)+'">'+
+      '<div class="cue-sequence-handle" title="Drag to reorder">⋮⋮</div>'+
+      '<div class="cue-sequence-main">'+
+        '<div class="cue-sequence-title-row">'+
+          '<span class="cue-sequence-number">'+String(i+1).padStart(2,'0')+'</span>'+
+          '<strong class="cue-sequence-name">'+esc(preset?.name||'Missing Cue')+'</strong>'+
+          '<span class="cue-mode-badge">'+esc(cueModeLabel(mode))+'</span>'+
+          (live?'<span class="cue-sequence-state">LIVE</span>':'')+
+        '</div>'+
+        '<input class="cue-sequence-note" data-sequence-note="'+esc(item.id)+'" maxlength="240" value="'+esc(item.notes||'')+'" placeholder="GM note — e.g. read Iris letter after this" />'+
+      '</div>'+
+      '<div class="cue-sequence-actions">'+
+        '<button type="button" class="cue-sequence-go" data-sequence-go="'+esc(item.id)+'">GO</button>'+
+        '<button type="button" class="cue-sequence-remove" data-sequence-remove="'+esc(item.id)+'" title="Remove from session run">×</button>'+
+      '</div>'+
+    '</article>';
+  }).join('');
+
+  els.cueSequenceList.querySelectorAll('[data-sequence-go]').forEach(button=>
+    button.addEventListener('click',()=>runCueSequenceItem(button.dataset.sequenceGo))
+  );
+  els.cueSequenceList.querySelectorAll('[data-sequence-remove]').forEach(button=>
+    button.addEventListener('click',()=>removeCueFromSequence(button.dataset.sequenceRemove))
+  );
+  els.cueSequenceList.querySelectorAll('[data-sequence-note]').forEach(input=>
+    input.addEventListener('change',()=>saveCueSequenceNote(input.dataset.sequenceNote,input.value))
+  );
+
+  els.cueSequenceList.querySelectorAll('.cue-sequence-item').forEach(item=>{
+    item.addEventListener('dragstart',event=>{
+      cueSequenceDragId=item.dataset.sequenceId||'';
+      item.classList.add('dragging');
+      if(event.dataTransfer){
+        event.dataTransfer.effectAllowed='move';
+        event.dataTransfer.setData('text/plain',cueSequenceDragId);
+      }
+    });
+    item.addEventListener('dragend',()=>{
+      cueSequenceDragId='';
+      item.classList.remove('dragging');
+      els.cueSequenceList.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over'));
+    });
+    item.addEventListener('dragover',event=>{
+      event.preventDefault();
+      if(cueSequenceDragId&&cueSequenceDragId!==item.dataset.sequenceId)item.classList.add('drag-over');
+    });
+    item.addEventListener('dragleave',()=>item.classList.remove('drag-over'));
+    item.addEventListener('drop',event=>{
+      event.preventDefault();
+      item.classList.remove('drag-over');
+      const source=cueSequenceDragId||event.dataTransfer?.getData('text/plain')||'';
+      reorderCueSequence(source,item.dataset.sequenceId||'');
+    });
   });
+
+  preloadNextCueArtwork();
+}
+
+async function addCueToSequence(presetId){
+  if(!canGMControl()||!cuePresetById(presetId))return;
+  const item={
+    id:crypto.randomUUID?crypto.randomUUID():'run-'+Date.now().toString(36),
+    preset_id:presetId,
+    notes:''
+  };
+  await patchState({cue_sequence:[...cueSequence(),item].slice(0,80)});
+}
+
+async function removeCueFromSequence(itemId){
+  if(!canGMControl())return;
+  const seq=cueSequence();
+  const removeIndex=seq.findIndex(item=>item.id===itemId);
+  if(removeIndex<0)return;
+  const currentIndex=cueSequenceIndex();
+  const currentItemId=currentIndex>=0?seq[currentIndex]?.id:null;
+  const nextSeq=seq.filter(item=>item.id!==itemId);
+  let nextIndex=-1;
+  if(currentItemId&&currentItemId!==itemId)nextIndex=nextSeq.findIndex(item=>item.id===currentItemId);
+  await patchState({cue_sequence:nextSeq,cue_sequence_index:nextIndex});
+}
+
+async function saveCueSequenceNote(itemId,value){
+  if(!canGMControl())return;
+  const next=cueSequence().map(item=>item.id===itemId?{...item,notes:String(value||'').slice(0,240)}:item);
+  await patchState({cue_sequence:next});
+}
+
+async function reorderCueSequence(sourceId,targetId){
+  if(!canGMControl()||!sourceId||!targetId||sourceId===targetId)return;
+  const seq=cueSequence();
+  const from=seq.findIndex(item=>item.id===sourceId);
+  const to=seq.findIndex(item=>item.id===targetId);
+  if(from<0||to<0)return;
+  const currentIndex=cueSequenceIndex();
+  const currentItemId=currentIndex>=0?seq[currentIndex]?.id:null;
+  const next=seq.slice();
+  const [moved]=next.splice(from,1);
+  const targetIndex=next.findIndex(item=>item.id===targetId);
+  next.splice(Math.max(0,targetIndex),0,moved);
+  const nextIndex=currentItemId?next.findIndex(item=>item.id===currentItemId):-1;
+  await patchState({cue_sequence:next,cue_sequence_index:nextIndex});
+}
+
+async function runCueSequenceAt(index){
+  if(!canGMControl())return;
+  const seq=cueSequence();
+  if(index<0||index>=seq.length)return;
+  const preset=cueItemPreset(seq[index]);
+  if(!preset){
+    alert('That cue no longer exists in the Cue Library.');
+    return;
+  }
+  preloadCueSnapshot(preset.snapshot);
+  await patchState({...buildCuePatch(preset.snapshot),cue_sequence_index:index});
+}
+
+async function runCueSequenceItem(itemId){
+  const index=cueSequence().findIndex(item=>item.id===itemId);
+  if(index>=0)await runCueSequenceAt(index);
+}
+
+async function nextCueInSequence(){
+  const seq=cueSequence();
+  if(!seq.length)return;
+  const current=cueSequenceIndex();
+  const next=current<0?0:current+1;
+  if(next<seq.length)await runCueSequenceAt(next);
+}
+
+async function previousCueInSequence(){
+  const current=cueSequenceIndex();
+  if(current>0)await runCueSequenceAt(current-1);
+}
+
+async function resetCueRun(){
+  if(!canGMControl()||cueSequenceIndex()<0)return;
+  await patchState({cue_sequence_index:-1});
 }
 
 function renderRecent(){
@@ -1477,7 +1726,7 @@ function renderRecent(){
   els.recentList.querySelectorAll('[data-recent]').forEach(b=>b.addEventListener('click',()=>showReveal(b.dataset.recent)));
 }
 
-function renderAll(){renderDisplay();renderScenes();renderCuePresets();renderRevealGrid();renderRecent()}
+function renderAll(){renderDisplay();renderScenes();renderCueSequence();renderCuePresets();renderRevealGrid();renderRecent()}
 
 async function patchState(patch){
   if(!canGMControl())return;
@@ -1941,6 +2190,11 @@ function wire(){
     await patchState({scene_effects:{...cfg,effects:[]}});
   });
   els.saveCuePresetBtn?.addEventListener('click',saveCuePreset);
+  els.nextCueBtn?.addEventListener('click',nextCueInSequence);
+  els.quickNextCueBtn?.addEventListener('click',nextCueInSequence);
+  els.prevCueBtn?.addEventListener('click',previousCueInSequence);
+  els.quickPrevCueBtn?.addEventListener('click',previousCueInSequence);
+  els.resetCueRunBtn?.addEventListener('click',resetCueRun);
   els.cuePresetName?.addEventListener('keydown',event=>{
     if(event.key!=='Enter')return;
     event.preventDefault();
