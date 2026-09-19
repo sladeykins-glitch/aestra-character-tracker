@@ -310,7 +310,19 @@ async function mountInteractiveMap(asset,role='player'){
     }
     mapBridgeReady=false;
     frame.removeAttribute('src');
-    frame.onload=()=>{if(mapState?.state)sendMapStateToFrame()};
+    frame.onload=()=>{
+      setTimeout(()=>{
+        try{
+          const bridge=frame.contentWindow?.AestraLiveBridge;
+          if(els.mapImportStatus&&bridge){
+            els.mapImportStatus.textContent=(role==='gm')
+              ? 'GM atlas bridge connected — full live mirroring active.'
+              : 'Player atlas bridge connected — Presentation view synced.';
+          }
+        }catch(_){}
+        if(mapState?.state)sendMapStateToFrame();
+      },180);
+    };
     frame.srcdoc=mapSourceForRole(source,role);
     frame.dataset.assetId=asset.id;
     frame.dataset.role=role;
