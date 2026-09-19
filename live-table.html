@@ -135,6 +135,23 @@
           </div>
           <p id="sceneFxStatus" class="scene-fx-status">No scene effects active.</p>
         </div>
+
+        <div id="cuePresetsPanel" class="cue-presets-panel">
+          <div class="cue-presets-head">
+            <div>
+              <p class="eyebrow">Session Cues</p>
+              <h3>Scene Presets</h3>
+            </div>
+            <span id="cuePresetCount" class="cue-preset-count">0</span>
+          </div>
+          <div class="cue-save-row">
+            <input id="cuePresetName" type="text" maxlength="60" placeholder="Rübenberg Festival — Storm" />
+            <button id="saveCuePresetBtn" type="button" class="primary">Save Current</button>
+          </div>
+          <p class="cue-preset-help">Saves the current display mode, backdrop or reveal, location title, pinned visuals, Party HUD and atmosphere.</p>
+          <div id="cuePresetList" class="cue-preset-list"></div>
+        </div>
+
         <div class="map-tool-stack">
           <button id="setMapAssetBtn" type="button" class="wide">Choose World Map</button>
           <button id="importInteractiveMapBtn" type="button" class="wide primary">Import Interactive Map</button>
