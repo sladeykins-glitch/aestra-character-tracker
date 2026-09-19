@@ -585,3 +585,45 @@ body:not(.display-only) .player-display.map-live::before{content:'GM MAP CONTROL
   .scene-fx-canvas{display:none}
   .scene-fx-flash{display:none}
 }
+
+
+/* Stronger atmosphere tuning v3 */
+.scene-effects.intensity-1{--scene-fx-strength:.58}
+.scene-effects.intensity-2{--scene-fx-strength:.96}
+.scene-effects.intensity-3{--scene-fx-strength:1.34}
+
+.scene-effects.fx-storm .scene-fx-grade{
+  opacity:calc(var(--scene-fx-strength) * .76);
+  background:
+    linear-gradient(180deg,rgba(10,21,33,.58),rgba(2,6,11,.24)),
+    radial-gradient(circle at 72% 6%,rgba(197,226,244,.16),transparent 35%);
+}
+.scene-effects.fx-heat .scene-fx-grade{
+  opacity:calc(var(--scene-fx-strength) * .64);
+  background:
+    linear-gradient(180deg,rgba(240,150,64,.14),transparent 45%,rgba(146,57,18,.23)),
+    radial-gradient(circle at 48% 115%,rgba(245,160,67,.23),transparent 43%);
+  backdrop-filter:saturate(1.16) sepia(.13);
+}
+.scene-effects.fx-cold .scene-fx-grade{
+  opacity:calc(var(--scene-fx-strength) * .64);
+  background:
+    linear-gradient(180deg,rgba(76,158,204,.26),rgba(22,77,113,.11) 54%,rgba(10,39,65,.27)),
+    radial-gradient(circle at 50% 38%,transparent 38%,rgba(8,31,51,.24) 100%);
+  mix-blend-mode:screen;
+  backdrop-filter:saturate(.78) contrast(1.05);
+}
+.scene-effects.fx-magic .scene-fx-grade{
+  opacity:calc(var(--scene-fx-strength) * .54);
+  background:
+    radial-gradient(circle at 18% 26%,rgba(65,206,235,.25),transparent 29%),
+    radial-gradient(circle at 76% 60%,rgba(193,86,229,.23),transparent 32%),
+    linear-gradient(118deg,transparent 22%,rgba(224,187,83,.12) 48%,transparent 72%);
+  mix-blend-mode:screen;
+  backdrop-filter:saturate(1.28);
+}
+.scene-effects.fx-mist .scene-fx-grade{
+  opacity:calc(var(--scene-fx-strength) * .28);
+  background:linear-gradient(180deg,rgba(227,235,232,.10),rgba(202,221,221,.17));
+}
+.scene-effects.fx-rain .scene-fx-grade:not(:empty){}
