@@ -1785,6 +1785,242 @@ async function applyCuePreset(id){
   await patchState(buildCuePatch(preset.snapshot));
 }
 
+function audioTrackOptions(selectedId){
+  const library=audioLibrary();
+  const options=['<option value="">— None —</option>'];
+  for(const track of library){
+    options.push('<option value="'+esc(track.id)+'"'+(track.id===selectedId?' selected':'')+'>'+esc(track.name)+'</option>');
+  }
+  return options.join('');
+}
+
+function renderAudioControls(){
+  if(!els.cueAudioPanel||!state)return;
+  const cfg=normalizeAudioState(state.audio_state);
+  const library=audioLibrary();
+
+  if(els.musicTrackSelect)els.musicTrackSelect.innerHTML=audioTrackOptions(cfg.music_id);
+  if(els.ambienceTrackSelect)els.ambienceTrackSelect.innerHTML=audioTrackOptions(cfg.ambience_id);
+  if(els.musicVolume)els.musicVolume.value=String(Math.round(cfg.music_volume*100));
+  if(els.ambienceVolume)els.ambienceVolume.value=String(Math.round(cfg.ambience_volume*100));
+  if(els.audioMasterVolume)els.audioMasterVolume.value=String(Math.round(cfg.master_volume*100));
+  if(els.audioFadeMs)els.audioFadeMs.value=String(cfg.fade_ms);
+  if(els.audioMuteBtn)els.audioMuteBtn.textContent=cfg.muted?'Resume':'Mute';
+  if(els.audioEmergencyBtn){
+    els.audioEmergencyBtn.textContent=cfg.muted?'Audio Faded':'Fade Out';
+    els.audioEmergencyBtn.disabled=cfg.muted;
+  }
+
+  const musicName=audioById(cfg.music_id)?.name||'None';
+  const ambienceName=audioById(cfg.ambience_id)?.name||'None';
+  if(els.audioStatus){
+    els.audioStatus.textContent=(cfg.muted?'MUTED • ':'')+
+      'Music: '+musicName+' • Ambience: '+ambienceName+' • '+(cfg.fade_ms/1000).toFixed(1)+'s crossfade';
+  }
+
+  if(!els.audioLibraryList)return;
+  if(!library.length){
+    els.audioLibraryList.innerHTML='<p class="audio-library-empty">Upload MP3, M4A, OGG or WAV tracks here. The same track can be used as Music or Ambience.</p>';
+    return;
+  }
+
+  els.audioLibraryList.innerHTML=library.map(track=>
+    '<article class="audio-library-item" data-audio-id="'+esc(track.id)+'">'+
+      '<div class="audio-library-meta">'+
+        '<input class="audio-library-name" data-audio-rename="'+esc(track.id)+'" maxlength="80" value="'+esc(track.name)+'" />'+
+        '<small>'+esc((track.mime||'audio').replace('audio/','').toUpperCase())+'</small>'+
+      '</div>'+
+      '<div class="audio-library-actions">'+
+        '<button type="button" data-audio-preview="'+esc(track.id)+'">TEST</button>'+
+        '<button type="button" class="audio-delete" data-audio-delete="'+esc(track.id)+'">×</button>'+
+      '</div>'+
+    '</article>'
+  ).join('');
+
+  els.audioLibraryList.querySelectorAll('[data-audio-rename]').forEach(input=>
+    input.addEventListener('change',()=>renameAudioTrack(input.dataset.audioRename,input.value))
+  );
+  els.audioLibraryList.querySelectorAll('[data-audio-preview]').forEach(button=>
+    button.addEventListener('click',()=>previewAudioTrack(button.dataset.audioPreview))
+  );
+  els.audioLibraryList.querySelectorAll('[data-audio-delete]').forEach(button=>
+    button.addEventListener('click',()=>deleteAudioTrack(button.dataset.audioDelete))
+  );
+}
+
+async function setAudioStatePatch(patch){
+  if(!canGMControl())return null;
+  const current=normalizeAudioState(state?.audio_state);
+  return patchState({audio_state:{...current,...patch,emergency:patch.emergency===true}});
+}
+
+async function setCueAudioChannel(channel,id){
+  const key=channel==='ambience'?'ambience_id':'music_id';
+  const value=id&&audioById(id)?id:null;
+  await setAudioStatePatch({[key]:value,emergency:false});
+}
+
+async function setCueAudioVolume(channel,value){
+  const key=channel==='ambience'?'ambience_volume':'music_volume';
+  await setAudioStatePatch({[key]:clamp01(Number(value)/100),emergency:false});
+}
+
+async function setAudioMasterVolume(value){
+  await setAudioStatePatch({master_volume:clamp01(Number(value)/100),emergency:false});
+}
+
+async function setAudioCrossfade(value){
+  const fade=[800,1800,3000,5000].includes(Number(value))?Number(value):1800;
+  await setAudioStatePatch({fade_ms:fade,emergency:false});
+}
+
+async function toggleAudioMute(){
+  const cfg=normalizeAudioState(state?.audio_state);
+  await setAudioStatePatch({muted:!cfg.muted,emergency:false});
+}
+
+async function emergencyAudioFade(){
+  const cfg=normalizeAudioState(state?.audio_state);
+  if(cfg.muted)return;
+  await setAudioStatePatch({muted:true,emergency:true});
+}
+
+function audioMimeForFile(file){
+  if(file?.type&&['audio/mpeg','audio/mp4','audio/ogg','audio/wav','audio/x-wav'].includes(file.type))return file.type;
+  const ext=(file?.name?.split('.').pop()||'').toLowerCase();
+  return ({mp3:'audio/mpeg',m4a:'audio/mp4',mp4:'audio/mp4',ogg:'audio/ogg',wav:'audio/wav'})[ext]||'audio/mpeg';
+}
+
+function audioNameFromFile(file){
+  return String(file?.name||'Untitled Track')
+    .replace(/\.[^.]+$/,'')
+    .replace(/[_-]+/g,' ')
+    .replace(/\s+/g,' ')
+    .trim()
+    .slice(0,80)||'Untitled Track';
+}
+
+async function uploadAudioTrack(){
+  if(!canGMControl())return;
+  const file=els.audioTrackFile?.files?.[0];
+  if(els.audioTrackFile)els.audioTrackFile.value='';
+  if(!file)return;
+  if(file.size>20*1024*1024){
+    alert('Audio tracks must be 20 MB or smaller.');
+    return;
+  }
+
+  if(els.audioStatus)els.audioStatus.textContent='Uploading audio track…';
+  if(els.addAudioTrackBtn)els.addAudioTrackBtn.disabled=true;
+  const id=crypto.randomUUID?crypto.randomUUID():'audio-'+Date.now().toString(36);
+  const ext=(file.name.split('.').pop()||'mp3').toLowerCase().replace(/[^a-z0-9]/g,'')||'mp3';
+  const storagePath=CAMPAIGN_ID+'/live-table/'+id+'.'+ext;
+
+  try{
+    const mime=audioMimeForFile(file);
+    const up=await supabase.storage.from('campaign-audio').upload(storagePath,file,{
+      cacheControl:'3600',
+      upsert:false,
+      contentType:mime
+    });
+    if(up.error)throw up.error;
+
+    const url=supabase.storage.from('campaign-audio').getPublicUrl(storagePath).data.publicUrl;
+    const track={
+      id,
+      name:audioNameFromFile(file),
+      url,
+      storage_path:storagePath,
+      mime,
+      created_at:new Date().toISOString()
+    };
+    const saved=await patchState({audio_library:[track,...audioLibrary()].slice(0,60)});
+    if(!saved){
+      await supabase.storage.from('campaign-audio').remove([storagePath]);
+      return;
+    }
+    if(els.audioStatus)els.audioStatus.textContent='Track uploaded. Choose it for Music or Ambience.';
+  }catch(err){
+    console.error('Live Table audio upload failed',err);
+    alert(err?.message||'Could not upload the audio track.');
+  }finally{
+    if(els.addAudioTrackBtn)els.addAudioTrackBtn.disabled=false;
+  }
+}
+
+async function renameAudioTrack(id,value){
+  if(!canGMControl())return;
+  const name=String(value||'').trim().slice(0,80);
+  if(!name){renderAudioControls();return}
+  const next=audioLibrary().map(track=>track.id===id?{...track,name}:track);
+  await patchState({audio_library:next});
+}
+
+function previewAudioTrack(id){
+  if(!canGMControl())return;
+  const track=audioById(id);
+  if(!track)return;
+  if(gmAudioPreview){
+    const same=gmAudioPreview.dataset?.trackId===id&&!gmAudioPreview.paused;
+    gmAudioPreview.pause();
+    gmAudioPreview.remove();
+    gmAudioPreview=null;
+    if(same)return;
+  }
+  const audio=new Audio(track.url);
+  audio.dataset.trackId=id;
+  audio.loop=true;
+  audio.volume=.3;
+  audio.preload='auto';
+  document.body.appendChild(audio);
+  gmAudioPreview=audio;
+  audio.play().catch(err=>console.warn('GM audio preview blocked',err));
+}
+
+async function deleteAudioTrack(id){
+  if(!canGMControl())return;
+  const track=audioById(id);
+  if(!track)return;
+  if(!confirm('Delete audio track "'+track.name+'"? Saved cues using it will be changed to no track.'))return;
+
+  if(gmAudioPreview?.dataset?.trackId===id){
+    gmAudioPreview.pause();
+    gmAudioPreview.remove();
+    gmAudioPreview=null;
+  }
+
+  const current=normalizeAudioState(state?.audio_state);
+  const nextState={
+    ...current,
+    music_id:current.music_id===id?null:current.music_id,
+    ambience_id:current.ambience_id===id?null:current.ambience_id,
+    emergency:false
+  };
+
+  const nextPresets=scenePresets().map(preset=>{
+    const cueAudio=normalizeCueAudio(preset.snapshot?.audio);
+    if(!cueAudio)return preset;
+    const nextAudio={
+      ...cueAudio,
+      music_id:cueAudio.music_id===id?null:cueAudio.music_id,
+      ambience_id:cueAudio.ambience_id===id?null:cueAudio.ambience_id
+    };
+    return {...preset,snapshot:{...preset.snapshot,audio:nextAudio}};
+  });
+
+  const saved=await patchState({
+    audio_library:audioLibrary().filter(item=>item.id!==id),
+    audio_state:nextState,
+    scene_presets:nextPresets
+  });
+  if(!saved)return;
+
+  if(track.storage_path){
+    const removed=await supabase.storage.from('campaign-audio').remove([track.storage_path]);
+    if(removed.error)console.warn('Could not remove audio storage object',removed.error);
+  }
+}
+
 function cueRunName(item){
   const preset=cueItemPreset(item);
   return preset?.name||'Missing Cue';
@@ -2440,6 +2676,17 @@ function wire(){
     const cfg=sceneEffectState();
     await patchState({scene_effects:{...cfg,effects:[]}});
   });
+  els.audioUnlockBtn?.addEventListener('click',()=>getLiveAudioEngine().unlock());
+  els.addAudioTrackBtn?.addEventListener('click',()=>els.audioTrackFile?.click());
+  els.audioTrackFile?.addEventListener('change',uploadAudioTrack);
+  els.musicTrackSelect?.addEventListener('change',()=>setCueAudioChannel('music',els.musicTrackSelect.value));
+  els.ambienceTrackSelect?.addEventListener('change',()=>setCueAudioChannel('ambience',els.ambienceTrackSelect.value));
+  els.musicVolume?.addEventListener('change',()=>setCueAudioVolume('music',els.musicVolume.value));
+  els.ambienceVolume?.addEventListener('change',()=>setCueAudioVolume('ambience',els.ambienceVolume.value));
+  els.audioMasterVolume?.addEventListener('change',()=>setAudioMasterVolume(els.audioMasterVolume.value));
+  els.audioFadeMs?.addEventListener('change',()=>setAudioCrossfade(els.audioFadeMs.value));
+  els.audioMuteBtn?.addEventListener('click',toggleAudioMute);
+  els.audioEmergencyBtn?.addEventListener('click',emergencyAudioFade);
   els.saveCuePresetBtn?.addEventListener('click',saveCuePreset);
   els.nextCueBtn?.addEventListener('click',nextCueInSequence);
   els.quickNextCueBtn?.addEventListener('click',nextCueInSequence);
