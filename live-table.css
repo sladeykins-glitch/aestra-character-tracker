@@ -746,3 +746,151 @@ body:not(.display-only) .player-display.map-live::before{content:'GM MAP CONTROL
   .audio-channel-grid{grid-template-columns:1fr}
   .audio-settings-row{grid-template-columns:1fr}
 }
+
+
+/* Cue transition styles */
+.cue-transition-panel{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+.cue-transition-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.cue-transition-head h3{margin:0;font:700 14px Georgia,serif;letter-spacing:.04em}
+.cue-transition-head button{min-height:30px;padding:0 9px;border:1px solid rgba(202,169,85,.32);border-radius:8px;background:rgba(74,59,27,.22);color:#e4cc8a;font-size:8px}
+.cue-transition-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px}
+.cue-transition-grid label{display:grid;gap:5px}
+.cue-transition-grid label span{font-size:8px;color:#a7afb6;letter-spacing:.08em;text-transform:uppercase}
+.cue-transition-grid select{width:100%;border:1px solid var(--line);border-radius:8px;background:#0a0f14;color:var(--text);padding:7px 8px;font-size:9px;outline:none}
+.cue-transition-grid select:focus{border-color:rgba(202,169,85,.55)}
+.transition-status{margin:7px 0 0;color:var(--muted);font-size:8px;line-height:1.4}
+
+.transition-fx{position:absolute;inset:0;z-index:34;pointer-events:none;overflow:hidden}
+.transition-fx>div{position:absolute;inset:-8%;opacity:0;pointer-events:none}
+.transition-wash{background:#030507}
+.transition-flash{background:#fff;mix-blend-mode:screen}
+.transition-shards{background:
+  conic-gradient(from 12deg at 24% 38%,transparent 0 8deg,rgba(232,250,255,.42) 9deg 11deg,transparent 12deg 31deg),
+  conic-gradient(from 198deg at 72% 62%,transparent 0 7deg,rgba(239,201,107,.38) 8deg 10deg,transparent 11deg 30deg);
+  mix-blend-mode:screen;filter:blur(.4px)}
+.transition-scan{background:
+  repeating-linear-gradient(180deg,rgba(121,229,244,.11) 0 2px,transparent 2px 8px),
+  linear-gradient(90deg,rgba(216,71,114,.12),transparent 32%,rgba(91,221,240,.13) 68%,transparent);
+  mix-blend-mode:screen}
+
+.player-display.transition-active{--transition-duration:1250ms}
+.player-display.transition-active.transition-style-soft-fade .transition-wash{animation:aestraSoftFade var(--transition-duration) cubic-bezier(.42,0,.2,1) both}
+.player-display.transition-active.transition-style-dream .transition-wash{background:
+  radial-gradient(circle at 50% 42%,rgba(244,249,255,.74),rgba(146,192,221,.24) 30%,rgba(54,70,108,.58) 67%,rgba(2,5,10,.88));
+  backdrop-filter:blur(7px) saturate(1.08) brightness(1.12);
+  animation:aestraDreamWash var(--transition-duration) ease-in-out both}
+.player-display.transition-active.transition-style-dream .transition-flash{background:radial-gradient(circle,rgba(255,255,255,.7),rgba(168,221,240,.18) 40%,transparent 70%);animation:aestraDreamGlow var(--transition-duration) ease both}
+
+.player-display.transition-active.transition-style-crystal-flash .transition-flash{background:
+  radial-gradient(circle at 50% 48%,#fff 0 8%,rgba(224,252,255,.95) 12%,rgba(117,224,244,.46) 28%,rgba(234,192,91,.24) 48%,transparent 70%);
+  animation:aestraCrystalFlash var(--transition-duration) cubic-bezier(.2,.8,.2,1) both}
+.player-display.transition-active.transition-style-crystal-flash .transition-shards{animation:aestraCrystalShards var(--transition-duration) cubic-bezier(.2,.8,.2,1) both}
+
+.player-display.transition-active.transition-style-relic-glitch .transition-wash{background:
+  repeating-linear-gradient(180deg,rgba(1,6,9,.12) 0 12px,rgba(1,4,7,.68) 12px 19px),
+  linear-gradient(90deg,rgba(77,209,226,.10),rgba(0,0,0,.68),rgba(207,74,117,.10));
+  animation:aestraRelicWash var(--transition-duration) steps(7,end) both}
+.player-display.transition-active.transition-style-relic-glitch .transition-scan{animation:aestraRelicScan var(--transition-duration) steps(10,end) both}
+
+.player-display.transition-active.transition-style-darkness .transition-wash{background:#000;animation:aestraDarkness var(--transition-duration) ease-in-out both}
+
+.player-display.transition-active.transition-style-memory .transition-wash{background:
+  radial-gradient(circle at 50% 42%,rgba(242,225,180,.08),rgba(49,40,30,.26) 54%,rgba(3,4,5,.86) 100%);
+  backdrop-filter:grayscale(.72) sepia(.38) blur(2px) brightness(.92);
+  animation:aestraMemoryWash var(--transition-duration) ease-in-out both}
+
+.player-display.transition-active.transition-style-impact .transition-flash{background:linear-gradient(180deg,#fff,#d7ecf1 24%,rgba(14,22,28,.96) 46%,#020304 100%);animation:aestraImpactFlash var(--transition-duration) cubic-bezier(.12,.8,.2,1) both}
+
+.player-display.transition-active.transition-style-soft-fade .backdrop,
+.player-display.transition-active.transition-style-soft-fade .world-map-frame,
+.player-display.transition-active.transition-style-soft-fade .reveal-layer,
+.player-display.transition-active.transition-style-soft-fade .title-layer,
+.player-display.transition-active.transition-style-soft-fade .blackout-layer,
+.player-display.transition-active.transition-style-soft-fade .pin-card,
+.player-display.transition-active.transition-style-soft-fade .location-title,
+.player-display.transition-active.transition-style-soft-fade .party-hud{animation:aestraSoftContent var(--transition-duration) ease both}
+
+.player-display.transition-active.transition-style-dream .backdrop,
+.player-display.transition-active.transition-style-dream .world-map-frame,
+.player-display.transition-active.transition-style-dream .reveal-layer,
+.player-display.transition-active.transition-style-dream .title-layer,
+.player-display.transition-active.transition-style-dream .blackout-layer,
+.player-display.transition-active.transition-style-dream .pin-card,
+.player-display.transition-active.transition-style-dream .location-title,
+.player-display.transition-active.transition-style-dream .party-hud{animation:aestraDreamContent var(--transition-duration) ease-in-out both}
+
+.player-display.transition-active.transition-style-crystal-flash .backdrop,
+.player-display.transition-active.transition-style-crystal-flash .world-map-frame,
+.player-display.transition-active.transition-style-crystal-flash .reveal-layer,
+.player-display.transition-active.transition-style-crystal-flash .title-layer,
+.player-display.transition-active.transition-style-crystal-flash .blackout-layer,
+.player-display.transition-active.transition-style-crystal-flash .pin-card,
+.player-display.transition-active.transition-style-crystal-flash .location-title,
+.player-display.transition-active.transition-style-crystal-flash .party-hud{animation:aestraCrystalContent var(--transition-duration) ease both}
+
+.player-display.transition-active.transition-style-relic-glitch .backdrop,
+.player-display.transition-active.transition-style-relic-glitch .world-map-frame,
+.player-display.transition-active.transition-style-relic-glitch .reveal-layer,
+.player-display.transition-active.transition-style-relic-glitch .title-layer,
+.player-display.transition-active.transition-style-relic-glitch .blackout-layer,
+.player-display.transition-active.transition-style-relic-glitch .pin-card,
+.player-display.transition-active.transition-style-relic-glitch .location-title,
+.player-display.transition-active.transition-style-relic-glitch .party-hud{animation:aestraRelicContent var(--transition-duration) steps(9,end) both}
+
+.player-display.transition-active.transition-style-memory .backdrop,
+.player-display.transition-active.transition-style-memory .world-map-frame,
+.player-display.transition-active.transition-style-memory .reveal-layer,
+.player-display.transition-active.transition-style-memory .title-layer,
+.player-display.transition-active.transition-style-memory .blackout-layer,
+.player-display.transition-active.transition-style-memory .pin-card,
+.player-display.transition-active.transition-style-memory .location-title,
+.player-display.transition-active.transition-style-memory .party-hud{animation:aestraMemoryContent var(--transition-duration) ease-in-out both}
+
+.player-display.transition-active.transition-style-impact .backdrop,
+.player-display.transition-active.transition-style-impact .world-map-frame,
+.player-display.transition-active.transition-style-impact .reveal-layer,
+.player-display.transition-active.transition-style-impact .title-layer,
+.player-display.transition-active.transition-style-impact .blackout-layer,
+.player-display.transition-active.transition-style-impact .pin-card,
+.player-display.transition-active.transition-style-impact .location-title,
+.player-display.transition-active.transition-style-impact .party-hud{animation:aestraImpactContent var(--transition-duration) cubic-bezier(.15,.75,.18,1) both}
+
+@keyframes aestraSoftFade{0%{opacity:0}32%{opacity:.9}48%{opacity:1}62%{opacity:.92}100%{opacity:0}}
+@keyframes aestraSoftContent{0%,38%{opacity:.08;filter:blur(5px);transform:scale(1.018)}58%{opacity:.42;filter:blur(2px);transform:scale(1.008)}100%{opacity:1;filter:none;transform:none}}
+
+@keyframes aestraDreamWash{0%{opacity:0;transform:scale(.96)}25%{opacity:.52}46%{opacity:.94;transform:scale(1.035)}62%{opacity:.84}100%{opacity:0;transform:scale(1.08)}}
+@keyframes aestraDreamGlow{0%,100%{opacity:0;transform:scale(.6)}42%{opacity:.58;transform:scale(1.12)}}
+@keyframes aestraDreamContent{0%{opacity:.55;filter:blur(2px) brightness(1)}32%{opacity:.12;filter:blur(13px) brightness(1.18);transform:scale(1.035)}52%{opacity:.2;filter:blur(10px) brightness(1.15);transform:scale(1.025)}100%{opacity:1;filter:none;transform:none}}
+
+@keyframes aestraCrystalFlash{0%{opacity:0;transform:scale(.72)}18%{opacity:.22}35%{opacity:1;transform:scale(1.12)}46%{opacity:.92}72%{opacity:.18;transform:scale(1.32)}100%{opacity:0;transform:scale(1.48)}}
+@keyframes aestraCrystalShards{0%{opacity:0;transform:scale(.7) rotate(-3deg)}28%{opacity:.12}42%{opacity:.86;transform:scale(1.03) rotate(0)}64%{opacity:.34}100%{opacity:0;transform:scale(1.38) rotate(3deg)}}
+@keyframes aestraCrystalContent{0%,35%{opacity:.22;filter:brightness(1.25) blur(3px);transform:scale(1.02)}46%{opacity:.02;filter:brightness(2) blur(7px);transform:scale(1.035)}68%{opacity:.62;filter:brightness(1.15) blur(1px)}100%{opacity:1;filter:none;transform:none}}
+
+@keyframes aestraRelicWash{0%{opacity:0}12%{opacity:.5}20%{opacity:.08}29%{opacity:.82}38%{opacity:.22}48%{opacity:.94}58%{opacity:.18}72%{opacity:.55}100%{opacity:0}}
+@keyframes aestraRelicScan{0%{opacity:0;transform:translateX(-7%)}18%{opacity:.6;transform:translateX(4%)}31%{opacity:.14;transform:translateX(-3%)}44%{opacity:.8;transform:translateX(6%)}60%{opacity:.24;transform:translateX(-5%)}78%{opacity:.52;transform:translateX(2%)}100%{opacity:0;transform:translateX(0)}}
+@keyframes aestraRelicContent{0%{opacity:1;transform:none;filter:none}11%{opacity:.68;transform:translateX(6px) skewX(-1deg);filter:hue-rotate(18deg)}19%{opacity:.9;transform:translateX(-9px)}31%{opacity:.35;transform:translateX(14px) skewX(2deg);filter:saturate(1.45)}42%{opacity:.72;transform:translateX(-5px)}53%{opacity:.12;transform:translateX(10px);filter:hue-rotate(-22deg) brightness(1.35)}67%{opacity:.78;transform:translateX(-3px)}100%{opacity:1;transform:none;filter:none}}
+
+@keyframes aestraDarkness{0%{opacity:0}30%{opacity:1}68%{opacity:1}100%{opacity:0}}
+@keyframes aestraMemoryWash{0%{opacity:0}28%{opacity:.52}50%{opacity:.86}68%{opacity:.72}100%{opacity:0}}
+@keyframes aestraMemoryContent{0%{opacity:.9;filter:grayscale(.15)}36%{opacity:.18;filter:grayscale(1) sepia(.42) blur(4px);transform:scale(1.015)}58%{opacity:.3;filter:grayscale(.85) sepia(.34) blur(3px)}100%{opacity:1;filter:none;transform:none}}
+
+@keyframes aestraImpactFlash{0%{opacity:0}11%{opacity:1}20%{opacity:.05}30%{opacity:.88}42%{opacity:.08}58%{opacity:.38}100%{opacity:0}}
+@keyframes aestraImpactContent{0%{opacity:1;transform:scale(1)}12%{opacity:.18;transform:scale(1.045);filter:contrast(1.25) brightness(1.3)}30%{opacity:.04;transform:scale(.985)}54%{opacity:.6;transform:scale(1.012)}100%{opacity:1;transform:none;filter:none}}
+
+@media(prefers-reduced-motion:reduce){
+  .player-display.transition-active .transition-shards,
+  .player-display.transition-active .transition-scan,
+  .player-display.transition-active .transition-flash{display:none!important}
+  .player-display.transition-active .transition-wash{animation:aestraReducedTransition var(--transition-duration) ease both!important;background:#05080b!important;backdrop-filter:none!important}
+  .player-display.transition-active .backdrop,
+  .player-display.transition-active .world-map-frame,
+  .player-display.transition-active .reveal-layer,
+  .player-display.transition-active .title-layer,
+  .player-display.transition-active .blackout-layer,
+  .player-display.transition-active .pin-card,
+  .player-display.transition-active .location-title,
+  .player-display.transition-active .party-hud{animation:none!important}
+}
+@keyframes aestraReducedTransition{0%,100%{opacity:0}45%,58%{opacity:1}}
+
+@media(max-width:640px){.cue-transition-grid{grid-template-columns:1fr}}
