@@ -350,6 +350,10 @@ function transitionLabel(style){
   })[style]||'Soft Fade';
 }
 
+function transitionEnabledForMode(mode){
+  return mode==='scene'||mode==='title';
+}
+
 function transitionNonce(){
   return Number(state?.transition_state?.nonce)||0;
 }
@@ -473,20 +477,14 @@ class TransitionCanvasRenderer{
     }
 
     if(previous==='title'){
-      const g=ctx.createRadialGradient(w*.5,h*.46,0,w*.5,h*.46,Math.max(w,h)*.7);
-      g.addColorStop(0,'#13202a');
-      g.addColorStop(.42,'#081016');
-      g.addColorStop(1,'#020406');
-      ctx.fillStyle=g;
+      ctx.fillStyle='#000';
       ctx.fillRect(0,0,w,h);
-      ctx.fillStyle='rgba(226,197,119,.92)';
-      ctx.textAlign='center';
-      ctx.textBaseline='middle';
-      ctx.font='700 '+Math.max(24,Math.min(54,w*.055))+'px Georgia,serif';
-      ctx.fillText('AESTRA',w*.5,h*.48);
-      ctx.fillStyle='rgba(205,211,215,.62)';
-      ctx.font='500 '+Math.max(9,Math.min(16,w*.015))+'px Georgia,serif';
-      ctx.fillText('AGE OF FADING LIGHT',w*.5,h*.56);
+      const img=els.titleLayer?.querySelector('img');
+      if(img?.complete&&img.naturalWidth){
+        const scale=Math.min(w/img.naturalWidth,h/img.naturalHeight);
+        const dw=img.naturalWidth*scale,dh=img.naturalHeight*scale;
+        ctx.drawImage(img,(w-dw)/2,(h-dh)/2,dw,dh);
+      }
       this.hasSnapshot=true;
       this.snapshotPrepared=true;
       return;
@@ -966,12 +964,12 @@ function playDisplayTransition(config=transitionState()){
 function renderTransitionControls(){
   if(!state)return;
   const cfg=transitionState();
-  const sceneOnly=state?.mode!=='scene';
+  const enabled=transitionEnabledForMode(state?.mode);
   if(els.transitionStyle)els.transitionStyle.value=cfg.style;
   if(els.transitionDuration)els.transitionDuration.value=String(cfg.duration_ms);
-  if(els.previewTransitionBtn)els.previewTransitionBtn.disabled=sceneOnly;
+  if(els.previewTransitionBtn)els.previewTransitionBtn.disabled=!enabled;
   if(els.transitionStatus){
-    els.transitionStatus.textContent=transitionLabel(cfg.style)+' · '+(cfg.duration_ms/1000).toFixed(cfg.duration_ms%1000?2:0)+'s'+(sceneOnly?' · Scene only':'');
+    els.transitionStatus.textContent=transitionLabel(cfg.style)+' · '+(cfg.duration_ms/1000).toFixed(cfg.duration_ms%1000?2:0)+'s'+(!enabled?' · Scene & title only':'');
   }
 }
 
@@ -985,7 +983,7 @@ async function setTransitionSetting(key,value){
 }
 
 async function previewTransition(){
-  if(!canGMControl()||state?.mode!=='scene')return;
+  if(!canGMControl()||!transitionEnabledForMode(state?.mode))return;
   const cfg=transitionState();
   await patchState({transition_state:{...cfg,nonce:nextTransitionNonce()}});
 }
@@ -2075,9 +2073,10 @@ function renderDisplay(){
   const signature=displaySignature(state);
   const currentSceneId=state.active_scene_id||'';
   const currentTransitionNonce=transitionNonce();
-  const sceneChanged=mode==='scene'&&(lastDisplayMode!=='scene'||currentSceneId!==lastRenderedSceneId);
-  const sceneCueTriggered=mode==='scene'&&currentTransitionNonce!==lastRenderedTransitionNonce;
-  if(displayInitialized&&(sceneChanged||sceneCueTriggered)){
+  const transitionTargetChanged=(mode==='scene'&&(lastDisplayMode!=='scene'||currentSceneId!==lastRenderedSceneId))
+    ||(mode==='title'&&lastDisplayMode!=='title');
+  const cueTransitionTriggered=transitionEnabledForMode(mode)&&currentTransitionNonce!==lastRenderedTransitionNonce;
+  if(displayInitialized&&(transitionTargetChanged||cueTransitionTriggered)){
     getTransitionCanvasRenderer()?.preparePreviousMode(lastDisplayMode);
     playDisplayTransition(state?.transition_state);
   }
