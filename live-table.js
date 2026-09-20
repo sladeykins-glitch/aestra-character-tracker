@@ -1006,13 +1006,13 @@ class TransitionCanvasRenderer{
     const close=smoothstep(.03,.5,p);
     const open=smoothstep(.5,.98,p);
     const coverage=p<=.5?close:1-open;
-    const base=Math.max(w,h)*(0.10+coverage*.82);
+    const base=Math.max(w,h)*(0.025+coverage*.86);
     const points=[
       [.50,.48,1.00],[.18,.22,.58],[.82,.24,.62],[.20,.76,.66],
       [.80,.78,.64],[.48,.08,.52],[.52,.92,.55],[.06,.52,.50],[.94,.50,.50]
     ];
     ctx.save();
-    ctx.fillStyle='rgba(3,4,7,'+Math.min(1,.25+coverage*.92)+')';
+    ctx.fillStyle='rgba(3,4,7,'+Math.min(1,coverage*1.18)+')';
     for(let i=0;i<points.length;i++){
       const q=points[i];
       const wobble=1+Math.sin(now*.0011+i*1.73)*.035*coverage;
@@ -1029,7 +1029,7 @@ class TransitionCanvasRenderer{
 
   drawEclipse(p,now){
     const ctx=this.ctx,w=this.width,h=this.height;
-    const half=p<.5?p*2:(1-p)*2;
+    const half=p<.5?1-p*2:(p-.5)*2;
     const oldAlpha=1-smoothstep(.08,.48,p);
     this.drawSnapshot(oldAlpha,'none',1);
 
@@ -1095,7 +1095,7 @@ class TransitionCanvasRenderer{
 
   drawRelicAperture(p,now){
     const ctx=this.ctx,w=this.width,h=this.height;
-    const close=p<.5?smoothstep(0,.5,p):smoothstep(1,.5,p);
+    const close=p<.5?smoothstep(0,.5,p):1-smoothstep(.5,1,p);
     const oldAlpha=1-smoothstep(.12,.5,p);
     this.drawSnapshot(oldAlpha,'none',1);
 
