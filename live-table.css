@@ -1998,3 +1998,253 @@ body.gm-preview-compact .party-hud{
 .scene-thumb img,.reveal-thumb img{
   background:#111820;
 }
+
+
+/* Major / boss character cinematic introductions */
+.major-intro-layer{
+  --intro-accent:#e0bd68;
+  --intro-secondary:#7fd4e6;
+  --intro-duration:4200ms;
+  position:absolute;
+  inset:0;
+  z-index:32;
+  overflow:hidden;
+  pointer-events:none;
+  color:#f5efe1;
+  opacity:0;
+}
+.major-intro-layer[data-style="royal"]{--intro-accent:#efd184;--intro-secondary:#9676b7}
+.major-intro-layer[data-style="ominous"]{--intro-accent:#df6b62;--intro-secondary:#7e1f28}
+.major-intro-layer[data-style="relic"]{--intro-accent:#89e4ef;--intro-secondary:#4a9fc5}
+.major-intro-layer[data-style="faith"]{--intro-accent:#f1dfab;--intro-secondary:#d7c27b}
+.major-intro-layer.is-playing{animation:aestraMajorIntroLayer var(--intro-duration) cubic-bezier(.2,.72,.2,1) both}
+
+.major-intro-backdrop{
+  position:absolute;
+  inset:-4%;
+  background:
+    radial-gradient(circle at 30% 48%,color-mix(in srgb,var(--intro-secondary) 17%,transparent),transparent 28%),
+    radial-gradient(circle at 72% 48%,color-mix(in srgb,var(--intro-accent) 12%,transparent),transparent 35%),
+    linear-gradient(90deg,rgba(1,3,6,.88),rgba(2,5,9,.67) 42%,rgba(2,4,7,.93));
+  backdrop-filter:blur(3px) brightness(.58) saturate(.78);
+}
+.major-intro-layer[data-style="ominous"] .major-intro-backdrop{
+  background:
+    radial-gradient(circle at 32% 54%,rgba(124,20,28,.26),transparent 30%),
+    linear-gradient(90deg,rgba(2,1,3,.92),rgba(14,3,7,.72) 47%,rgba(1,1,3,.96));
+}
+.major-intro-layer[data-style="relic"] .major-intro-backdrop{
+  background:
+    radial-gradient(circle at 30% 48%,rgba(77,195,222,.22),transparent 30%),
+    linear-gradient(90deg,rgba(1,7,11,.91),rgba(4,13,19,.7) 45%,rgba(1,4,8,.95));
+}
+.major-intro-layer[data-style="faith"] .major-intro-backdrop{
+  background:
+    radial-gradient(circle at 34% 42%,rgba(241,223,171,.16),transparent 28%),
+    linear-gradient(90deg,rgba(8,7,4,.91),rgba(17,15,9,.70) 45%,rgba(5,5,4,.95));
+}
+
+.major-intro-stage{
+  position:absolute;
+  inset:0;
+  display:grid;
+  grid-template-columns:minmax(0,1.08fr) minmax(300px,.92fr);
+  align-items:center;
+  gap:clamp(18px,4vw,70px);
+  padding:clamp(34px,5vw,78px) clamp(38px,6vw,100px);
+}
+.major-intro-art-wrap{
+  position:relative;
+  align-self:stretch;
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+  min-width:0;
+}
+.major-intro-art{
+  display:block;
+  width:auto;
+  height:auto;
+  max-width:100%;
+  max-height:88vh;
+  object-fit:contain;
+  transform-origin:50% 100%;
+  filter:drop-shadow(0 24px 34px rgba(0,0,0,.58));
+  -webkit-mask-image:
+    linear-gradient(to right,transparent 0,#000 5%,#000 95%,transparent 100%),
+    linear-gradient(to bottom,#000 0,#000 86%,transparent 100%);
+  -webkit-mask-composite:source-in;
+  mask-image:
+    linear-gradient(to right,transparent 0,#000 5%,#000 95%,transparent 100%),
+    linear-gradient(to bottom,#000 0,#000 86%,transparent 100%);
+  mask-composite:intersect;
+}
+.major-intro-layer.is-playing .major-intro-art{
+  animation:aestraMajorIntroArt var(--intro-duration) cubic-bezier(.18,.76,.18,1) both;
+}
+.major-intro-copy{
+  position:relative;
+  z-index:2;
+  align-self:center;
+  min-width:0;
+  padding:24px 0;
+  text-shadow:0 4px 24px rgba(0,0,0,.85);
+}
+.major-intro-kicker{
+  display:block;
+  color:var(--intro-accent);
+  font:700 clamp(9px,1vw,14px)/1.2 system-ui,sans-serif;
+  letter-spacing:.38em;
+  text-transform:uppercase;
+}
+.major-intro-name{
+  display:block;
+  margin-top:12px;
+  max-width:760px;
+  color:#fffaf0;
+  font:700 clamp(30px,5vw,76px)/.94 Georgia,serif;
+  letter-spacing:.045em;
+  text-transform:uppercase;
+  text-wrap:balance;
+}
+.major-intro-rule{
+  display:block;
+  width:min(330px,68%);
+  height:1px;
+  margin:20px 0 14px;
+  background:linear-gradient(90deg,var(--intro-accent),color-mix(in srgb,var(--intro-secondary) 72%,var(--intro-accent)),transparent);
+  box-shadow:0 0 14px color-mix(in srgb,var(--intro-accent) 42%,transparent);
+}
+.major-intro-title{
+  display:block;
+  max-width:620px;
+  color:#d9dce0;
+  font:500 clamp(13px,1.55vw,22px)/1.35 Georgia,serif;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+}
+.major-intro-layer.is-playing .major-intro-copy{
+  animation:aestraMajorIntroCopy var(--intro-duration) cubic-bezier(.2,.72,.2,1) both;
+}
+.major-intro-ornament{
+  position:absolute;
+  z-index:1;
+  height:1px;
+  width:54%;
+  background:linear-gradient(90deg,transparent,var(--intro-accent),transparent);
+  opacity:.28;
+  box-shadow:0 0 18px color-mix(in srgb,var(--intro-accent) 44%,transparent);
+}
+.major-intro-ornament-a{left:-6%;top:22%;transform:rotate(-7deg)}
+.major-intro-ornament-b{right:-9%;bottom:20%;transform:rotate(-7deg)}
+.major-intro-layer.is-playing .major-intro-ornament{
+  animation:aestraMajorIntroLine var(--intro-duration) ease-in-out both;
+}
+
+@keyframes aestraMajorIntroLayer{
+  0%{opacity:0}
+  8%{opacity:1}
+  87%{opacity:1}
+  100%{opacity:0}
+}
+@keyframes aestraMajorIntroArt{
+  0%{opacity:0;transform:translate3d(-5%,3%,0) scale(.93);filter:blur(8px) brightness(.72) drop-shadow(0 24px 34px rgba(0,0,0,.58))}
+  13%{opacity:1;filter:blur(0) brightness(.94) drop-shadow(0 24px 34px rgba(0,0,0,.58))}
+  42%{transform:translate3d(0,0,0) scale(1)}
+  78%{opacity:1;transform:translate3d(1%,0,0) scale(1.018)}
+  100%{opacity:0;transform:translate3d(3%,-1%,0) scale(1.035);filter:blur(4px) brightness(.82) drop-shadow(0 24px 34px rgba(0,0,0,.58))}
+}
+@keyframes aestraMajorIntroCopy{
+  0%,12%{opacity:0;transform:translateX(34px);filter:blur(6px)}
+  23%{opacity:1;transform:translateX(0);filter:blur(0)}
+  82%{opacity:1;transform:translateX(0)}
+  100%{opacity:0;transform:translateX(18px);filter:blur(3px)}
+}
+@keyframes aestraMajorIntroLine{
+  0%,10%{opacity:0;transform:scaleX(.15) rotate(-7deg)}
+  32%,76%{opacity:.32;transform:scaleX(1) rotate(-7deg)}
+  100%{opacity:0;transform:scaleX(.65) rotate(-7deg)}
+}
+
+.major-intro-action{
+  border-color:rgba(224,189,104,.55)!important;
+  background:linear-gradient(180deg,rgba(95,73,27,.42),rgba(46,35,16,.42))!important;
+  color:#f1d88e!important;
+  font-weight:800;
+  letter-spacing:.08em;
+}
+.major-intro-action:hover{
+  border-color:#e0bd68!important;
+  box-shadow:0 0 0 1px rgba(224,189,104,.14),0 0 16px rgba(224,189,104,.09);
+}
+
+.major-intro-dialog{width:min(620px,calc(100% - 24px))}
+.major-intro-editor-preview{
+  display:grid;
+  grid-template-columns:86px 1fr;
+  align-items:center;
+  gap:12px;
+  padding:10px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:#0b1016;
+}
+.major-intro-editor-preview img{
+  width:86px;
+  height:86px;
+  object-fit:contain;
+  border-radius:9px;
+  background:#070a0e;
+}
+.major-intro-editor-preview strong{display:block;font:700 14px Georgia,serif}
+.major-intro-editor-preview small{display:block;margin-top:5px;color:var(--muted);font-size:9px;line-height:1.45}
+.major-intro-editor-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.major-intro-dialog label{display:grid;gap:5px}
+.major-intro-dialog label>span,
+.major-intro-dialog label{font-size:10px;color:#c9ced3}
+.major-intro-dialog input,
+.major-intro-dialog select{
+  width:100%;
+  border:1px solid var(--line);
+  border-radius:9px;
+  background:#0c1117;
+  color:#fff;
+  padding:10px 11px;
+  outline:none;
+}
+.major-intro-dialog input:focus,
+.major-intro-dialog select:focus{
+  border-color:rgba(224,189,104,.58);
+  box-shadow:0 0 0 3px rgba(224,189,104,.08);
+}
+
+@media(max-width:760px){
+  .major-intro-stage{
+    grid-template-columns:1fr;
+    align-items:end;
+    padding:28px 26px 44px;
+  }
+  .major-intro-art-wrap{position:absolute;inset:20px 8% 18%;opacity:.78}
+  .major-intro-copy{align-self:end;text-align:center}
+  .major-intro-rule{margin-left:auto;margin-right:auto}
+  .major-intro-title{margin-inline:auto}
+  .major-intro-editor-grid{grid-template-columns:1fr}
+}
+@media(prefers-reduced-motion:reduce){
+  .major-intro-layer.is-playing,
+  .major-intro-layer.is-playing .major-intro-art,
+  .major-intro-layer.is-playing .major-intro-copy,
+  .major-intro-layer.is-playing .major-intro-ornament{
+    animation-timing-function:linear!important;
+  }
+  .major-intro-layer.is-playing .major-intro-art{animation-name:aestraMajorIntroArtReduced}
+  .major-intro-layer.is-playing .major-intro-copy{animation-name:aestraMajorIntroCopyReduced}
+}
+@keyframes aestraMajorIntroArtReduced{
+  0%,100%{opacity:0}
+  10%,88%{opacity:1}
+}
+@keyframes aestraMajorIntroCopyReduced{
+  0%,14%,100%{opacity:0}
+  24%,88%{opacity:1}
+}
