@@ -1098,3 +1098,165 @@ body:not(.display-only) .player-display.map-live::before{content:'GM MAP CONTROL
 @keyframes aestraTitleCyanMoon{0%{opacity:.3;transform:scale(.92)}45%{opacity:.66}100%{opacity:.5;transform:scale(1.15)}}
 @keyframes aestraTitleRedWisp{0%{opacity:.12;transform:translate3d(-5%,4%,0) rotate(-18deg) scale(.92)}52%{opacity:.3}100%{opacity:.16;transform:translate3d(9%,-7%,0) rotate(-10deg) scale(1.1)}}
 @keyframes aestraTitleCyanWisp{0%{opacity:.11;transform:translate3d(5%,2%,0) rotate(20deg) scale(.9)}46%{opacity:.32}100%{opacity:.15;transform:translate3d(-10%,-8%,0) rotate(12deg) scale(1.12)}}
+
+
+/* Scene Cast Positions v1 — six snap slots with reveal-aware spacing */
+.scene-cast-head-actions button.is-active{
+  border-color:rgba(213,181,95,.55);
+  background:linear-gradient(180deg,rgba(83,67,31,.55),rgba(35,29,19,.72));
+  color:#efd58a;
+}
+.scene-cast:not(.is-positioned).has-pin-left{padding-left:12%}
+.scene-cast:not(.is-positioned).has-pin-right{padding-right:12%}
+
+.scene-cast.is-positioned{
+  left:4%;
+  right:4%;
+  bottom:26px;
+  width:auto;
+  height:56vh;
+  transform:none;
+  display:block;
+}
+.scene-cast.is-positioned.is-reveal-muted{
+  transform:translateY(5px) scale(.97);
+}
+.scene-cast.is-positioned .scene-cast-member{
+  position:absolute;
+  left:var(--cast-x,50%);
+  bottom:0;
+  transform:translateX(-50%);
+  transition:
+    left .28s cubic-bezier(.2,.75,.2,1),
+    transform .24s ease,
+    opacity .24s ease,
+    filter .24s ease;
+}
+.scene-cast.is-positioned.has-active .scene-cast-member:not(.is-active){
+  transform:translateX(-50%) translateY(2px) scale(.99);
+}
+.scene-cast.is-positioned .scene-cast-member.is-active{
+  transform:translateX(-50%) translateY(-4px) scale(1.03);
+}
+.scene-cast.is-positioned .scene-cast-member.is-entering{
+  animation:aestraCastJoinPositioned .34s cubic-bezier(.18,.82,.24,1) both;
+}
+.scene-cast.is-positioned .scene-cast-member.is-leaving{
+  animation:aestraCastLeavePositioned .28s ease-in both;
+}
+.scene-cast.is-arranging{
+  z-index:10;
+  pointer-events:none;
+}
+.scene-cast.is-arranging .scene-cast-member{
+  pointer-events:auto;
+  cursor:grab;
+}
+.scene-cast.is-arranging .scene-cast-member.dragging{
+  opacity:.52!important;
+  cursor:grabbing;
+  filter:brightness(1.08) drop-shadow(0 0 16px rgba(216,182,102,.24))!important;
+}
+@keyframes aestraCastJoinPositioned{
+  0%{opacity:0;transform:translateX(-50%) translateY(18px) scale(.94);filter:blur(3px) brightness(.8)}
+  68%{opacity:1;transform:translateX(-50%) translateY(-3px) scale(1.015);filter:blur(0) brightness(1.03)}
+  100%{opacity:1;transform:translateX(-50%) translateY(0) scale(1);filter:blur(0) brightness(1)}
+}
+@keyframes aestraCastLeavePositioned{
+  0%{opacity:1;transform:translateX(-50%) translateY(0) scale(1);filter:blur(0)}
+  100%{opacity:0;transform:translateX(-50%) translateY(13px) scale(.96);filter:blur(2px)}
+}
+
+.scene-cast-slots{
+  position:absolute;
+  z-index:9;
+  left:4%;
+  right:4%;
+  bottom:22px;
+  height:57%;
+  display:grid;
+  grid-template-columns:repeat(6,minmax(0,1fr));
+  gap:5px;
+  align-items:stretch;
+  pointer-events:none;
+}
+.scene-cast-slot{
+  pointer-events:auto;
+  min-width:0;
+  padding:7px 4px 9px;
+  border:1px dashed rgba(216,182,102,.29);
+  border-radius:10px;
+  background:linear-gradient(180deg,rgba(216,182,102,.035),rgba(7,10,14,.13));
+  color:#baa66f;
+  display:flex;
+  flex-direction:column;
+  justify-content:flex-end;
+  align-items:center;
+  gap:2px;
+  text-align:center;
+  cursor:copy;
+  transition:border-color .16s ease,background .16s ease,box-shadow .16s ease,opacity .16s ease;
+}
+.scene-cast-slot span{
+  font-size:7px;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+}
+.scene-cast-slot strong{
+  max-width:100%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:#d6cab0;
+  font:700 8px/1.1 Georgia,serif;
+}
+.scene-cast-slot.is-occupied{
+  border-color:rgba(118,184,221,.34);
+  background:linear-gradient(180deg,rgba(89,155,177,.045),rgba(7,10,14,.16));
+}
+.scene-cast-slot.drag-over{
+  border-style:solid;
+  border-color:#dfc36f;
+  background:linear-gradient(180deg,rgba(128,98,31,.24),rgba(33,27,17,.28));
+  box-shadow:inset 0 0 22px rgba(216,182,102,.08),0 0 14px rgba(216,182,102,.08);
+}
+.scene-cast-slot.is-reserved{
+  opacity:.32;
+  cursor:not-allowed;
+  border-color:rgba(160,124,124,.2);
+}
+
+.reveal-layer[data-kind="item"][data-anchor="left"],
+.reveal-layer[data-kind="clue"][data-anchor="left"]{
+  align-items:flex-start;
+  padding-left:clamp(44px,8vw,120px);
+  padding-right:38%;
+}
+.reveal-layer[data-kind="item"][data-anchor="right"],
+.reveal-layer[data-kind="clue"][data-anchor="right"]{
+  align-items:flex-end;
+  padding-right:clamp(44px,8vw,120px);
+  padding-left:38%;
+}
+.reveal-layer[data-kind="item"][data-anchor="left"] .reveal-copy,
+.reveal-layer[data-kind="clue"][data-anchor="left"] .reveal-copy{align-items:flex-start;text-align:left}
+.reveal-layer[data-kind="item"][data-anchor="right"] .reveal-copy,
+.reveal-layer[data-kind="clue"][data-anchor="right"] .reveal-copy{align-items:flex-end;text-align:right}
+.reveal-layer[data-kind="creature"]{z-index:11}
+
+@media(max-width:760px){
+  .scene-cast.is-positioned{left:2%;right:2%;bottom:18px;height:52vh}
+  .scene-cast-slots{left:2%;right:2%;bottom:16px;height:54%;gap:3px}
+  .scene-cast-slot{padding:5px 2px 7px}
+  .scene-cast-slot span{font-size:6px;letter-spacing:.07em}
+  .scene-cast-slot strong{font-size:6px}
+  .reveal-layer[data-kind="item"][data-anchor="left"],
+  .reveal-layer[data-kind="clue"][data-anchor="left"]{padding-left:16px;padding-right:28%}
+  .reveal-layer[data-kind="item"][data-anchor="right"],
+  .reveal-layer[data-kind="clue"][data-anchor="right"]{padding-right:16px;padding-left:28%}
+}
+@media(prefers-reduced-motion:reduce){
+  .scene-cast.is-positioned .scene-cast-member{transition:none!important}
+  .scene-cast.is-positioned .scene-cast-member.is-entering,
+  .scene-cast.is-positioned .scene-cast-member.is-leaving{animation:none!important}
+}
