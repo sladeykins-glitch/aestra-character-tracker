@@ -836,8 +836,8 @@ body:not(.display-only) .player-display.map-live::before{content:'GM MAP CONTROL
 }
 .reveal-layer[data-kind="item"] img,
 .reveal-layer[data-kind="clue"] img{
-  max-width:min(28vw,360px);
-  max-height:38vh;
+  max-width:min(25vw,330px);
+  max-height:35vh;
   animation:aestraRevealFloat 5.4s ease-in-out infinite;
   will-change:transform;
 }
@@ -849,8 +849,37 @@ body:not(.display-only) .player-display.map-live::before{content:'GM MAP CONTROL
 /* NPCs / creatures: readable portrait scale */
 .reveal-layer[data-kind="npc"] img,
 .reveal-layer[data-kind="creature"] img{
-  max-width:min(48vw,620px);
-  max-height:62vh;
+  max-width:min(43vw,560px);
+  max-height:56vh;
+}
+
+/* Character, creature, item and clue art softly dissolves into the scene. */
+.reveal-layer[data-kind="npc"] img,
+.reveal-layer[data-kind="creature"] img,
+.reveal-layer[data-kind="item"] img,
+.reveal-layer[data-kind="clue"] img,
+.scene-cast-member img,
+.pin-card[data-kind="npc"] img,
+.pin-card[data-kind="creature"] img,
+.pin-card[data-kind="item"] img,
+.pin-card[data-kind="clue"] img{
+  border:0;
+  box-shadow:none;
+  -webkit-mask-image:
+    linear-gradient(to right,transparent 0,#000 5%,#000 95%,transparent 100%),
+    linear-gradient(to bottom,transparent 0,#000 5%,#000 95%,transparent 100%);
+  -webkit-mask-composite:source-in;
+  mask-image:
+    linear-gradient(to right,transparent 0,#000 5%,#000 95%,transparent 100%),
+    linear-gradient(to bottom,transparent 0,#000 5%,#000 95%,transparent 100%);
+  mask-composite:intersect;
+  filter:drop-shadow(0 10px 18px rgba(0,0,0,.3));
+}
+.pin-card[data-kind="npc"],
+.pin-card[data-kind="creature"],
+.pin-card[data-kind="item"],
+.pin-card[data-kind="clue"]{
+  width:min(164px,20%);
 }
 
 /* Maps / handouts can use more screen without becoming a framed panel */
@@ -872,19 +901,23 @@ body:not(.display-only) .player-display.map-live::before{content:'GM MAP CONTROL
   .reveal-layer img,
   .reveal-layer[data-kind="npc"] img,
   .reveal-layer[data-kind="creature"] img{
-    max-width:78vw;
-    max-height:58vh;
+    max-width:70vw;
+    max-height:53vh;
   }
   .reveal-layer[data-kind="item"] img,
   .reveal-layer[data-kind="clue"] img{
-    max-width:54vw;
-    max-height:36vh;
+    max-width:50vw;
+    max-height:33vh;
   }
   .reveal-layer[data-kind="map"] img,
   .reveal-layer[data-kind="handout"] img{
     max-width:88vw;
     max-height:68vh;
   }
+  .pin-card[data-kind="npc"],
+  .pin-card[data-kind="creature"],
+  .pin-card[data-kind="item"],
+  .pin-card[data-kind="clue"]{width:90px}
 }
 
 
@@ -930,14 +963,12 @@ body:not(.display-only) .player-display.map-live::before{content:'GM MAP CONTROL
   display:block;
   width:auto;
   height:auto;
-  max-height:52vh;
-  max-width:min(18vw,220px);
+  max-height:48vh;
+  max-width:min(16vw,200px);
   object-fit:contain;
   border-radius:8px;
-  border:1px solid rgba(238,225,194,.14);
-  box-shadow:
-    0 12px 30px rgba(0,0,0,.34),
-    0 0 18px rgba(221,192,116,.035);
+  border:0;
+  box-shadow:none;
   background:transparent;
 }
 .scene-cast-member strong{
@@ -952,12 +983,12 @@ body:not(.display-only) .player-display.map-live::before{content:'GM MAP CONTROL
   overflow:hidden;
   text-overflow:ellipsis;
 }
-.scene-cast[data-count="1"] .scene-cast-member img{max-width:min(34vw,380px);max-height:58vh}
-.scene-cast[data-count="2"] .scene-cast-member img{max-width:min(27vw,320px);max-height:56vh}
-.scene-cast[data-count="3"] .scene-cast-member img{max-width:min(22vw,260px);max-height:54vh}
-.scene-cast[data-count="4"] .scene-cast-member img{max-width:min(18vw,220px);max-height:51vh}
+.scene-cast[data-count="1"] .scene-cast-member img{max-width:min(31vw,350px);max-height:54vh}
+.scene-cast[data-count="2"] .scene-cast-member img{max-width:min(24vw,290px);max-height:52vh}
+.scene-cast[data-count="3"] .scene-cast-member img{max-width:min(20vw,235px);max-height:50vh}
+.scene-cast[data-count="4"] .scene-cast-member img{max-width:min(16.5vw,200px);max-height:47vh}
 .scene-cast[data-count="5"] .scene-cast-member img,
-.scene-cast[data-count="6"] .scene-cast-member img{max-width:min(15vw,185px);max-height:47vh}
+.scene-cast[data-count="6"] .scene-cast-member img{max-width:min(13.5vw,170px);max-height:43vh}
 .scene-cast.has-active .scene-cast-member:not(.is-active){
   opacity:.82;
   filter:brightness(.9) saturate(.92);
@@ -969,10 +1000,11 @@ body:not(.display-only) .player-display.map-live::before{content:'GM MAP CONTROL
   transform:translateY(-4px) scale(1.03);
 }
 .scene-cast .scene-cast-member.is-active img{
-  border-color:rgba(226,194,112,.34);
-  box-shadow:
-    0 15px 34px rgba(0,0,0,.4),
-    0 0 24px rgba(222,188,99,.10);
+  border-color:transparent;
+  box-shadow:none;
+  filter:
+    drop-shadow(0 13px 20px rgba(0,0,0,.38))
+    drop-shadow(0 0 13px rgba(222,188,99,.13));
 }
 .scene-cast-member.is-entering{
   animation:aestraCastJoin .34s cubic-bezier(.18,.82,.24,1) both;
@@ -1032,10 +1064,10 @@ body:not(.display-only) .player-display.map-live::before{content:'GM MAP CONTROL
   .scene-cast-member img,
   .scene-cast[data-count="4"] .scene-cast-member img,
   .scene-cast[data-count="5"] .scene-cast-member img,
-  .scene-cast[data-count="6"] .scene-cast-member img{max-width:18vw;max-height:42vh}
-  .scene-cast[data-count="1"] .scene-cast-member img{max-width:58vw;max-height:52vh}
-  .scene-cast[data-count="2"] .scene-cast-member img{max-width:38vw;max-height:50vh}
-  .scene-cast[data-count="3"] .scene-cast-member img{max-width:28vw;max-height:46vh}
+  .scene-cast[data-count="6"] .scene-cast-member img{max-width:16.5vw;max-height:39vh}
+  .scene-cast[data-count="1"] .scene-cast-member img{max-width:52vw;max-height:48vh}
+  .scene-cast[data-count="2"] .scene-cast-member img{max-width:34vw;max-height:46vh}
+  .scene-cast[data-count="3"] .scene-cast-member img{max-width:25vw;max-height:42vh}
 }
 @media(prefers-reduced-motion:reduce){
   .scene-cast-member.is-entering,.scene-cast-member.is-leaving,

@@ -2059,7 +2059,8 @@ async function setSceneEffectSetting(key,value){
 
 function renderPinned(host,id){
   const asset=byId(id);
-  if(!asset){host.classList.add('hidden');host.innerHTML='';return}
+  if(!asset){host.classList.add('hidden');host.innerHTML='';delete host.dataset.kind;return}
+  host.dataset.kind=asset.kind||'other';
   host.innerHTML='<img src="'+esc(asset.image_url)+'" alt="'+esc(asset.name)+'"><strong>'+esc(asset.name)+'</strong>';
   host.classList.remove('hidden');
 }
