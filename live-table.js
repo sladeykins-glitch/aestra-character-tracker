@@ -2401,8 +2401,7 @@ function scenePresets(){
     .slice(0,36);
 }
 
-function cueSequence(){
-  const raw=state?.cue_sequence;
+function normalizedCueSequence(raw=state?.cue_sequence){
   if(!Array.isArray(raw))return [];
   return raw
     .filter(item=>item&&typeof item==='object'&&typeof item.id==='string'&&typeof item.preset_id==='string')
@@ -2414,11 +2413,17 @@ function cueSequence(){
     .slice(0,80);
 }
 
+function cueSequence(){
+  const validPresetIds=new Set(scenePresets().map(preset=>preset.id));
+  return normalizedCueSequence().filter(item=>validPresetIds.has(item.preset_id));
+}
+
 function cueSequenceIndex(){
-  const seq=cueSequence();
+  const rawSequence=normalizedCueSequence();
   const raw=Number(state?.cue_sequence_index);
-  if(!Number.isInteger(raw)||raw<0)return -1;
-  return Math.min(raw,Math.max(-1,seq.length-1));
+  if(!Number.isInteger(raw)||raw<0||raw>=rawSequence.length)return -1;
+  const currentItemId=rawSequence[raw]?.id;
+  return currentItemId?cueSequence().findIndex(item=>item.id===currentItemId):-1;
 }
 
 function cuePresetById(id){
@@ -2427,6 +2432,23 @@ function cuePresetById(id){
 
 function cueItemPreset(item){
   return item?cuePresetById(item.preset_id):null;
+}
+
+async function cleanStaleCueSequence(){
+  if(!canGMControl())return false;
+  const source=Array.isArray(state?.cue_sequence)?state.cue_sequence:[];
+  const normalized=normalizedCueSequence(source);
+  const validPresetIds=new Set(scenePresets().map(preset=>preset.id));
+  const cleaned=normalized.filter(item=>validPresetIds.has(item.preset_id));
+  const rawIndex=Number(state?.cue_sequence_index);
+  const currentItemId=Number.isInteger(rawIndex)&&rawIndex>=0?normalized[rawIndex]?.id:null;
+  const nextIndex=currentItemId?cleaned.findIndex(item=>item.id===currentItemId):-1;
+  const changed=source.length!==cleaned.length
+    ||normalized.length!==cleaned.length
+    ||(Number.isInteger(rawIndex)?rawIndex:-1)!==nextIndex;
+  if(!changed)return false;
+  await patchState({cue_sequence:cleaned,cue_sequence_index:nextIndex});
+  return true;
 }
 
 function normalizeCueEffects(raw){
@@ -3625,6 +3647,7 @@ async function startApp(){
   showApp();
   await checkRole();
   await Promise.all([loadState(),loadAssets(),loadParty(),loadMapState()]);
+  await cleanStaleCueSequence();
   renderAll();
 
   // Full map state remains the durable fallback; camera and journey motion
