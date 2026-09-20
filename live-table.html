@@ -7,12 +7,12 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
-<meta name="aestra-live-build" content="61" />
+<meta name="aestra-live-build" content="62" />
 <title>Aestra Live Table</title>
 <link rel="icon" href="aestra-icon.svg" type="image/svg+xml" />
-<link rel="stylesheet" href="live-table.css?v=40" />
+<link rel="stylesheet" href="live-table.css?v=41" />
 </head>
-<body data-live-build="61">
+<body data-live-build="62">
 <div id="authGate" class="auth-gate">
   <form id="authForm" class="auth-card">
     <div class="aestra-mark">✦</div>
@@ -99,6 +99,24 @@
         </div>
 
         <div id="blackoutLayer" class="blackout-layer hidden"></div>
+
+        <div id="majorIntroLayer" class="major-intro-layer hidden" aria-hidden="true">
+          <div class="major-intro-backdrop"></div>
+          <div class="major-intro-ornament major-intro-ornament-a"></div>
+          <div class="major-intro-ornament major-intro-ornament-b"></div>
+          <div class="major-intro-stage">
+            <div class="major-intro-art-wrap">
+              <img id="majorIntroArt" class="major-intro-art" alt="" decoding="async" fetchpriority="high" />
+            </div>
+            <div class="major-intro-copy">
+              <span id="majorIntroKicker" class="major-intro-kicker">MAJOR CHARACTER</span>
+              <strong id="majorIntroName" class="major-intro-name"></strong>
+              <i class="major-intro-rule"></i>
+              <small id="majorIntroTitle" class="major-intro-title"></small>
+            </div>
+          </div>
+        </div>
+
         <div id="partyHud" class="party-hud"></div>
 
         <div id="transitionFx" class="transition-fx" aria-hidden="true">
@@ -647,7 +665,61 @@
   </form>
 </dialog>
 
+<dialog id="majorIntroDialog" class="major-intro-dialog">
+  <form id="majorIntroForm" class="asset-form">
+    <div class="dialog-head">
+      <div><p class="eyebrow">Major Character</p><h2 id="majorIntroDialogTitle">Introduction Setup</h2></div>
+      <button id="majorIntroCloseBtn" type="button" class="icon-btn" aria-label="Close">×</button>
+    </div>
+
+    <div class="major-intro-editor-preview">
+      <img id="majorIntroEditorImage" alt="" />
+      <div>
+        <strong id="majorIntroEditorAssetName">Character</strong>
+        <small>Configure once, then use INTRO for a one-click cinematic reveal.</small>
+      </div>
+    </div>
+
+    <label>Display name
+      <input id="majorIntroDisplayName" maxlength="80" placeholder="General Varkas" />
+    </label>
+    <label>Title / epithet
+      <input id="majorIntroTitleInput" maxlength="120" placeholder="Warden of the Eastern Front" />
+    </label>
+
+    <div class="major-intro-editor-grid">
+      <label>Style
+        <select id="majorIntroStyle">
+          <option value="cinematic">Cinematic Gold</option>
+          <option value="royal">Royal</option>
+          <option value="ominous">Ominous</option>
+          <option value="relic">Relic</option>
+          <option value="faith">The Faith</option>
+        </select>
+      </label>
+      <label>Duration
+        <select id="majorIntroDuration">
+          <option value="3200">Quick · 3.2s</option>
+          <option value="4200" selected>Cinematic · 4.2s</option>
+          <option value="5400">Grand · 5.4s</option>
+        </select>
+      </label>
+    </div>
+
+    <label>Optional audio sting
+      <select id="majorIntroAudio"></select>
+    </label>
+
+    <p id="majorIntroMessage" class="message" aria-live="polite"></p>
+    <div class="dialog-actions">
+      <button id="majorIntroCancelBtn" type="button">Cancel</button>
+      <button id="majorIntroSaveBtn" type="button">Save Intro</button>
+      <button id="majorIntroSavePlayBtn" class="primary" type="button">Save &amp; Introduce</button>
+    </div>
+  </form>
+</dialog>
+
 <script src="config.js"></script>
-<script type="module" src="live-table.js?v=63"></script>
+<script type="module" src="live-table.js?v=64"></script>
 </body>
 </html>
