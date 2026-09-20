@@ -2922,12 +2922,17 @@ function sceneCard(asset){
   return '<article class="scene-card'+(active?' active':'')+'" data-scene-id="'+asset.id+'">'+
     '<div class="scene-thumb" style="background-image:url(\''+esc(asset.image_url)+'\')"></div>'+
     '<div><strong>'+esc(asset.name)+'</strong><small>'+esc(asset.subtitle||'Scene backdrop')+'</small></div>'+
-    '<div class="scene-actions"><button type="button" data-scene-go="'+asset.id+'">'+(active?'LIVE':'GO')+'</button><button type="button" data-remove="'+asset.id+'">REMOVE</button><button type="button" class="danger" data-delete="'+asset.id+'">DELETE</button></div></article>';
+    '<div class="scene-actions"><button type="button" class="scene-inspect-btn" data-scene-inspect="'+asset.id+'">INSPECT</button><button type="button" data-scene-go="'+asset.id+'">'+(active?'LIVE':'GO')+'</button><button type="button" data-remove="'+asset.id+'">REMOVE</button><button type="button" class="danger" data-delete="'+asset.id+'">DELETE</button></div></article>';
 }
 
 function renderScenes(){
   const scenes=assets.filter(a=>a.kind==='scene');
   els.sceneStrip.innerHTML=scenes.length?scenes.map(sceneCard).join(''):'<p class="muted">No scene backdrops yet. Press + to upload one.</p>';
+  els.sceneStrip.querySelectorAll('[data-scene-inspect]').forEach(b=>b.addEventListener('click',()=>openSceneInspector(b.dataset.sceneInspect)));
+  els.sceneStrip.querySelectorAll('.scene-thumb').forEach(thumb=>thumb.addEventListener('click',()=>{
+    const id=thumb.closest('[data-scene-id]')?.dataset.sceneId;
+    if(id)openSceneInspector(id);
+  }));
   els.sceneStrip.querySelectorAll('[data-scene-go]').forEach(b=>b.addEventListener('click',()=>activateScene(b.dataset.sceneGo)));
   els.sceneStrip.querySelectorAll('[data-remove]').forEach(b=>b.addEventListener('click',()=>removeAssetFromDisplay(b.dataset.remove)));
   els.sceneStrip.querySelectorAll('[data-delete]').forEach(b=>b.addEventListener('click',()=>deleteAsset(b.dataset.delete)));
@@ -4087,7 +4092,253 @@ function renderRecent(){
   els.recentList.querySelectorAll('[data-recent]').forEach(b=>b.addEventListener('click',()=>showReveal(b.dataset.recent)));
 }
 
-function renderAll(){renderDisplay();renderScenes();renderSceneCast();renderAudioControls();renderTransitionControls();renderCueSequence();renderCuePresets();renderRevealGrid();renderRecent();syncLiveAudio()}
+
+let sceneInspectorSceneId=null;
+
+const SCENE_EFFECT_LABELS={
+  rain:'Rain',storm:'Storm',mist:'Mist',wind:'Wind',snow:'Snow',ash:'Ashfall',
+  heat:'Heat',magic:'Magic',cold:'Cold Grade',spores:'Spores',crystal:'Crystal Resonance',
+  rays:'God Rays',dream:'Dream Distortion',relic:'Relic Instability',clouds:'Cloud Shadows',
+  petals:'Leaves / Petals',fireflies:'Fireflies',underwater:'Underwater',moon:'Moonlight Pulse',
+  blackpetals:'Black Petals',rainglass:'Rain on Glass'
+};
+
+function sceneInspectorAsset(){
+  return sceneInspectorSceneId?byId(sceneInspectorSceneId):null;
+}
+
+function openSceneInspector(id){
+  const asset=byId(id);
+  if(!asset||asset.kind!=='scene'||!els.sceneInspector)return;
+  sceneInspectorSceneId=id;
+  els.sceneInspector.classList.remove('hidden');
+  els.sceneInspector.setAttribute('aria-hidden','false');
+  document.body.classList.add('scene-inspector-open');
+  renderSceneInspector();
+  requestAnimationFrame(()=>els.sceneInspectorClose?.focus());
+}
+
+function closeSceneInspector(){
+  sceneInspectorSceneId=null;
+  if(!els.sceneInspector)return;
+  els.sceneInspector.classList.add('hidden');
+  els.sceneInspector.setAttribute('aria-hidden','true');
+  document.body.classList.remove('scene-inspector-open');
+}
+
+function sceneInspectorIsCurrent(asset=sceneInspectorAsset()){
+  return Boolean(asset&&state?.active_scene_id===asset.id);
+}
+
+function sceneInspectorLiveEditable(asset=sceneInspectorAsset()){
+  return Boolean(sceneInspectorIsCurrent(asset)&&state?.mode==='scene'&&canGMControl());
+}
+
+function sceneInspectorEffectButtons(cfg,enabled){
+  return SCENE_EFFECT_KEYS.map(effect=>{
+    const active=cfg.effects.includes(effect);
+    return '<button type="button" data-inspector-fx="'+esc(effect)+'" class="'+(active?'active':'')+'"'+(enabled?'':' disabled')+'>'+esc(SCENE_EFFECT_LABELS[effect]||effect)+'</button>';
+  }).join('');
+}
+
+function sceneInspectorCastMarkup(enabled){
+  const cast=normalizeSceneCast();
+  if(!enabled)return '<p class="scene-inspector-empty">Put this scene live to view and manage its current cast.</p>';
+  if(!cast.ids.length)return '<p class="scene-inspector-empty">No NPCs or creatures are currently in the scene.</p>';
+  return cast.ids.map(id=>{
+    const member=byId(id);
+    if(!member)return '';
+    const active=cast.active_id===id;
+    return '<article class="scene-inspector-cast-chip'+(active?' active':'')+'">'+
+      '<img src="'+esc(member.image_url)+'" alt="">'+
+      '<div><strong>'+esc(member.name)+'</strong><small>'+(active?'Featured now':esc(member.kind==='creature'?'Creature':'NPC'))+'</small></div>'+
+      '<button type="button" data-inspector-cast-remove="'+esc(id)+'" title="Remove from scene">×</button>'+
+    '</article>';
+  }).join('');
+}
+
+function sceneInspectorPinsMarkup(enabled){
+  if(!enabled)return '<p class="scene-inspector-empty">Put this scene live to inspect its reveals and pinned visuals.</p>';
+  const items=[];
+  const left=byId(state?.pinned_left_id);
+  const right=byId(state?.pinned_right_id);
+  const reveal=byId(state?.active_reveal_id);
+  if(left)items.push('<span><b>Left Pin</b>'+esc(left.name)+'</span>');
+  if(right)items.push('<span><b>Right Pin</b>'+esc(right.name)+'</span>');
+  if(reveal)items.push('<span><b>Reveal</b>'+esc(reveal.name)+'</span>');
+  return items.length?items.join(''):'<p class="scene-inspector-empty">Nothing is currently pinned or revealed.</p>';
+}
+
+function renderSceneInspector(){
+  if(!els.sceneInspector||els.sceneInspector.classList.contains('hidden'))return;
+  const asset=sceneInspectorAsset();
+  if(!asset){closeSceneInspector();return}
+
+  const current=sceneInspectorIsCurrent(asset);
+  const sceneMode=current&&state?.mode==='scene';
+  const liveControl=current&&canGMControl();
+  const atmosphereEditable=sceneMode&&canGMControl();
+  const cfg=sceneEffectState();
+  const audio=normalizeAudioState(state?.audio_state);
+  const transition=transitionState();
+  const cueCount=scenePresets().filter(p=>p.snapshot?.active_scene_id===asset.id).length;
+
+  if(els.sceneInspectorTitle)els.sceneInspectorTitle.textContent=asset.name||'Scene';
+  if(els.sceneInspectorImage){
+    els.sceneInspectorImage.src=asset.image_url||'';
+    els.sceneInspectorImage.alt=asset.name||'Scene backdrop';
+  }
+  if(els.sceneInspectorLiveBadge){
+    els.sceneInspectorLiveBadge.textContent=current?(sceneMode?'LIVE SCENE':'CURRENT SCENE · '+String(state?.mode||'scene').toUpperCase()):'NOT LIVE';
+    els.sceneInspectorLiveBadge.classList.toggle('live',current);
+  }
+  if(els.sceneInspectorName&&document.activeElement!==els.sceneInspectorName)els.sceneInspectorName.value=asset.name||'';
+  if(els.sceneInspectorSubtitle&&document.activeElement!==els.sceneInspectorSubtitle)els.sceneInspectorSubtitle.value=asset.subtitle||'';
+
+  if(els.sceneInspectorGo){
+    els.sceneInspectorGo.disabled=sceneMode;
+    els.sceneInspectorGo.textContent=sceneMode?'LIVE NOW':current?'RETURN TO SCENE':'GO LIVE';
+  }
+  if(els.sceneInspectorRemove)els.sceneInspectorRemove.disabled=!current;
+  if(els.sceneInspectorNotice){
+    els.sceneInspectorNotice.textContent=!current
+      ? 'Live controls are locked so inspecting this scene cannot accidentally change the scene your players are currently seeing.'
+      : !sceneMode
+        ? 'This is the current scene, but another display layer is active. Return to Scene to edit atmosphere.'
+        : 'Editing the controls below updates the live scene immediately.';
+    els.sceneInspectorNotice.classList.toggle('live',sceneMode);
+  }
+
+  if(els.sceneInspectorFxGrid){
+    els.sceneInspectorFxGrid.innerHTML=sceneInspectorEffectButtons(cfg,atmosphereEditable);
+    els.sceneInspectorFxGrid.querySelectorAll('[data-inspector-fx]').forEach(button=>button.addEventListener('click',()=>toggleSceneEffect(button.dataset.inspectorFx)));
+  }
+  if(els.sceneInspectorFxIntensity){
+    els.sceneInspectorFxIntensity.value=String(cfg.intensity);
+    els.sceneInspectorFxIntensity.disabled=!atmosphereEditable;
+  }
+  if(els.sceneInspectorFxFade){
+    els.sceneInspectorFxFade.value=String(cfg.fade_ms);
+    els.sceneInspectorFxFade.disabled=!atmosphereEditable;
+  }
+  if(els.sceneInspectorClearFx)els.sceneInspectorClearFx.disabled=!atmosphereEditable||!cfg.effects.length;
+
+  if(els.sceneInspectorCastList){
+    els.sceneInspectorCastList.innerHTML=sceneInspectorCastMarkup(liveControl);
+    els.sceneInspectorCastList.querySelectorAll('[data-inspector-cast-remove]').forEach(button=>button.addEventListener('click',()=>removeNpcFromCast(button.dataset.inspectorCastRemove)));
+  }
+  if(els.sceneInspectorManageCast)els.sceneInspectorManageCast.disabled=!current;
+
+  if(els.sceneInspectorMusic){
+    els.sceneInspectorMusic.innerHTML=audioTrackOptions(audio.music_id);
+    els.sceneInspectorMusic.disabled=!liveControl;
+  }
+  if(els.sceneInspectorAmbience){
+    els.sceneInspectorAmbience.innerHTML=audioTrackOptions(audio.ambience_id);
+    els.sceneInspectorAmbience.disabled=!liveControl;
+  }
+
+  if(els.sceneInspectorTransitionStyle){
+    els.sceneInspectorTransitionStyle.value=transition.style;
+    els.sceneInspectorTransitionStyle.disabled=!liveControl;
+  }
+  if(els.sceneInspectorTransitionDuration){
+    els.sceneInspectorTransitionDuration.value=String(transition.duration_ms);
+    els.sceneInspectorTransitionDuration.disabled=!liveControl;
+  }
+
+  if(els.sceneInspectorPinned)els.sceneInspectorPinned.innerHTML=sceneInspectorPinsMarkup(liveControl);
+  if(els.sceneInspectorClearPins)els.sceneInspectorClearPins.disabled=!liveControl||(!state?.pinned_left_id&&!state?.pinned_right_id);
+  if(els.sceneInspectorManageReveals)els.sceneInspectorManageReveals.disabled=!current;
+
+  if(els.sceneInspectorCueSummary){
+    els.sceneInspectorCueSummary.textContent=cueCount
+      ? cueCount+' saved cue'+(cueCount===1?' uses ':'s use ')+'this scene.'
+      : 'No saved cues use this scene.';
+  }
+}
+
+async function saveSceneInspectorDetails(){
+  if(!canGMControl())return;
+  const asset=sceneInspectorAsset();
+  if(!asset)return;
+  const name=String(els.sceneInspectorName?.value||'').trim().slice(0,80);
+  const subtitle=String(els.sceneInspectorSubtitle?.value||'').trim().slice(0,120);
+  if(!name){els.sceneInspectorName?.focus();return}
+
+  if(els.sceneInspectorSaveDetails)els.sceneInspectorSaveDetails.disabled=true;
+  try{
+    const update={name,subtitle,updated_at:new Date().toISOString()};
+    const result=await supabase.from('live_table_assets').update(update).eq('id',asset.id).select().single();
+    if(result.error)throw result.error;
+    assets=assets.map(item=>item.id===asset.id?result.data:item);
+    if(state?.active_scene_id===asset.id){
+      await patchState({location_title:name,location_subtitle:subtitle});
+    }else{
+      renderAll();
+    }
+  }catch(err){
+    alert(err?.message||'Could not update the scene.');
+  }finally{
+    if(els.sceneInspectorSaveDetails)els.sceneInspectorSaveDetails.disabled=false;
+  }
+}
+
+function wireSceneInspector(){
+  els.sceneInspectorClose?.addEventListener('click',closeSceneInspector);
+  els.sceneInspectorBackdrop?.addEventListener('click',closeSceneInspector);
+  els.sceneInspectorGo?.addEventListener('click',async()=>{
+    const asset=sceneInspectorAsset();
+    if(asset)await activateScene(asset.id);
+  });
+  els.sceneInspectorRemove?.addEventListener('click',async()=>{
+    const asset=sceneInspectorAsset();
+    if(asset)await removeAssetFromDisplay(asset.id);
+  });
+  els.sceneInspectorDelete?.addEventListener('click',async()=>{
+    const asset=sceneInspectorAsset();
+    if(!asset)return;
+    await deleteAsset(asset.id);
+    if(!byId(asset.id))closeSceneInspector();
+  });
+  els.sceneInspectorSaveDetails?.addEventListener('click',saveSceneInspectorDetails);
+
+  els.sceneInspectorFxIntensity?.addEventListener('change',()=>setSceneEffectSetting('intensity',els.sceneInspectorFxIntensity.value));
+  els.sceneInspectorFxFade?.addEventListener('change',()=>setSceneEffectSetting('fade_ms',els.sceneInspectorFxFade.value));
+  els.sceneInspectorClearFx?.addEventListener('click',async()=>{
+    if(!sceneInspectorLiveEditable())return;
+    const cfg=sceneEffectState();
+    await patchState({scene_effects:{...cfg,effects:[]}});
+  });
+
+  els.sceneInspectorMusic?.addEventListener('change',()=>setCueAudioChannel('music',els.sceneInspectorMusic.value));
+  els.sceneInspectorAmbience?.addEventListener('change',()=>setCueAudioChannel('ambience',els.sceneInspectorAmbience.value));
+  els.sceneInspectorTransitionStyle?.addEventListener('change',()=>setTransitionSetting('style',els.sceneInspectorTransitionStyle.value));
+  els.sceneInspectorTransitionDuration?.addEventListener('change',()=>setTransitionSetting('duration_ms',els.sceneInspectorTransitionDuration.value));
+
+  els.sceneInspectorManageCast?.addEventListener('click',()=>{
+    closeSceneInspector();
+    setGmWorkspaceTab('reveals',{scroll:true});
+  });
+  els.sceneInspectorManageReveals?.addEventListener('click',()=>{
+    closeSceneInspector();
+    setGmWorkspaceTab('reveals',{scroll:true});
+  });
+  els.sceneInspectorOpenSession?.addEventListener('click',()=>{
+    closeSceneInspector();
+    setGmWorkspaceTab('session',{scroll:true});
+  });
+  els.sceneInspectorClearPins?.addEventListener('click',()=>patchState({pinned_left_id:null,pinned_right_id:null}));
+
+  document.addEventListener('keydown',event=>{
+    if(event.key==='Escape'&&els.sceneInspector&&!els.sceneInspector.classList.contains('hidden')){
+      event.preventDefault();
+      closeSceneInspector();
+    }
+  });
+}
+
+function renderAll(){renderDisplay();renderScenes();renderSceneCast();renderAudioControls();renderTransitionControls();renderCueSequence();renderCuePresets();renderRevealGrid();renderRecent();renderSceneInspector();syncLiveAudio()}
 
 async function patchState(patch){
   if(!canGMControl())return null;
@@ -4813,6 +5064,7 @@ function setupGmWorkspace(){
 
 function wire(){
   window.addEventListener('message',handleMapBridgeMessage);
+  wireSceneInspector();
   document.querySelectorAll('[data-gm-tab]').forEach(button=>button.addEventListener('click',()=>{
     setGmWorkspaceTab(button.dataset.gmTab,{scroll:true});
   }));
