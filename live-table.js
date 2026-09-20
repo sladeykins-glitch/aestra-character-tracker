@@ -64,6 +64,18 @@ const configured=()=>Boolean(CONFIG.supabaseUrl&&CONFIG.supabaseAnonKey&&CAMPAIG
 const isInteractiveMap=asset=>asset?.kind==='map'&&asset?.metadata?.interactive===true;
 const withMapRole=(url,role)=>url+(url.includes('?')?'&':'?')+'aestraRole='+encodeURIComponent(role);
 const clamp01=value=>Math.max(0,Math.min(1,Number(value)||0));
+const warmedArtworkUrls=new Set();
+
+function warmArtwork(url){
+  const src=String(url||'');
+  if(!src||warmedArtworkUrls.has(src))return;
+  warmedArtworkUrls.add(src);
+  if(warmedArtworkUrls.size>96)warmedArtworkUrls.delete(warmedArtworkUrls.values().next().value);
+  const img=new Image();
+  img.decoding='async';
+  img.fetchPriority='high';
+  img.src=src;
+}
 
 function audioLibrary(){
   return derivedStateValue('audioLibrary',()=>{
@@ -354,7 +366,7 @@ function renderParty(){
   }
   els.partyHud.innerHTML=party.map(c=>{
     const portrait=c.portrait_url
-      ? '<img class="party-portrait" src="'+esc(c.portrait_url)+'" alt="'+esc(c.name)+' portrait">'
+      ? '<img class="party-portrait" src="'+esc(c.portrait_url)+'" alt="'+esc(c.name)+' portrait" decoding="async" fetchpriority="high">'
       : '<div class="party-portrait">'+esc((c.name||'?')[0].toUpperCase())+'</div>';
     const statuses=(c.statuses||[]).map(s=>'<span class="status-pill">'+esc(s)+'</span>').join('');
     return '<article class="party-card">'+portrait+'<div><div class="party-name">'+esc(c.name||'Unnamed')+'</div>'+
@@ -1621,7 +1633,7 @@ function renderPinned(host,id){
   const asset=byId(id);
   if(!asset){host.classList.add('hidden');host.innerHTML='';delete host.dataset.kind;return}
   host.dataset.kind=asset.kind||'other';
-  host.innerHTML='<img src="'+esc(asset.image_url)+'" alt="'+esc(asset.name)+'"><strong>'+esc(asset.name)+'</strong>';
+  host.innerHTML='<img src="'+esc(asset.image_url)+'" alt="'+esc(asset.name)+'" decoding="async" fetchpriority="high"><strong>'+esc(asset.name)+'</strong>';
   host.classList.remove('hidden');
 }
 
@@ -1631,6 +1643,10 @@ function renderDisplay(){
   const map=byId(state.map_asset_id);
   const reveal=byId(state.active_reveal_id);
   const mode=state.mode||'scene';
+  if(mode==='scene')warmArtwork(scene?.image_url);
+  if(mode==='reveal')warmArtwork(reveal?.image_url);
+  warmArtwork(byId(state.pinned_left_id)?.image_url);
+  warmArtwork(byId(state.pinned_right_id)?.image_url);
   const signature=displaySignature(state);
   const currentSceneId=state.active_scene_id||'';
   const currentTransitionNonce=transitionNonce();
@@ -1702,7 +1718,7 @@ function renderDisplay(){
 function sceneCard(asset){
   const active=state?.active_scene_id===asset.id;
   return '<article class="scene-card'+(active?' active':'')+'" data-scene-id="'+asset.id+'">'+
-    '<div class="scene-thumb" style="background-image:url(\''+esc(asset.image_url)+'\')"></div>'+
+    '<div class="scene-thumb"><img src="'+esc(asset.image_url)+'" alt="" loading="'+(active?'eager':'lazy')+'" decoding="async" fetchpriority="'+(active?'high':'low')+'"></div>'+
     '<div><strong>'+esc(asset.name)+'</strong><small>'+esc(asset.subtitle||'Scene backdrop')+'</small></div>'+
     '<div class="scene-actions"><button type="button" class="scene-inspect-btn" data-scene-inspect="'+asset.id+'">INSPECT</button><button type="button" data-scene-go="'+asset.id+'">'+(active?'LIVE':'GO')+'</button><button type="button" data-remove="'+asset.id+'">REMOVE</button><button type="button" class="danger" data-delete="'+asset.id+'">DELETE</button></div></article>';
 }
@@ -1795,6 +1811,8 @@ function sceneCastMemberElement(asset){
   const img=document.createElement('img');
   img.src=asset.image_url;
   img.alt=asset.name;
+  img.decoding='async';
+  img.fetchPriority='high';
   img.draggable=false;
   const name=document.createElement('strong');
   name.textContent=asset.name;
@@ -2088,7 +2106,7 @@ function revealCard(asset){
   const showLabel=asset.kind==='creature'||asset.kind==='handout'?'FULL REVEAL':'SHOW';
   const thumb=isInteractiveMap(asset)
     ? '<div class="reveal-thumb interactive-map-thumb"><span>✦</span><b>INTERACTIVE ATLAS</b></div>'
-    : '<div class="reveal-thumb" style="background-image:url(\''+esc(asset.image_url)+'\')"></div>';
+    : '<div class="reveal-thumb"><img src="'+esc(asset.image_url)+'" alt="" loading="lazy" decoding="async" fetchpriority="low"></div>';
   return '<article class="reveal-card" data-kind="'+esc(asset.kind)+'">'+thumb+
     '<strong>'+esc(asset.name)+'</strong><small>'+esc(asset.subtitle||asset.kind.replace('_',' '))+'</small>'+
     '<div class="card-actions"><button type="button" data-show="'+asset.id+'">'+showLabel+'</button>'+mapAction+castAction+'<button type="button" data-remove="'+asset.id+'">REMOVE</button><button type="button" class="danger" data-delete="'+asset.id+'">DELETE</button></div></article>';
