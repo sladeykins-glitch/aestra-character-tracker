@@ -34,8 +34,9 @@ function buildPrompt(userPrompt: string, style: string) {
   const aestra = [
     "Standalone widescreen environmental painting for the fantasy world Aestra.",
     "Edge-to-edge artwork with uninterrupted scenery from top to bottom and side to side.",
-    "Painterly anime-fantasy environment art, ecological science-fantasy, ancient weathered relic technology, crystal energy, brass and stone machinery, lush natural detail, mysterious ruins, melancholy beauty, enormous sense of scale.",
-    "Cinematic landscape composition, strong atmospheric perspective, natural lighting, detailed clouds and terrain.",
+    "Painterly anime-fantasy environment art with a rich sense of place, large scale, subtle melancholy, beauty, wonder, and environmental storytelling.",
+    "Aestra is an eco-apocalyptic fantasy world where nature, old civilizations, and traces of lost technology may coexist. Relic machinery, crystal energy, ruins, brass mechanisms, and technological remnants are optional world details: include them only when they naturally fit the user's specific scene request rather than adding them by default.",
+    "Cinematic landscape composition, strong atmospheric perspective, natural lighting, detailed clouds, terrain, architecture, vegetation, and weather appropriate to the requested place.",
     "Pure environment illustration only. Do not add interface graphics, menus, status bars, inventory strips, dialogue panels, map widgets, captions, fake lettering, watermarks, logos, borders, frames, code blocks, control icons, progress bars, video controls, or overlays.",
     "The result must look like a clean standalone illustration rather than a screenshot of software, a game, a stream, a website, an app, or a video."
   ];
@@ -46,8 +47,14 @@ function buildPrompt(userPrompt: string, style: string) {
     "Beautiful and inviting at first glance with subtle danger beneath the surface; avoid glossy 3D rendering and photorealism."
   ];
 
+  const painterly = [
+    "Serious painterly fantasy concept-art feeling with grounded forms, elegant environmental detail, restrained whimsy, and believable materials.",
+    "Favor atmosphere, geography, architecture, lighting, and lived-in environmental details over decorative magical objects unless the scene specifically asks for them."
+  ];
+
   const parts = [...aestra];
   if (style === "storybook") parts.push(...storybook);
+  else parts.push(...painterly);
   parts.push("Scene request: " + userPrompt);
 
   return parts.join("\n").slice(0, 1980);
