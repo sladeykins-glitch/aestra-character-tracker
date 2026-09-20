@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#080b0f" />
 <title>Aestra Live Table</title>
 <link rel="icon" href="aestra-icon.svg" type="image/svg+xml" />
-<link rel="stylesheet" href="live-table.css?v=31" />
+<link rel="stylesheet" href="live-table.css?v=32" />
 </head>
 <body>
 <div id="authGate" class="auth-gate">
@@ -379,6 +379,30 @@
           <button id="generateBackdropBtn" type="button" class="primary">Generate Variations</button>
           <p id="aiStatus" class="ai-status">Generate several Aestra backdrops, then choose the one you want to save and put live.</p>
           <div id="aiPreviewGrid" class="ai-preview-grid hidden" aria-live="polite"></div>
+          <div id="aiPreviewModal" class="ai-preview-modal hidden" aria-hidden="true">
+            <div class="ai-preview-modal-backdrop" data-ai-preview-close></div>
+            <div class="ai-preview-modal-panel" role="dialog" aria-modal="true" aria-labelledby="aiPreviewTitle">
+              <button id="aiPreviewCloseBtn" type="button" class="ai-preview-close" aria-label="Close preview">×</button>
+              <div class="ai-preview-modal-head">
+                <div>
+                  <p class="eyebrow">Backdrop Preview</p>
+                  <h3 id="aiPreviewTitle">Variation Preview</h3>
+                </div>
+                <span id="aiPreviewCounter" class="ai-preview-counter">1 / 1</span>
+              </div>
+              <div class="ai-preview-stage">
+                <button id="aiPreviewPrevBtn" type="button" class="ai-preview-nav" aria-label="Previous variation">‹</button>
+                <div class="ai-preview-image-wrap">
+                  <img id="aiPreviewImage" alt="Generated backdrop preview" />
+                </div>
+                <button id="aiPreviewNextBtn" type="button" class="ai-preview-nav" aria-label="Next variation">›</button>
+              </div>
+              <div class="ai-preview-actions">
+                <button id="aiPreviewBackBtn" type="button">Back to Choices</button>
+                <button id="aiPreviewConfirmBtn" type="button" class="primary">Use This Backdrop</button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -420,6 +444,6 @@
 </dialog>
 
 <script src="config.js"></script>
-<script type="module" src="live-table.js?v=46"></script>
+<script type="module" src="live-table.js?v=47"></script>
 </body>
 </html>
