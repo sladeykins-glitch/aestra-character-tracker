@@ -65,6 +65,145 @@ const isInteractiveMap=asset=>asset?.kind==='map'&&asset?.metadata?.interactive=
 const withMapRole=(url,role)=>url+(url.includes('?')?'&':'?')+'aestraRole='+encodeURIComponent(role);
 const clamp01=value=>Math.max(0,Math.min(1,Number(value)||0));
 const warmedArtworkUrls=new Set();
+let thumbnailBackfillRunning=false;
+
+function assetMetadata(asset){
+  return asset?.metadata&&typeof asset.metadata==='object'&&!Array.isArray(asset.metadata)?asset.metadata:{};
+}
+
+function assetThumbnailUrl(asset){
+  return assetMetadata(asset).thumbnail_url||asset?.image_url||'';
+}
+
+function thumbnailEligibleAsset(asset){
+  if(!asset?.id||!asset?.image_url||isInteractiveMap(asset))return false;
+  return asset.kind!=='map'||/.(?:png|jpe?g|webp|gif)(?:$|[?#])/i.test(asset.image_url);
+}
+
+async function imageBlobToThumbnail(blob,maxSide=512){
+  if(!(blob instanceof Blob)||!blob.type.startsWith('image/'))throw new Error('Thumbnail source is not an image.');
+
+  let source=null;
+  let revoke='';
+  try{
+    if('createImageBitmap' in window){
+      source=await createImageBitmap(blob);
+    }else{
+      revoke=URL.createObjectURL(blob);
+      source=await new Promise((resolve,reject)=>{
+        const img=new Image();
+        img.onload=()=>resolve(img);
+        img.onerror=()=>reject(new Error('Could not decode artwork for thumbnail.'));
+        img.src=revoke;
+      });
+    }
+
+    const sw=Number(source.width||source.naturalWidth)||1;
+    const sh=Number(source.height||source.naturalHeight)||1;
+    const scale=Math.min(1,maxSide/Math.max(sw,sh));
+    const width=Math.max(1,Math.round(sw*scale));
+    const height=Math.max(1,Math.round(sh*scale));
+    const canvas=document.createElement('canvas');
+    canvas.width=width;
+    canvas.height=height;
+    const ctx=canvas.getContext('2d',{alpha:false});
+    if(!ctx)throw new Error('Thumbnail canvas unavailable.');
+    ctx.imageSmoothingEnabled=true;
+    ctx.imageSmoothingQuality='high';
+    ctx.drawImage(source,0,0,width,height);
+
+    const encode=(type,quality)=>new Promise(resolve=>canvas.toBlob(resolve,type,quality));
+    let out=await encode('image/webp',.78);
+    let ext='webp';
+    if(!out){
+      out=await encode('image/jpeg',.8);
+      ext='jpg';
+    }
+    if(!out)throw new Error('Could not encode thumbnail.');
+    return {blob:out,width,height,ext,mime:out.type||('image/'+ext)};
+  }finally{
+    try{source?.close?.()}catch(_){}
+    if(revoke)URL.revokeObjectURL(revoke);
+  }
+}
+
+async function uploadThumbnailBlob(blob){
+  const thumb=await imageBlobToThumbnail(blob);
+  const path=CAMPAIGN_ID+'/thumbs/'+crypto.randomUUID()+'.'+thumb.ext;
+  const up=await supabase.storage.from('live-table').upload(path,thumb.blob,{
+    cacheControl:'31536000',
+    upsert:false,
+    contentType:thumb.mime
+  });
+  if(up.error)throw up.error;
+  const url=supabase.storage.from('live-table').getPublicUrl(path).data.publicUrl;
+  return {
+    thumbnail_url:url,
+    thumbnail_path:path,
+    thumbnail_width:thumb.width,
+    thumbnail_height:thumb.height,
+    thumbnail_version:1
+  };
+}
+
+async function ensureAssetThumbnail(asset){
+  if(!canGMControl()||!thumbnailEligibleAsset(asset))return asset;
+  const meta=assetMetadata(asset);
+  if(meta.thumbnail_url&&meta.thumbnail_path)return asset;
+
+  let uploaded=null;
+  try{
+    const response=await fetch(asset.image_url,{cache:'force-cache'});
+    if(!response.ok)throw new Error('Could not fetch artwork for thumbnail.');
+    const blob=await response.blob();
+    uploaded=await uploadThumbnailBlob(blob);
+    const metadata={...meta,...uploaded};
+    const result=await supabase.from('live_table_assets')
+      .update({metadata,updated_at:new Date().toISOString()})
+      .eq('id',asset.id)
+      .select()
+      .single();
+    if(result.error)throw result.error;
+    assets=assets.map(item=>item.id===asset.id?result.data:item);
+    return result.data;
+  }catch(err){
+    if(uploaded?.thumbnail_path){
+      try{await supabase.storage.from('live-table').remove([uploaded.thumbnail_path])}catch(_){}
+    }
+    console.warn('Could not create thumbnail for '+(asset?.name||'asset'),err);
+    return asset;
+  }
+}
+
+async function backfillAssetThumbnails(){
+  if(thumbnailBackfillRunning||!canGMControl()||document.hidden)return;
+  if(navigator.connection?.saveData)return;
+  const pending=assets.filter(asset=>thumbnailEligibleAsset(asset)&&!assetMetadata(asset).thumbnail_url);
+  if(!pending.length)return;
+  thumbnailBackfillRunning=true;
+  let changed=false;
+  try{
+    for(const asset of pending){
+      if(document.hidden)break;
+      const before=assetMetadata(asset).thumbnail_url;
+      const updated=await ensureAssetThumbnail(asset);
+      if(!before&&assetMetadata(updated).thumbnail_url)changed=true;
+      await new Promise(resolve=>setTimeout(resolve,60));
+    }
+  }finally{
+    thumbnailBackfillRunning=false;
+  }
+  if(changed){
+    renderScenes();
+    renderRevealGrid();
+    renderSceneInspector();
+  }
+}
+
+function scheduleThumbnailBackfill(delay=900){
+  if(!canGMControl())return;
+  runtimeLifecycle.timeout('thumbnail-backfill',backfillAssetThumbnails,delay);
+}
 
 function warmArtwork(url){
   const src=String(url||'');
@@ -1718,7 +1857,7 @@ function renderDisplay(){
 function sceneCard(asset){
   const active=state?.active_scene_id===asset.id;
   return '<article class="scene-card'+(active?' active':'')+'" data-scene-id="'+asset.id+'">'+
-    '<div class="scene-thumb"><img src="'+esc(asset.image_url)+'" alt="" loading="'+(active?'eager':'lazy')+'" decoding="async" fetchpriority="'+(active?'high':'low')+'"></div>'+
+    '<div class="scene-thumb"><img src="'+esc(assetThumbnailUrl(asset))+'" alt="" loading="'+(active?'eager':'lazy')+'" decoding="async" fetchpriority="'+(active?'high':'low')+'"></div>'+
     '<div><strong>'+esc(asset.name)+'</strong><small>'+esc(asset.subtitle||'Scene backdrop')+'</small></div>'+
     '<div class="scene-actions"><button type="button" class="scene-inspect-btn" data-scene-inspect="'+asset.id+'">INSPECT</button><button type="button" data-scene-go="'+asset.id+'">'+(active?'LIVE':'GO')+'</button><button type="button" data-remove="'+asset.id+'">REMOVE</button><button type="button" class="danger" data-delete="'+asset.id+'">DELETE</button></div></article>';
 }
@@ -2106,7 +2245,7 @@ function revealCard(asset){
   const showLabel=asset.kind==='creature'||asset.kind==='handout'?'FULL REVEAL':'SHOW';
   const thumb=isInteractiveMap(asset)
     ? '<div class="reveal-thumb interactive-map-thumb"><span>✦</span><b>INTERACTIVE ATLAS</b></div>'
-    : '<div class="reveal-thumb"><img src="'+esc(asset.image_url)+'" alt="" loading="lazy" decoding="async" fetchpriority="low"></div>';
+    : '<div class="reveal-thumb"><img src="'+esc(assetThumbnailUrl(asset))+'" alt="" loading="lazy" decoding="async" fetchpriority="low"></div>';
   return '<article class="reveal-card" data-kind="'+esc(asset.kind)+'">'+thumb+
     '<strong>'+esc(asset.name)+'</strong><small>'+esc(asset.subtitle||asset.kind.replace('_',' '))+'</small>'+
     '<div class="card-actions"><button type="button" data-show="'+asset.id+'">'+showLabel+'</button>'+mapAction+castAction+'<button type="button" data-remove="'+asset.id+'">REMOVE</button><button type="button" class="danger" data-delete="'+asset.id+'">DELETE</button></div></article>';
@@ -2872,6 +3011,39 @@ function renderSceneInspector(){
   const audio=normalizeAudioState(state?.audio_state);
   const transition=transitionState();
   const cueCount=scenePresets().filter(p=>p.snapshot?.active_scene_id===asset.id).length;
+  const cast=normalizeSceneCast();
+  const audioCount=[audio.music_id,audio.ambience_id].filter(Boolean).length;
+  const revealCount=current
+    ? [state?.pinned_left_id,state?.pinned_right_id,state?.active_reveal_id].filter(Boolean).length
+    : 0;
+
+  const setStatus=(element,text,tone='off')=>{
+    if(!element)return;
+    element.textContent=text;
+    element.dataset.tone=tone;
+  };
+
+  const liveTone=current?'on':'locked';
+  const fxText=!current?'LOCKED':cfg.effects.length
+    ? cfg.effects.length+' '+(sceneMode?'ACTIVE':'READY')
+    : 'OFF';
+  const castText=!current?'LOCKED':cast.ids.length?cast.ids.length+' ON STAGE':'EMPTY';
+  const audioText=!current?'LOCKED':audio.muted?'MUTED':audioCount?audioCount+' PLAYING':'OFF';
+  const revealText=!current?'LOCKED':revealCount?revealCount+' VISIBLE':'CLEAR';
+  const cueText=cueCount?cueCount+' SAVED':'0 SAVED';
+
+  setStatus(els.sceneInspectorSummaryFx,fxText,!current?'locked':cfg.effects.length?'on':'off');
+  setStatus(els.sceneInspectorSummaryCast,castText,!current?'locked':cast.ids.length?'on':'off');
+  setStatus(els.sceneInspectorSummaryAudio,audioText,!current?'locked':audio.muted?'warn':audioCount?'on':'off');
+  setStatus(els.sceneInspectorSummaryReveals,revealText,!current?'locked':revealCount?'on':'off');
+  setStatus(els.sceneInspectorSummaryCues,cueText,cueCount?'ready':'off');
+
+  setStatus(els.sceneInspectorFxState,fxText,!current?'locked':cfg.effects.length?'on':'off');
+  setStatus(els.sceneInspectorCastState,castText,!current?'locked':cast.ids.length?'on':'off');
+  setStatus(els.sceneInspectorAudioState,audioText,!current?'locked':audio.muted?'warn':audioCount?'on':'off');
+  setStatus(els.sceneInspectorTransitionState,!current?'LOCKED':transitionLabel(transition.style).toUpperCase(),liveTone);
+  setStatus(els.sceneInspectorRevealState,revealText,!current?'locked':revealCount?'on':'off');
+  setStatus(els.sceneInspectorCueState,cueText,cueCount?'ready':'off');
 
   if(els.sceneInspectorTitle)els.sceneInspectorTitle.textContent=asset.name||'Scene';
   if(els.sceneInspectorImage){
@@ -3161,8 +3333,9 @@ async function deleteAsset(id){
   await removeAssetFromDisplay(id);
   const del=await supabase.from('live_table_assets').delete().eq('id',id);
   if(del.error){alert(del.error.message);return}
-  if(asset.storage_path){
-    const storageDelete=await supabase.storage.from('live-table').remove([asset.storage_path]);
+  const storagePaths=[asset.storage_path,assetMetadata(asset).thumbnail_path].filter(Boolean);
+  if(storagePaths.length){
+    const storageDelete=await supabase.storage.from('live-table').remove([...new Set(storagePaths)]);
     if(storageDelete.error)console.warn('Could not remove storage file',storageDelete.error);
   }
   assets=assets.filter(a=>a.id!==id);
@@ -3299,9 +3472,25 @@ async function uploadAsset(e){
     if(up.error)throw up.error;
     const pub=supabase.storage.from('live-table').getPublicUrl(storagePath);
     const imageUrl=pub.data.publicUrl;
-    const ins=await supabase.from('live_table_assets').insert({campaign_id:CAMPAIGN_ID,kind,name,subtitle,image_url:imageUrl,storage_path:storagePath,created_by:user.id}).select().single();
+    let thumbMeta={};
+    try{
+      els.assetMessage.textContent='Creating library thumbnail…';
+      thumbMeta=await uploadThumbnailBlob(file);
+    }catch(err){
+      console.warn('Thumbnail generation failed; original artwork will still be saved.',err);
+    }
+    const ins=await supabase.from('live_table_assets').insert({
+      campaign_id:CAMPAIGN_ID,
+      kind,
+      name,
+      subtitle,
+      image_url:imageUrl,
+      storage_path:storagePath,
+      metadata:thumbMeta,
+      created_by:user.id
+    }).select().single();
     if(ins.error){
-      await supabase.storage.from('live-table').remove([storagePath]);
+      await supabase.storage.from('live-table').remove([storagePath,thumbMeta.thumbnail_path].filter(Boolean));
       throw ins.error;
     }
     assets=[ins.data,...assets];
@@ -3492,6 +3681,7 @@ async function saveAiBackdropChoice(index){
     if(!data?.asset)throw new Error('The selected backdrop could not be saved.');
 
     assets=[data.asset,...assets.filter(asset=>asset.id!==data.asset.id)];
+    scheduleThumbnailBackfill(180);
     aiBackdropPreviewState=null;
     renderAiBackdropPreviews();
     els.aiStatus.textContent='Backdrop saved. Putting it live now…';
@@ -3719,7 +3909,44 @@ async function subscribeRealtime(){
     })
     .subscribe();
   const assetsChannel=supabase.channel('aestra-live-assets')
-    .on('postgres_changes',{event:'*',schema:'public',table:'live_table_assets',filter:'campaign_id=eq.'+CAMPAIGN_ID},async()=>{await loadAssets();renderAll()})
+    .on('postgres_changes',{event:'*',schema:'public',table:'live_table_assets',filter:'campaign_id=eq.'+CAMPAIGN_ID},payload=>{
+      const oldRow=payload.old||{};
+      const newRow=payload.new||{};
+      const id=newRow.id||oldRow.id;
+      const previous=id?byId(id):null;
+
+      if(payload.eventType==='DELETE'){
+        assets=assets.filter(asset=>asset.id!==id);
+        recent=recent.filter(item=>item!==id);
+        renderAll();
+        return;
+      }
+
+      if(newRow?.id){
+        assets=assets.some(asset=>asset.id===newRow.id)
+          ? assets.map(asset=>asset.id===newRow.id?newRow:asset)
+          : [newRow,...assets];
+      }
+
+      renderScenes();
+      renderRevealGrid();
+      renderRecent();
+      renderSceneInspector();
+
+      const visibleIds=new Set([
+        state?.active_scene_id,
+        state?.active_reveal_id,
+        state?.map_asset_id,
+        state?.pinned_left_id,
+        state?.pinned_right_id,
+        ...normalizeSceneCast().ids
+      ].filter(Boolean));
+      const presentationChanged=!previous||['name','subtitle','image_url','kind'].some(key=>!valueEqual(previous?.[key],newRow?.[key]));
+      if(id&&visibleIds.has(id)&&presentationChanged){
+        renderDisplay();
+        renderSceneCast();
+      }
+    })
     .subscribe();
   const partyChannel=supabase.channel('aestra-live-party')
     .on('postgres_changes',{event:'*',schema:'public',table:'live_table_party',filter:'campaign_id=eq.'+CAMPAIGN_ID},async()=>{await loadParty();renderParty()})
@@ -4122,6 +4349,8 @@ async function startApp(){
   }catch(err){
     console.warn('Realtime unavailable; map polling remains active.',err);
   }
+
+  scheduleThumbnailBackfill(850);
 }
 
 async function boot(){
