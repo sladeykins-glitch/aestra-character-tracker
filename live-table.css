@@ -75,43 +75,38 @@ body:not(.display-only) .player-display.map-live::before{content:'GM MAP CONTROL
   right:auto;
   top:20px;
   bottom:auto;
-  width:min(260px,calc(100% - 32px));
+  width:min(286px,calc(100% - 32px));
   max-height:calc(100% - 40px);
   display:flex;
   flex-direction:column;
   gap:8px;
   overflow-y:auto;
   overflow-x:hidden;
-  padding:28px 8px 8px;
-  border:1px solid rgba(226,198,126,.20);
-  border-radius:16px;
-  background:
-    linear-gradient(180deg,rgba(7,11,15,.42),rgba(5,8,12,.74)),
-    radial-gradient(circle at 18% 0%,rgba(111,186,211,.08),transparent 42%);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.025),
-    0 14px 32px rgba(0,0,0,.24);
-  backdrop-filter:blur(10px);
-  scrollbar-width:thin;
-  scrollbar-color:rgba(210,176,95,.34) transparent;
+  padding:44px 30px 30px;
+  border:0;
+  border-radius:0;
+  background-image:
+    url('assets/ui/aestra-party-hud-frame.webp'),
+    linear-gradient(180deg,rgba(7,11,15,.38),rgba(5,8,12,.68));
+  background-position:center,center;
+  background-repeat:no-repeat,no-repeat;
+  background-size:100% 100%,calc(100% - 46px) calc(100% - 54px);
+  box-shadow:0 16px 38px rgba(0,0,0,.22);
+  scrollbar-width:none;
 }
 .party-hud::before{
   content:'PARTY';
   position:absolute;
-  top:9px;
-  left:12px;
-  color:#d8bd78;
+  top:29px;
+  left:37px;
+  color:#e0c985;
   font:700 8px/1 Inter,system-ui,sans-serif;
-  letter-spacing:.22em;
+  letter-spacing:.24em;
   text-transform:uppercase;
-  opacity:.9;
+  opacity:.94;
+  text-shadow:0 2px 8px rgba(0,0,0,.9),0 0 8px rgba(76,194,226,.16);
 }
-.party-hud::-webkit-scrollbar{width:5px}
-.party-hud::-webkit-scrollbar-track{background:transparent}
-.party-hud::-webkit-scrollbar-thumb{
-  background:rgba(210,176,95,.28);
-  border-radius:999px;
-}
+.party-hud::-webkit-scrollbar{display:none}
 .party-card{
   flex:0 0 auto;
   min-height:74px;
@@ -211,16 +206,16 @@ body:not(.display-only) .player-display.map-live::before{content:'GM MAP CONTROL
   right:auto;
   top:20px;
   bottom:auto;
-  width:min(270px,calc(100vw - 36px));
+  width:min(296px,calc(100vw - 36px));
   max-height:calc(100vh - 40px);
 }
 
 /* Keep pinned art from fighting with the party stack. */
 .player-display .pin-left{
-  left:292px;
+  left:318px;
 }
 .display-only .pin-left{
-  left:304px;
+  left:330px;
 }
 
 /* Compact preview/smaller screens: remain vertical, never return to a bottom strip. */
@@ -230,8 +225,9 @@ body:not(.display-only) .player-display.map-live::before{content:'GM MAP CONTROL
     right:auto;
     top:12px;
     bottom:auto;
-    width:min(236px,calc(100% - 24px));
+    width:min(258px,calc(100% - 24px));
     max-height:calc(100% - 24px);
+    padding:40px 27px 28px;
     grid-template-columns:none;
   }
   .party-card{
@@ -240,7 +236,7 @@ body:not(.display-only) .player-display.map-live::before{content:'GM MAP CONTROL
     padding:7px 8px;
   }
   .party-portrait{width:38px;height:38px}
-  .player-display .pin-left{left:260px}
+  .player-display .pin-left{left:282px}
 }
 @media(max-width:640px){
   .party-hud{
@@ -248,9 +244,9 @@ body:not(.display-only) .player-display.map-live::before{content:'GM MAP CONTROL
     right:auto;
     top:8px;
     bottom:auto;
-    width:min(210px,calc(100% - 16px));
+    width:min(224px,calc(100% - 16px));
     max-height:46%;
-    padding:25px 6px 6px;
+    padding:36px 24px 24px;
     grid-template-columns:none;
   }
   .party-card{
