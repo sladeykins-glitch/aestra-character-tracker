@@ -1434,3 +1434,11 @@ body.ai-preview-open{overflow:hidden}
   .ai-preview-actions{display:grid;grid-template-columns:1fr 1fr}
   .ai-preview-actions .primary{min-width:0}
 }
+
+
+/* Atmosphere controls v4 — room for expanded layered effects */
+.scene-fx-grid button{
+  min-height:34px;
+  line-height:1.15;
+  white-space:normal;
+}
