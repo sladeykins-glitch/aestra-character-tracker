@@ -33,6 +33,7 @@ const cuePreloadedUrls=new Set();
 const cuePreloadedAudioUrls=new Set();
 const cueAudioPreloaders=new Map();
 let liveAudioEngine=null;
+let aiBackdropPreviewState=null;
 let gmAudioPreview=null;
 
 const esc=s=>String(s??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
@@ -3553,48 +3554,146 @@ async function uploadAsset(e){
   }
 }
 
+function aiFunctionError(error,fallback='Generation failed.'){
+  let message=error?.message||fallback;
+  try{
+    const context=error?.context;
+    if(context&&typeof context.json==='function'){
+      return context.json().then(details=>details?.error||message).catch(()=>message);
+    }
+  }catch(_){}
+  return Promise.resolve(message);
+}
+
+function renderAiBackdropPreviews(){
+  if(!els.aiPreviewGrid)return;
+  const previews=aiBackdropPreviewState?.previews||[];
+  if(!previews.length){
+    els.aiPreviewGrid.innerHTML='';
+    els.aiPreviewGrid.classList.add('hidden');
+    return;
+  }
+  els.aiPreviewGrid.classList.remove('hidden');
+  els.aiPreviewGrid.innerHTML=previews.map((preview,index)=>
+    '<article class="ai-preview-card">'+
+      '<div class="ai-preview-art"><img src="'+esc(preview.url)+'" alt="Generated Aestra backdrop variation '+(index+1)+'" loading="lazy"><span>VARIATION '+(index+1)+'</span></div>'+
+      '<button type="button" class="primary" data-ai-save="'+index+'">USE THIS BACKDROP</button>'+
+    '</article>'
+  ).join('');
+  els.aiPreviewGrid.querySelectorAll('[data-ai-save]').forEach(button=>
+    button.addEventListener('click',()=>saveAiBackdropChoice(Number(button.dataset.aiSave)))
+  );
+}
+
 async function generateAiBackdrop(){
   if(!canGMControl())return;
   const name=els.aiSceneName.value.trim();
   const subtitle=els.aiSceneSubtitle.value.trim();
   const prompt=els.aiPrompt.value.trim();
   const quality=els.aiQuality.value;
+  const style=els.aiStyle?.value||'storybook';
+  const variations=Math.max(2,Math.min(4,Number(els.aiVariations?.value||4)));
   if(!name){els.aiStatus.textContent='Give the scene a name first.';els.aiSceneName.focus();return}
   if(!prompt){els.aiStatus.textContent='Describe the backdrop you want first.';els.aiPrompt.focus();return}
+
+  const oldPreviewPaths=(aiBackdropPreviewState?.previews||[]).map(item=>item.path).filter(Boolean);
   els.generateBackdropBtn.disabled=true;
-  els.aiStatus.textContent='Generating Aestra backdrop…';
+  els.aiPreviewGrid?.querySelectorAll('button').forEach(button=>button.disabled=true);
+  els.aiStatus.textContent='Painting '+variations+' Aestra backdrop variations…';
+
   try{
     const {data,error}=await supabase.functions.invoke('generate-live-table-backdrop',{
-      body:{campaignId:CAMPAIGN_ID,name,subtitle,prompt,quality}
+      body:{
+        action:'generate',
+        campaignId:CAMPAIGN_ID,
+        name,
+        subtitle,
+        prompt,
+        quality,
+        style,
+        variations,
+        cleanupPaths:oldPreviewPaths
+      }
     });
-    if(error){
-      let message=error.message||'Generation failed.';
-      try{
-        if(error.context){
-          const details=await error.context.json();
-          if(details?.error)message=details.error;
-        }
-      }catch(_){}
-      throw new Error(message);
-    }
+    if(error)throw new Error(await aiFunctionError(error));
     if(data?.error)throw new Error(data.error);
-    if(!data?.asset)throw new Error('No scene was returned.');
-    assets=[data.asset,...assets.filter(a=>a.id!==data.asset.id)];
-    els.aiStatus.textContent='Backdrop created and saved. Putting it live now…';
+    if(!Array.isArray(data?.previews)||!data.previews.length)throw new Error('The image generator returned no previews.');
+
+    aiBackdropPreviewState={
+      name,
+      subtitle,
+      prompt,
+      quality,
+      style,
+      generationId:data.generationId||'',
+      expandedPrompt:data.expandedPrompt||'',
+      previews:data.previews
+    };
+    renderAiBackdropPreviews();
+    const failed=Number(data.failed||0);
+    els.aiStatus.textContent=failed
+      ? data.previews.length+' variation'+(data.previews.length===1?'':'s')+' ready · '+failed+' failed. Choose one to save.'
+      : 'Choose your favourite. Only the backdrop you select will be kept.';
+  }catch(err){
+    console.error(err);
+    const msg=err?.message||'Could not generate the backdrop.';
+    els.aiStatus.textContent=msg.includes('CLOUDFLARE_')
+      ? 'Cloudflare is wired in, but the two Cloudflare credentials still need to be added to Supabase secrets.'
+      : msg;
+    renderAiBackdropPreviews();
+  }finally{
+    els.generateBackdropBtn.disabled=false;
+    els.aiPreviewGrid?.querySelectorAll('button').forEach(button=>button.disabled=false);
+  }
+}
+
+async function saveAiBackdropChoice(index){
+  if(!canGMControl())return;
+  const previewState=aiBackdropPreviewState;
+  const chosen=previewState?.previews?.[index];
+  if(!previewState||!chosen)return;
+
+  els.generateBackdropBtn.disabled=true;
+  els.aiPreviewGrid?.querySelectorAll('button').forEach(button=>button.disabled=true);
+  els.aiPreviewGrid?.querySelectorAll('.ai-preview-card').forEach((card,i)=>card.classList.toggle('is-selected',i===index));
+  els.aiStatus.textContent='Saving chosen backdrop and clearing the unused variations…';
+
+  try{
+    const {data,error}=await supabase.functions.invoke('generate-live-table-backdrop',{
+      body:{
+        action:'save',
+        campaignId:CAMPAIGN_ID,
+        name:previewState.name,
+        subtitle:previewState.subtitle,
+        prompt:previewState.prompt,
+        quality:previewState.quality,
+        style:previewState.style,
+        generationId:previewState.generationId,
+        selectedPath:chosen.path,
+        previewPaths:previewState.previews.map(item=>item.path)
+      }
+    });
+    if(error)throw new Error(await aiFunctionError(error,'Save failed.'));
+    if(data?.error)throw new Error(data.error);
+    if(!data?.asset)throw new Error('The selected backdrop could not be saved.');
+
+    assets=[data.asset,...assets.filter(asset=>asset.id!==data.asset.id)];
+    aiBackdropPreviewState=null;
+    renderAiBackdropPreviews();
+    els.aiStatus.textContent='Backdrop saved. Putting it live now…';
     await activateScene(data.asset.id);
-    els.aiStatus.textContent='Backdrop created, saved, and live.';
+    els.aiStatus.textContent='Backdrop saved and live.';
     els.aiSceneName.value='';
     els.aiSceneSubtitle.value='';
     els.aiPrompt.value='';
     renderAll();
   }catch(err){
     console.error(err);
-    const msg=err?.message||'Could not generate the backdrop.';
-    els.aiStatus.textContent=msg.includes('OPENAI_API_KEY')
-      ? 'AI generator is installed, but the OpenAI API key still needs to be added to the Supabase function secrets.'
-      : msg;
+    els.aiStatus.textContent=err?.message||'Could not save the chosen backdrop.';
+    els.aiPreviewGrid?.querySelectorAll('.ai-preview-card').forEach(card=>card.classList.remove('is-selected'));
   }finally{
     els.generateBackdropBtn.disabled=false;
+    els.aiPreviewGrid?.querySelectorAll('button').forEach(button=>button.disabled=false);
   }
 }
 
