@@ -4677,8 +4677,148 @@ async function subscribeRealtime(){
     .subscribe();
 }
 
+
+const GM_WORKSPACE_TABS=new Set(['scenes','reveals','session','audio','tools']);
+let gmWorkspaceMounted=false;
+
+function gmStoredTab(){
+  try{
+    const value=localStorage.getItem('aestra-live-gm-tab');
+    return GM_WORKSPACE_TABS.has(value)?value:'scenes';
+  }catch(_){
+    return 'scenes';
+  }
+}
+
+function setGmWorkspaceTab(tab,{remember=true,scroll=false}={}){
+  if(!GM_WORKSPACE_TABS.has(tab))tab='scenes';
+
+  document.querySelectorAll('[data-gm-tab]').forEach(button=>{
+    const active=button.dataset.gmTab===tab;
+    button.classList.toggle('active',active);
+    button.setAttribute('aria-selected',active?'true':'false');
+  });
+
+  document.querySelectorAll('[data-gm-panel]').forEach(panel=>{
+    const active=panel.dataset.gmPanel===tab;
+    panel.classList.toggle('active',active);
+    panel.hidden=!active;
+  });
+
+  if(remember){
+    try{localStorage.setItem('aestra-live-gm-tab',tab)}catch(_){}
+  }
+
+  if(scroll&&els.gmWorkspaceShell){
+    const top=els.gmWorkspaceShell.getBoundingClientRect().top+window.scrollY-82;
+    if(window.scrollY>top+120||window.scrollY<top-420){
+      window.scrollTo({top:Math.max(0,top),behavior:'smooth'});
+    }
+  }
+}
+
+function setGmCompactPreview(enabled,{remember=true}={}){
+  const compact=enabled===true;
+  document.body.classList.toggle('gm-preview-compact',compact);
+  if(els.gmCompactPreviewBtn){
+    els.gmCompactPreviewBtn.classList.toggle('active',compact);
+    els.gmCompactPreviewBtn.setAttribute('aria-pressed',compact?'true':'false');
+    const label=els.gmCompactPreviewBtn.querySelector('span:last-child');
+    if(label)label.textContent=compact?'Expand Preview':'Compact Preview';
+  }
+  if(remember){
+    try{localStorage.setItem('aestra-live-compact-preview',compact?'1':'0')}catch(_){}
+  }
+  requestAnimationFrame(()=>{
+    getSceneAtmosphereRenderer()?.resize();
+    getTransitionCanvasRenderer()?.resize?.();
+  });
+}
+
+function gmModule(className,label){
+  const el=document.createElement('section');
+  el.className='gm-dashboard-module '+className;
+  if(label)el.dataset.moduleLabel=label;
+  return el;
+}
+
+function setupGmWorkspace(){
+  if(gmWorkspaceMounted||!canGMControl()||!els.gmWorkspaceShell)return;
+
+  const scenesColumn=document.querySelector('.scenes-column');
+  const revealColumn=document.querySelector('.reveal-column');
+  const recentColumn=document.querySelector('.recent-column');
+  if(!scenesColumn||!revealColumn||!recentColumn)return;
+
+  const scenesPanel=els.gmPanelScenes;
+  const revealsPanel=els.gmPanelReveals;
+  const sessionPanel=els.gmPanelSession;
+  const audioPanel=els.gmPanelAudio;
+  const toolsPanel=els.gmPanelTools;
+  if(!scenesPanel||!revealsPanel||!sessionPanel||!audioPanel||!toolsPanel)return;
+
+  const sceneCore=gmModule('gm-scenes-core','Scenes');
+  const sceneHeader=scenesColumn.querySelector(':scope > .section-head');
+  if(sceneHeader)sceneCore.append(sceneHeader);
+  if(els.sceneStrip)sceneCore.append(els.sceneStrip);
+  scenesPanel.append(sceneCore);
+
+  if(els.sceneEffectsPanel)scenesPanel.append(els.sceneEffectsPanel);
+
+  const aiBox=recentColumn.querySelector('.ai-box');
+  if(aiBox){
+    aiBox.classList.add('gm-ai-module');
+    scenesPanel.append(aiBox);
+  }
+
+  if(els.sceneCastPanel)revealsPanel.append(els.sceneCastPanel);
+  revealColumn.classList.add('gm-reveal-module');
+  revealsPanel.append(revealColumn);
+
+  if(els.cueSequencePanel)sessionPanel.append(els.cueSequencePanel);
+  if(els.cuePresetsPanel)sessionPanel.append(els.cuePresetsPanel);
+
+  const recentModule=gmModule('gm-recent-module','Recent');
+  const recentHeader=recentColumn.querySelector(':scope > .section-head');
+  if(recentHeader)recentModule.append(recentHeader);
+  if(els.recentList)recentModule.append(els.recentList);
+  sessionPanel.append(recentModule);
+
+  if(els.cueAudioPanel)audioPanel.append(els.cueAudioPanel);
+  if(els.cueTransitionPanel)audioPanel.append(els.cueTransitionPanel);
+
+  const mapTools=scenesColumn.querySelector('.map-tool-stack');
+  if(mapTools){
+    const mapModule=gmModule('gm-map-module','Map');
+    const mapHead=document.createElement('div');
+    mapHead.className='section-head compact gm-generated-head';
+    mapHead.innerHTML='<div><p class="eyebrow">World Map</p><h2>Map & Tools</h2></div>';
+    mapModule.append(mapHead,mapTools);
+    toolsPanel.append(mapModule);
+  }
+
+  els.gmControls?.classList.add('gm-controls-mounted');
+  recentColumn.classList.add('gm-source-empty');
+  scenesColumn.classList.add('gm-source-empty');
+
+  const storedTab=gmStoredTab();
+  setGmWorkspaceTab(storedTab,{remember:false});
+
+  let compact=false;
+  try{compact=localStorage.getItem('aestra-live-compact-preview')==='1'}catch(_){}
+  setGmCompactPreview(compact,{remember:false});
+
+  gmWorkspaceMounted=true;
+}
+
 function wire(){
   window.addEventListener('message',handleMapBridgeMessage);
+  document.querySelectorAll('[data-gm-tab]').forEach(button=>button.addEventListener('click',()=>{
+    setGmWorkspaceTab(button.dataset.gmTab,{scroll:true});
+  }));
+  els.gmCompactPreviewBtn?.addEventListener('click',()=>{
+    setGmCompactPreview(!document.body.classList.contains('gm-preview-compact'));
+  });
   els.authForm.addEventListener('submit',async e=>{
     e.preventDefault();setAuthMessage('Signing in…');
     try{
@@ -4782,6 +4922,7 @@ function wire(){
 async function startApp(){
   showApp();
   await checkRole();
+  setupGmWorkspace();
   await Promise.all([loadState(),loadAssets(),loadParty(),loadMapState()]);
   renderAll();
 
