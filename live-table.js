@@ -269,15 +269,27 @@ async function checkRole(){
   }
 }
 
+function liveStateRevision(value){
+  const timestamp=Date.parse(value?.updated_at||'');
+  return Number.isFinite(timestamp)?timestamp:0;
+}
+
+function acceptLiveState(next,{force=false}={}){
+  if(!next)return false;
+  if(!force&&state&&liveStateRevision(next)<liveStateRevision(state))return false;
+  state=next;
+  return true;
+}
+
 async function loadState(){
   const {data,error}=await supabase.from('live_table_state').select('*').eq('campaign_id',CAMPAIGN_ID).maybeSingle();
   if(error)throw error;
-  state=data;
+  acceptLiveState(data,{force:true});
   if(!state&&canGMControl()){
     const fresh={campaign_id:CAMPAIGN_ID,mode:'scene',hud_visible:true,updated_by:user.id};
     const r=await supabase.from('live_table_state').insert(fresh).select().single();
     if(r.error)throw r.error;
-    state=r.data;
+    acceptLiveState(r.data,{force:true});
   }
 }
 
@@ -2414,16 +2426,14 @@ function normalizedCueSequence(raw=state?.cue_sequence){
 }
 
 function cueSequence(){
-  const validPresetIds=new Set(scenePresets().map(preset=>preset.id));
-  return normalizedCueSequence().filter(item=>validPresetIds.has(item.preset_id));
+  return normalizedCueSequence();
 }
 
 function cueSequenceIndex(){
-  const rawSequence=normalizedCueSequence();
+  const seq=cueSequence();
   const raw=Number(state?.cue_sequence_index);
-  if(!Number.isInteger(raw)||raw<0||raw>=rawSequence.length)return -1;
-  const currentItemId=rawSequence[raw]?.id;
-  return currentItemId?cueSequence().findIndex(item=>item.id===currentItemId):-1;
+  if(!Number.isInteger(raw)||raw<0)return -1;
+  return Math.min(raw,Math.max(-1,seq.length-1));
 }
 
 function cuePresetById(id){
@@ -2432,23 +2442,6 @@ function cuePresetById(id){
 
 function cueItemPreset(item){
   return item?cuePresetById(item.preset_id):null;
-}
-
-async function cleanStaleCueSequence(){
-  if(!canGMControl())return false;
-  const source=Array.isArray(state?.cue_sequence)?state.cue_sequence:[];
-  const normalized=normalizedCueSequence(source);
-  const validPresetIds=new Set(scenePresets().map(preset=>preset.id));
-  const cleaned=normalized.filter(item=>validPresetIds.has(item.preset_id));
-  const rawIndex=Number(state?.cue_sequence_index);
-  const currentItemId=Number.isInteger(rawIndex)&&rawIndex>=0?normalized[rawIndex]?.id:null;
-  const nextIndex=currentItemId?cleaned.findIndex(item=>item.id===currentItemId):-1;
-  const changed=source.length!==cleaned.length
-    ||normalized.length!==cleaned.length
-    ||(Number.isInteger(rawIndex)?rawIndex:-1)!==nextIndex;
-  if(!changed)return false;
-  await patchState({cue_sequence:cleaned,cue_sequence_index:nextIndex});
-  return true;
 }
 
 function normalizeCueEffects(raw){
@@ -3094,11 +3087,15 @@ async function runCueSequenceAt(index){
 }
 
 async function runCueSequenceItem(itemId){
+  if(!canGMControl())return;
+  await loadState();
   const index=cueSequence().findIndex(item=>item.id===itemId);
   if(index>=0)await runCueSequenceAt(index);
 }
 
 async function nextCueInSequence(){
+  if(!canGMControl())return;
+  await loadState();
   const seq=cueSequence();
   if(!seq.length)return;
   const current=cueSequenceIndex();
@@ -3107,6 +3104,8 @@ async function nextCueInSequence(){
 }
 
 async function previousCueInSequence(){
+  if(!canGMControl())return;
+  await loadState();
   const current=cueSequenceIndex();
   if(current>0)await runCueSequenceAt(current-1);
 }
@@ -3129,8 +3128,7 @@ async function patchState(patch){
   const payload={...patch,updated_by:user.id,updated_at:new Date().toISOString()};
   const {data,error}=await supabase.from('live_table_state').update(payload).eq('campaign_id',CAMPAIGN_ID).select().single();
   if(error){alert(error.message);return null}
-  state=data;
-  renderAll();
+  if(acceptLiveState(data))renderAll();
   return data;
 }
 
@@ -3545,7 +3543,7 @@ async function subscribeRealtime(){
       if(err)console.warn('Realtime map mirror channel error',err);
     });
   supabase.channel('aestra-live-state')
-    .on('postgres_changes',{event:'*',schema:'public',table:'live_table_state',filter:'campaign_id=eq.'+CAMPAIGN_ID},payload=>{if(payload.new){state=payload.new;renderAll()}})
+    .on('postgres_changes',{event:'*',schema:'public',table:'live_table_state',filter:'campaign_id=eq.'+CAMPAIGN_ID},payload=>{if(acceptLiveState(payload.new))renderAll()})
     .subscribe();
   supabase.channel('aestra-live-assets')
     .on('postgres_changes',{event:'*',schema:'public',table:'live_table_assets',filter:'campaign_id=eq.'+CAMPAIGN_ID},async()=>{await loadAssets();renderAll()})
@@ -3647,7 +3645,6 @@ async function startApp(){
   showApp();
   await checkRole();
   await Promise.all([loadState(),loadAssets(),loadParty(),loadMapState()]);
-  await cleanStaleCueSequence();
   renderAll();
 
   // Full map state remains the durable fallback; camera and journey motion
