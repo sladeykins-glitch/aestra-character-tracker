@@ -38,6 +38,11 @@ const cueAudioPreloaders=new Map();
 let liveAudioEngine=null;
 let aiBackdropPreviewState=null;
 let gmAudioPreview=null;
+let majorIntroAssetId='';
+let majorIntroTimer=0;
+let majorIntroAudio=null;
+let majorIntroInitialized=false;
+let lastMajorIntroNonce=0;
 const runtimeLifecycle=new LifecycleManager();
 let realtimeChannels=[];
 
@@ -236,6 +241,236 @@ function audioLibrary(){
 
 function audioById(id){
   return id?audioLibrary().find(item=>item.id===id)||null:null;
+}
+
+const MAJOR_INTRO_STYLES=new Set(['cinematic','royal','ominous','relic','faith']);
+const MAJOR_INTRO_DURATIONS=[3200,4200,5400];
+
+function normalizeMajorIntroConfig(raw,asset=null){
+  const source=raw&&typeof raw==='object'?raw:{};
+  const fallbackName=String(asset?.name||'Major Character').slice(0,80);
+  const fallbackTitle=String(asset?.subtitle||'').slice(0,120);
+  return {
+    display_name:String(source.display_name||fallbackName).trim().slice(0,80)||fallbackName,
+    title:String(source.title??fallbackTitle).trim().slice(0,120),
+    style:MAJOR_INTRO_STYLES.has(source.style)?source.style:'cinematic',
+    duration_ms:MAJOR_INTRO_DURATIONS.includes(Number(source.duration_ms))?Number(source.duration_ms):4200,
+    audio_id:typeof source.audio_id==='string'&&source.audio_id?source.audio_id:null
+  };
+}
+
+function majorIntroConfig(asset){
+  const raw=assetMetadata(asset).major_intro;
+  return raw&&typeof raw==='object'&&!Array.isArray(raw)
+    ? normalizeMajorIntroConfig(raw,asset)
+    : null;
+}
+
+function renderMajorIntroAudioOptions(selected=null){
+  if(!els.majorIntroAudio)return;
+  const tracks=audioLibrary();
+  els.majorIntroAudio.innerHTML='<option value="">No audio sting</option>'+tracks.map(track=>
+    '<option value="'+esc(track.id)+'">'+esc(track.name)+'</option>'
+  ).join('');
+  els.majorIntroAudio.value=selected&&audioById(selected)?selected:'';
+}
+
+function openMajorIntroDialog(id){
+  if(!canGMControl())return;
+  const asset=byId(id);
+  if(!isSceneCastAsset(asset))return;
+  majorIntroAssetId=id;
+  const cfg=majorIntroConfig(asset)||normalizeMajorIntroConfig({},asset);
+  if(els.majorIntroDialogTitle)els.majorIntroDialogTitle.textContent=majorIntroConfig(asset)?'Edit Major Introduction':'Set Up Major Introduction';
+  if(els.majorIntroEditorImage){
+    els.majorIntroEditorImage.src=asset.image_url||'';
+    els.majorIntroEditorImage.alt=asset.name||'Character artwork';
+  }
+  if(els.majorIntroEditorAssetName)els.majorIntroEditorAssetName.textContent=asset.name||'Character';
+  if(els.majorIntroDisplayName)els.majorIntroDisplayName.value=cfg.display_name;
+  if(els.majorIntroTitleInput)els.majorIntroTitleInput.value=cfg.title;
+  if(els.majorIntroStyle)els.majorIntroStyle.value=cfg.style;
+  if(els.majorIntroDuration)els.majorIntroDuration.value=String(cfg.duration_ms);
+  renderMajorIntroAudioOptions(cfg.audio_id);
+  if(els.majorIntroMessage)els.majorIntroMessage.textContent='';
+  els.majorIntroDialog?.showModal();
+}
+
+function closeMajorIntroDialog(){
+  majorIntroAssetId='';
+  if(els.majorIntroDialog?.open)els.majorIntroDialog.close();
+}
+
+function majorIntroFormConfig(asset){
+  return normalizeMajorIntroConfig({
+    display_name:els.majorIntroDisplayName?.value||asset?.name||'Major Character',
+    title:els.majorIntroTitleInput?.value||'',
+    style:els.majorIntroStyle?.value||'cinematic',
+    duration_ms:Number(els.majorIntroDuration?.value)||4200,
+    audio_id:els.majorIntroAudio?.value||null
+  },asset);
+}
+
+async function saveMajorIntroConfig(playAfter=false){
+  if(!canGMControl())return;
+  const asset=byId(majorIntroAssetId);
+  if(!isSceneCastAsset(asset))return;
+  const cfg=majorIntroFormConfig(asset);
+  if(!cfg.display_name){
+    if(els.majorIntroMessage)els.majorIntroMessage.textContent='Give the introduction a display name.';
+    els.majorIntroDisplayName?.focus();
+    return;
+  }
+
+  if(els.majorIntroSaveBtn)els.majorIntroSaveBtn.disabled=true;
+  if(els.majorIntroSavePlayBtn)els.majorIntroSavePlayBtn.disabled=true;
+  if(els.majorIntroMessage)els.majorIntroMessage.textContent='Saving introduction…';
+  try{
+    const metadata={...assetMetadata(asset),major_intro:cfg};
+    const result=await supabase.from('live_table_assets')
+      .update({metadata,updated_at:new Date().toISOString()})
+      .eq('id',asset.id)
+      .select()
+      .single();
+    if(result.error)throw result.error;
+    assets=assets.map(item=>item.id===asset.id?result.data:item);
+    renderRevealGrid();
+    if(playAfter){
+      const id=asset.id;
+      closeMajorIntroDialog();
+      await triggerMajorIntro(id,cfg);
+    }else{
+      if(els.majorIntroMessage)els.majorIntroMessage.textContent='Saved. INTRO is now ready for one-click use.';
+      setTimeout(()=>closeMajorIntroDialog(),420);
+    }
+  }catch(err){
+    console.error(err);
+    if(els.majorIntroMessage)els.majorIntroMessage.textContent=err?.message||'Could not save the introduction.';
+  }finally{
+    if(els.majorIntroSaveBtn)els.majorIntroSaveBtn.disabled=false;
+    if(els.majorIntroSavePlayBtn)els.majorIntroSavePlayBtn.disabled=false;
+  }
+}
+
+function majorIntroSignal(){
+  const raw=state?.transition_state?.major_intro;
+  return raw&&typeof raw==='object'&&!Array.isArray(raw)?raw:null;
+}
+
+async function triggerMajorIntro(id,configOverride=null){
+  if(!canGMControl())return;
+  const asset=byId(id);
+  if(!isSceneCastAsset(asset))return;
+  const cfg=configOverride?normalizeMajorIntroConfig(configOverride,asset):majorIntroConfig(asset);
+  if(!cfg){
+    openMajorIntroDialog(id);
+    return;
+  }
+
+  const previous=majorIntroSignal();
+  const nonce=(Number(previous?.nonce)||0)+1;
+  const signal={
+    nonce,
+    asset_id:asset.id,
+    image_url:asset.image_url||'',
+    display_name:cfg.display_name||asset.name||'Major Character',
+    title:cfg.title||'',
+    style:cfg.style,
+    duration_ms:cfg.duration_ms,
+    audio_id:cfg.audio_id||null,
+    triggered_at:new Date().toISOString()
+  };
+  await patchState({
+    transition_state:{
+      ...(state?.transition_state&&typeof state.transition_state==='object'?state.transition_state:{}),
+      major_intro:signal
+    }
+  });
+}
+
+function stopMajorIntroPresentation(){
+  if(majorIntroTimer)clearTimeout(majorIntroTimer);
+  majorIntroTimer=0;
+  if(majorIntroAudio){
+    try{majorIntroAudio.pause()}catch(_){}
+    majorIntroAudio=null;
+  }
+  els.playerDisplay?.classList.remove('major-intro-active');
+  if(els.majorIntroLayer){
+    els.majorIntroLayer.classList.remove('is-playing');
+    els.majorIntroLayer.classList.add('hidden');
+    els.majorIntroLayer.setAttribute('aria-hidden','true');
+  }
+}
+
+function playMajorIntroAudio(audioId,duration){
+  if(majorIntroAudio){
+    try{majorIntroAudio.pause()}catch(_){}
+    majorIntroAudio=null;
+  }
+  const track=audioById(audioId);
+  if(!track?.url)return;
+  const audio=new Audio(track.url);
+  audio.preload='auto';
+  audio.volume=.82;
+  majorIntroAudio=audio;
+  audio.play().catch(err=>{
+    if(err?.name!=='NotAllowedError')console.warn('Major intro audio failed',err);
+  });
+  setTimeout(()=>{
+    if(majorIntroAudio!==audio)return;
+    try{audio.pause()}catch(_){}
+    majorIntroAudio=null;
+  },Math.max(1000,duration));
+}
+
+function playMajorIntro(signal){
+  if(!signal||!els.majorIntroLayer)return;
+  const duration=MAJOR_INTRO_DURATIONS.includes(Number(signal.duration_ms))?Number(signal.duration_ms):4200;
+  const style=MAJOR_INTRO_STYLES.has(signal.style)?signal.style:'cinematic';
+  const kicker={
+    cinematic:'MAJOR CHARACTER',
+    royal:'ROYAL PRESENCE',
+    ominous:'THREAT REVEALED',
+    relic:'RELIC RESONANCE',
+    faith:'THE FAITH'
+  }[style];
+
+  stopMajorIntroPresentation();
+  warmArtwork(signal.image_url||'');
+  els.majorIntroLayer.dataset.style=style;
+  els.majorIntroLayer.style.setProperty('--intro-duration',duration+'ms');
+  if(els.majorIntroArt){
+    els.majorIntroArt.src=signal.image_url||'';
+    els.majorIntroArt.alt=signal.display_name||'Major character';
+  }
+  if(els.majorIntroKicker)els.majorIntroKicker.textContent=kicker;
+  if(els.majorIntroName)els.majorIntroName.textContent=String(signal.display_name||'Major Character').toUpperCase();
+  if(els.majorIntroTitle){
+    els.majorIntroTitle.textContent=signal.title||'';
+    els.majorIntroTitle.classList.toggle('hidden',!signal.title);
+  }
+  els.majorIntroLayer.classList.remove('hidden','is-playing');
+  els.majorIntroLayer.setAttribute('aria-hidden','false');
+  void els.majorIntroLayer.offsetWidth;
+  els.playerDisplay?.classList.add('major-intro-active');
+  els.majorIntroLayer.classList.add('is-playing');
+  if(signal.audio_id)playMajorIntroAudio(signal.audio_id,duration);
+
+  majorIntroTimer=setTimeout(stopMajorIntroPresentation,duration+120);
+}
+
+function renderMajorIntro(){
+  const signal=majorIntroSignal();
+  const nonce=Number(signal?.nonce)||0;
+  if(!majorIntroInitialized){
+    lastMajorIntroNonce=nonce;
+    majorIntroInitialized=true;
+    return;
+  }
+  if(!nonce||nonce===lastMajorIntroNonce)return;
+  lastMajorIntroNonce=nonce;
+  playMajorIntro(signal);
 }
 
 function normalizeAudioState(raw){
@@ -2498,13 +2733,19 @@ function revealCard(asset){
   const castAction=castable
     ? '<button type="button" class="cast-action'+(inCast?' is-present':'')+'" data-cast-action="'+asset.id+'">'+castLabel+'</button>'
     : '';
+  const introCfg=castable?majorIntroConfig(asset):null;
+  const introAction=castable
+    ? (introCfg
+      ? '<button type="button" class="major-intro-action" data-major-intro="'+asset.id+'">INTRO</button><button type="button" data-major-intro-edit="'+asset.id+'">EDIT INTRO</button>'
+      : '<button type="button" data-major-intro-edit="'+asset.id+'">SET INTRO</button>')
+    : '';
   const showLabel=asset.kind==='creature'||asset.kind==='handout'?'FULL REVEAL':'SHOW';
   const thumb=isInteractiveMap(asset)
     ? '<div class="reveal-thumb interactive-map-thumb"><span>✦</span><b>INTERACTIVE ATLAS</b></div>'
     : '<div class="reveal-thumb"><img src="'+esc(assetThumbnailUrl(asset))+'" alt="" loading="lazy" decoding="async" fetchpriority="low"></div>';
   return '<article class="reveal-card" data-kind="'+esc(asset.kind)+'">'+thumb+
     '<strong>'+esc(asset.name)+'</strong><small>'+esc(asset.subtitle||asset.kind.replace('_',' '))+'</small>'+
-    '<div class="card-actions"><button type="button" data-show="'+asset.id+'">'+showLabel+'</button>'+mapAction+castAction+'<button type="button" data-remove="'+asset.id+'">REMOVE</button><button type="button" class="danger" data-delete="'+asset.id+'">DELETE</button></div></article>';
+    '<div class="card-actions"><button type="button" data-show="'+asset.id+'">'+showLabel+'</button>'+mapAction+castAction+introAction+'<button type="button" data-remove="'+asset.id+'">REMOVE</button><button type="button" class="danger" data-delete="'+asset.id+'">DELETE</button></div></article>';
 }
 
 function renderRevealGrid(){
@@ -3490,6 +3731,7 @@ function renderStateChanges(keys=[]){
     syncLiveAudio();
   }
   if(changed.has('transition_state')||changed.has('mode'))renderTransitionControls();
+  if(changed.has('transition_state'))renderMajorIntro();
   if(changed.has('cue_sequence')||changed.has('cue_sequence_index')||changed.has('scene_presets'))renderCueSequence();
   if(changed.has('scene_presets')||changed.has('audio_library')||anyStateKey(keys,CUE_SNAPSHOT_KEYS))renderCuePresets();
   if(changed.has('scene_cast'))renderRevealGrid();
@@ -3508,6 +3750,7 @@ function renderAll(){
   renderRevealGrid();
   renderRecent();
   renderSceneInspector();
+  renderMajorIntro();
   syncLiveAudio();
 }
 
@@ -4365,11 +4608,13 @@ function wireDelegatedControls(){
     if(target.dataset.delete)deleteAsset(target.dataset.delete);
   });
 
-  delegate(els.revealGrid,'click','[data-show],[data-pin],[data-map],[data-cast-action],[data-remove],[data-delete]',(event,target)=>{
+  delegate(els.revealGrid,'click','[data-show],[data-pin],[data-map],[data-cast-action],[data-major-intro],[data-major-intro-edit],[data-remove],[data-delete]',(event,target)=>{
     if(target.dataset.show){showReveal(target.dataset.show);return}
     if(target.dataset.pin){pinAsset(target.dataset.pin);return}
     if(target.dataset.map){setWorldMap(target.dataset.map);return}
     if(target.dataset.castAction){addToSceneCast(target.dataset.castAction);return}
+    if(target.dataset.majorIntro){triggerMajorIntro(target.dataset.majorIntro);return}
+    if(target.dataset.majorIntroEdit){openMajorIntroDialog(target.dataset.majorIntroEdit);return}
     if(target.dataset.remove){removeAssetFromDisplay(target.dataset.remove);return}
     if(target.dataset.delete)deleteAsset(target.dataset.delete);
   });
@@ -4484,6 +4729,11 @@ function wire(){
   window.addEventListener('pageshow',()=>syncBackgroundTasks());
   wireSceneInspector();
   wireDelegatedControls();
+  els.majorIntroForm?.addEventListener('submit',event=>event.preventDefault());
+  els.majorIntroCloseBtn?.addEventListener('click',closeMajorIntroDialog);
+  els.majorIntroCancelBtn?.addEventListener('click',closeMajorIntroDialog);
+  els.majorIntroSaveBtn?.addEventListener('click',()=>saveMajorIntroConfig(false));
+  els.majorIntroSavePlayBtn?.addEventListener('click',()=>saveMajorIntroConfig(true));
   document.querySelectorAll('[data-gm-tab]').forEach(button=>button.addEventListener('click',()=>{
     setGmWorkspaceTab(button.dataset.gmTab,{scroll:true});
   }));
