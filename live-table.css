@@ -67,7 +67,7 @@ body:not(.display-only) .player-display.map-live::before{content:'GM MAP CONTROL
 .display-only .player-display.map-live::before{display:none}
 
 
-/* Aestra player party HUD — vertical left stack */
+/* Aestra player party HUD — generated wide frames, stacked vertically */
 .party-hud{
   position:absolute;
   z-index:9;
@@ -75,52 +75,54 @@ body:not(.display-only) .player-display.map-live::before{content:'GM MAP CONTROL
   right:auto;
   top:20px;
   bottom:auto;
-  width:min(258px,calc(100% - 32px));
+  width:min(270px,calc(100% - 32px));
   max-height:calc(100% - 40px);
   display:flex;
   flex-direction:column;
-  gap:8px;
+  gap:5px;
   overflow-y:auto;
   overflow-x:hidden;
-  padding:6px;
-  border-style:solid;
-  border-width:26px 22px;
-  border-image-source:url('assets/ui/aestra-party-hud-frame.webp');
-  border-image-slice:120 70 120 70;
-  border-image-width:26px 22px;
-  border-image-repeat:stretch;
-  border-radius:0;
-  background:linear-gradient(180deg,rgba(7,11,15,.52),rgba(5,8,12,.76));
-  background-clip:padding-box;
-  box-shadow:0 14px 34px rgba(0,0,0,.18);
+  padding:0;
+  border:0;
+  background:transparent;
+  box-shadow:none;
   scrollbar-width:none;
 }
 .party-hud::before{
-  content:'PARTY';
-  position:absolute;
-  top:17px;
-  left:31px;
-  color:#e0c985;
-  font:700 8px/1 Inter,system-ui,sans-serif;
-  letter-spacing:.24em;
-  text-transform:uppercase;
-  opacity:.94;
-  text-shadow:0 2px 8px rgba(0,0,0,.9),0 0 8px rgba(76,194,226,.16);
+  content:none;
 }
 .party-hud::-webkit-scrollbar{display:none}
 .party-card{
+  position:relative;
+  isolation:isolate;
   flex:0 0 auto;
-  min-height:74px;
+  width:100%;
+  min-height:0;
+  aspect-ratio:3/1;
+  box-sizing:border-box;
   display:grid;
   grid-template-columns:42px minmax(0,1fr);
   gap:9px;
   align-items:center;
-  padding:9px 8px;
+  padding:15px 25px;
   border:0;
-  border-radius:8px;
-  background:linear-gradient(90deg,rgba(8,12,16,.76),rgba(8,12,16,.52));
+  border-radius:0;
+  background:linear-gradient(90deg,rgba(5,9,13,.88),rgba(8,14,19,.74)) center/91% 70% no-repeat;
   box-shadow:none;
-  backdrop-filter:blur(7px);
+  backdrop-filter:none;
+}
+.party-card::before{
+  content:'';
+  position:absolute;
+  z-index:2;
+  inset:0;
+  pointer-events:none;
+  background:url('assets/ui/aestra-party-hud-frame-wide.webp') center/100% 100% no-repeat;
+  filter:drop-shadow(0 9px 12px rgba(0,0,0,.34));
+}
+.party-card>*{
+  position:relative;
+  z-index:1;
 }
 .party-portrait{
   width:42px;
@@ -204,7 +206,7 @@ body:not(.display-only) .player-display.map-live::before{content:'GM MAP CONTROL
   right:auto;
   top:20px;
   bottom:auto;
-  width:min(268px,calc(100vw - 36px));
+  width:min(278px,calc(100vw - 36px));
   max-height:calc(100vh - 40px);
 }
 
@@ -225,15 +227,13 @@ body:not(.display-only) .player-display.map-live::before{content:'GM MAP CONTROL
     bottom:auto;
     width:min(238px,calc(100% - 24px));
     max-height:calc(100% - 24px);
-    padding:5px;
-    border-width:24px 20px;
-    border-image-width:24px 20px;
+    padding:0;
     grid-template-columns:none;
   }
   .party-card{
     grid-template-columns:38px minmax(0,1fr);
-    min-height:66px;
-    padding:7px 8px;
+    min-height:0;
+    padding:12px 21px;
   }
   .party-portrait{width:38px;height:38px}
   .player-display .pin-left{left:262px}
@@ -246,15 +246,13 @@ body:not(.display-only) .player-display.map-live::before{content:'GM MAP CONTROL
     bottom:auto;
     width:min(210px,calc(100% - 16px));
     max-height:46%;
-    padding:4px;
-    border-width:22px 18px;
-    border-image-width:22px 18px;
+    padding:0;
     grid-template-columns:none;
   }
   .party-card{
     grid-template-columns:34px minmax(0,1fr);
-    min-height:58px;
-    padding:6px;
+    min-height:0;
+    padding:10px 18px;
     gap:7px;
   }
   .party-portrait{width:34px;height:34px}
