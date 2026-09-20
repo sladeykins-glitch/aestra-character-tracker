@@ -32,30 +32,25 @@ function sanitizePaths(value: unknown, prefix: string) {
 
 function buildPrompt(userPrompt: string, style: string) {
   const aestra = [
-    "Widescreen environmental backdrop for the fantasy world Aestra.",
+    "Standalone widescreen environmental painting for the fantasy world Aestra.",
+    "Edge-to-edge artwork with uninterrupted scenery from top to bottom and side to side.",
     "Painterly anime-fantasy environment art, ecological science-fantasy, ancient weathered relic technology, crystal energy, brass and stone machinery, lush natural detail, mysterious ruins, melancholy beauty, enormous sense of scale.",
-    "Cinematic background composition for an in-person tabletop RPG display, landscape only, no foreground character portrait, no readable text, no captions, no logos, no UI, no borders.",
-    "Keep the extreme lower edge relatively calm so a party HUD can sit over the image. Strong depth, atmospheric perspective, natural lighting, detailed clouds and terrain."
+    "Cinematic landscape composition, strong atmospheric perspective, natural lighting, detailed clouds and terrain.",
+    "Pure environment illustration only. Do not add interface graphics, menus, status bars, inventory strips, dialogue panels, map widgets, captions, fake lettering, watermarks, logos, borders, frames, code blocks, control icons, progress bars, video controls, or overlays.",
+    "The result must look like a clean standalone illustration rather than a screenshot of software, a game, a stream, a website, an app, or a video."
   ];
+
   const storybook = [
     "Classic hand-painted Japanese fantasy-animation background feeling.",
     "Soft watercolor and gouache textures, delicate ink-like detail, whimsical but believable architecture, warm natural light, expressive clouds, gentle color transitions, richly observed plants and weather.",
     "Beautiful and inviting at first glance with subtle danger beneath the surface; avoid glossy 3D rendering and photorealism."
   ];
+
   const parts = [...aestra];
   if (style === "storybook") parts.push(...storybook);
   parts.push("Scene request: " + userPrompt);
+
   return parts.join("\n").slice(0, 1980);
-}
-
-function generationModel(quality: string) {
-  return quality === "high" ? MODEL_HIGH : MODEL_STANDARD;
-}
-
-function generationSize(quality: string) {
-  return quality === "low"
-    ? { width: 1024, height: 576 }
-    : { width: 1536, height: 864 };
 }
 
 async function runFlux(
