@@ -1462,3 +1462,26 @@ body.ai-preview-open{overflow:hidden}
 @media(prefers-reduced-motion:reduce){
   .scene-fx-shader-canvas{display:none!important}
 }
+
+
+/* Expanded atmosphere effects v5 */
+.scene-effects.fx-underwater .scene-fx-grade{
+  opacity:calc(var(--scene-fx-strength) * .32);
+  background:
+    linear-gradient(180deg,rgba(38,147,174,.14),rgba(18,84,115,.12) 58%,rgba(7,45,69,.22)),
+    radial-gradient(circle at 48% -8%,rgba(177,235,226,.13),transparent 42%);
+  mix-blend-mode:screen;
+  backdrop-filter:saturate(.88) contrast(1.03);
+}
+.scene-effects.fx-moon .scene-fx-grade{
+  opacity:calc(var(--scene-fx-strength) * .28);
+  background:
+    radial-gradient(circle at 56% 18%,rgba(179,211,239,.16),transparent 34%),
+    linear-gradient(180deg,rgba(73,114,166,.08),rgba(12,27,48,.08));
+  mix-blend-mode:screen;
+}
+.scene-effects.fx-blackpetals .scene-fx-grade{
+  opacity:calc(var(--scene-fx-strength) * .12);
+  background:radial-gradient(ellipse at 50% 48%,transparent 48%,rgba(22,12,28,.18) 100%);
+}
+.scene-fx-grid button{min-height:35px}
