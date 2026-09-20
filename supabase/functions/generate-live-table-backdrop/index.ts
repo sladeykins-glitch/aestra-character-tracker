@@ -1,7 +1,8 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.116.0";
 
-const MODEL = "@cf/black-forest-labs/flux-1-schnell";
+const MODEL_STANDARD = "@cf/black-forest-labs/flux-2-klein-4b";
+const MODEL_HIGH = "@cf/black-forest-labs/flux-2-klein-9b";
 const BUCKET = "live-table";
 
 const corsHeaders = {
@@ -47,42 +48,42 @@ function buildPrompt(userPrompt: string, style: string) {
   return parts.join("\n").slice(0, 1980);
 }
 
-async function runFlux(accountId: string, apiToken: string, prompt: string, seed: number, steps: number) {
-  const endpoint = "https://api.cloudflare.com/client/v4/accounts/" + accountId + "/ai/run/" + MODEL;
-  const requestBody = {
-    prompt,
-    seed,
-    steps,
-    width: 1536,
-    height: 864
-  };
+function generationModel(quality: string) {
+  return quality === "high" ? MODEL_HIGH : MODEL_STANDARD;
+}
 
-  let response = await fetch(endpoint, {
+function generationSize(quality: string) {
+  return quality === "low"
+    ? { width: 1024, height: 576 }
+    : { width: 1536, height: 864 };
+}
+
+async function runFlux(
+  accountId: string,
+  apiToken: string,
+  prompt: string,
+  seed: number,
+  quality: string
+) {
+  const model = generationModel(quality);
+  const { width, height } = generationSize(quality);
+  const endpoint = "https://api.cloudflare.com/client/v4/accounts/" + accountId + "/ai/run/" + model;
+
+  // FLUX.2 Klein uses multipart form data on Workers AI. Let fetch set the
+  // boundary automatically; manually setting Content-Type would break it.
+  const form = new FormData();
+  form.append("prompt", prompt);
+  form.append("width", String(width));
+  form.append("height", String(height));
+  form.append("seed", String(seed));
+
+  const response = await fetch(endpoint, {
     method: "POST",
     headers: {
-      "Authorization": "Bearer " + apiToken,
-      "Content-Type": "application/json"
+      "Authorization": "Bearer " + apiToken
     },
-    body: JSON.stringify(requestBody)
+    body: form
   });
-
-  // Older model deployments may not expose explicit dimensions. Retry without
-  // them rather than failing the whole Live Table generator.
-  if (!response.ok && response.status === 400) {
-    const firstError = await response.text();
-    if (/width|height|dimension/i.test(firstError)) {
-      response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Authorization": "Bearer " + apiToken,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ prompt, seed, steps })
-      });
-    } else {
-      throw new Error("Cloudflare image generation failed: " + firstError.slice(0, 500));
-    }
-  }
 
   const raw = await response.text();
   let data: any = null;
@@ -97,7 +98,13 @@ async function runFlux(accountId: string, apiToken: string, prompt: string, seed
   if (!image || typeof image !== "string") {
     throw new Error("Cloudflare returned no image data.");
   }
-  return decodeBase64(image);
+
+  return {
+    bytes: decodeBase64(image),
+    model,
+    width,
+    height
+  };
 }
 
 Deno.serve(async (req: Request) => {
@@ -180,7 +187,7 @@ Deno.serve(async (req: Request) => {
           metadata: {
             generated: true,
             generator: "cloudflare-workers-ai",
-            model: MODEL,
+            model: generationModel(quality),
             quality,
             style,
             prompt: userPrompt,
@@ -213,28 +220,27 @@ Deno.serve(async (req: Request) => {
     }
 
     const variations = Math.max(2, Math.min(4, Number(body?.variations) || 4));
-    const steps = quality === "high" ? 8 : quality === "low" ? 4 : 6;
     const prompt = buildPrompt(userPrompt, style);
     const generationId = crypto.randomUUID();
 
     const attempts = await Promise.allSettled(
       Array.from({ length: variations }, async (_, index) => {
         const seed = crypto.getRandomValues(new Uint32Array(1))[0] % 2147483647;
-        const bytes = await runFlux(accountId, apiToken, prompt, seed, steps);
+        const generated = await runFlux(accountId, apiToken, prompt, seed, quality);
         const path = previewPrefix + generationId + "/" + (index + 1) + ".jpg";
-        const upload = await admin.storage.from(BUCKET).upload(path, bytes, {
+        const upload = await admin.storage.from(BUCKET).upload(path, generated.bytes, {
           contentType: "image/jpeg",
           cacheControl: "900",
           upsert: false
         });
         if (upload.error) throw new Error(upload.error.message);
         const url = admin.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
-        return { path, url, seed };
+        return { path, url, seed, model: generated.model, width: generated.width, height: generated.height };
       })
     );
 
     const previews = attempts
-      .filter((result): result is PromiseFulfilledResult<{path:string;url:string;seed:number}> => result.status === "fulfilled")
+      .filter((result): result is PromiseFulfilledResult<{path:string;url:string;seed:number;model:string;width:number;height:number}> => result.status === "fulfilled")
       .map(result => result.value);
 
     const failures = attempts.filter(result => result.status === "rejected");
