@@ -7,12 +7,12 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
-<meta name="aestra-live-build" content="60" />
+<meta name="aestra-live-build" content="61" />
 <title>Aestra Live Table</title>
 <link rel="icon" href="aestra-icon.svg" type="image/svg+xml" />
-<link rel="stylesheet" href="live-table.css?v=39" />
+<link rel="stylesheet" href="live-table.css?v=40" />
 </head>
-<body data-live-build="60">
+<body data-live-build="61">
 <div id="authGate" class="auth-gate">
   <form id="authForm" class="auth-card">
     <div class="aestra-mark">✦</div>
@@ -476,6 +476,14 @@
       <span id="sceneInspectorLiveBadge" class="scene-inspector-live-badge">NOT LIVE</span>
     </div>
 
+    <div id="sceneInspectorStatusStrip" class="scene-inspector-status-strip" aria-label="Scene live status">
+      <span><b>Atmosphere</b><em id="sceneInspectorSummaryFx">Off</em></span>
+      <span><b>Cast</b><em id="sceneInspectorSummaryCast">Empty</em></span>
+      <span><b>Audio</b><em id="sceneInspectorSummaryAudio">Off</em></span>
+      <span><b>Reveals</b><em id="sceneInspectorSummaryReveals">Clear</em></span>
+      <span><b>Cues</b><em id="sceneInspectorSummaryCues">0 saved</em></span>
+    </div>
+
     <div class="scene-inspector-section scene-inspector-details">
       <div class="scene-inspector-section-head">
         <div><span>Scene Details</span><small>Edit the title shown on the player display.</small></div>
@@ -495,7 +503,10 @@
     <div class="scene-inspector-section">
       <div class="scene-inspector-section-head">
         <div><span>Atmosphere</span><small>Effects for the current live scene.</small></div>
-        <button id="sceneInspectorClearFx" type="button">Clear</button>
+        <div class="scene-inspector-head-actions">
+          <span id="sceneInspectorFxState" class="scene-inspector-state">OFF</span>
+          <button id="sceneInspectorClearFx" type="button">Clear</button>
+        </div>
       </div>
       <div id="sceneInspectorFxGrid" class="scene-inspector-fx-grid"></div>
       <div class="scene-inspector-mini-settings">
@@ -513,7 +524,10 @@
     <div class="scene-inspector-section">
       <div class="scene-inspector-section-head">
         <div><span>Scene Cast</span><small>Characters currently on the stage.</small></div>
-        <button id="sceneInspectorManageCast" type="button">Manage</button>
+        <div class="scene-inspector-head-actions">
+          <span id="sceneInspectorCastState" class="scene-inspector-state">EMPTY</span>
+          <button id="sceneInspectorManageCast" type="button">Manage</button>
+        </div>
       </div>
       <div id="sceneInspectorCastList" class="scene-inspector-cast-list"></div>
     </div>
@@ -521,6 +535,7 @@
     <div class="scene-inspector-section">
       <div class="scene-inspector-section-head">
         <div><span>Live Audio</span><small>Music and ambience playing with the scene.</small></div>
+        <span id="sceneInspectorAudioState" class="scene-inspector-state">OFF</span>
       </div>
       <div class="scene-inspector-two-col">
         <label><span>Music</span><select id="sceneInspectorMusic"></select></label>
@@ -531,6 +546,7 @@
     <div class="scene-inspector-section">
       <div class="scene-inspector-section-head">
         <div><span>Transition</span><small>Transition used when changing scene/title.</small></div>
+        <span id="sceneInspectorTransitionState" class="scene-inspector-state">SOFT FADE</span>
       </div>
       <div class="scene-inspector-two-col">
         <label><span>Style</span>
@@ -558,7 +574,10 @@
     <div class="scene-inspector-section">
       <div class="scene-inspector-section-head">
         <div><span>Reveals &amp; Pins</span><small>What is layered over the current scene.</small></div>
-        <button id="sceneInspectorManageReveals" type="button">Manage</button>
+        <div class="scene-inspector-head-actions">
+          <span id="sceneInspectorRevealState" class="scene-inspector-state">CLEAR</span>
+          <button id="sceneInspectorManageReveals" type="button">Manage</button>
+        </div>
       </div>
       <div id="sceneInspectorPinned" class="scene-inspector-pinned"></div>
       <button id="sceneInspectorClearPins" type="button">Clear Pinned Visuals</button>
@@ -567,7 +586,10 @@
     <div class="scene-inspector-section">
       <div class="scene-inspector-section-head">
         <div><span>Session Cues</span><small id="sceneInspectorCueSummary">No saved cues use this scene.</small></div>
-        <button id="sceneInspectorOpenSession" type="button">Open Session</button>
+        <div class="scene-inspector-head-actions">
+          <span id="sceneInspectorCueState" class="scene-inspector-state">0 SAVED</span>
+          <button id="sceneInspectorOpenSession" type="button">Open Session</button>
+        </div>
       </div>
     </div>
 
@@ -612,6 +634,6 @@
 </dialog>
 
 <script src="config.js"></script>
-<script type="module" src="live-table.js?v=59"></script>
+<script type="module" src="live-table.js?v=60"></script>
 </body>
 </html>
