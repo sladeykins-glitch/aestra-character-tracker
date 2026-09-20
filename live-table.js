@@ -3571,18 +3571,68 @@ function renderAiBackdropPreviews(){
   if(!previews.length){
     els.aiPreviewGrid.innerHTML='';
     els.aiPreviewGrid.classList.add('hidden');
+    closeAiBackdropPreview();
     return;
   }
+
   els.aiPreviewGrid.classList.remove('hidden');
   els.aiPreviewGrid.innerHTML=previews.map((preview,index)=>
     '<article class="ai-preview-card">'+
-      '<div class="ai-preview-art"><img src="'+esc(preview.url)+'" alt="Generated Aestra backdrop variation '+(index+1)+'" loading="lazy"><span>VARIATION '+(index+1)+'</span></div>'+
-      '<button type="button" class="primary" data-ai-save="'+index+'">USE THIS BACKDROP</button>'+
+      '<button type="button" class="ai-preview-art" data-ai-preview-open="'+index+'" aria-label="Preview backdrop variation '+(index+1)+'">'+
+        '<img src="'+esc(preview.url)+'" alt="Generated Aestra backdrop variation '+(index+1)+'" loading="lazy">'+
+        '<span>VARIATION '+(index+1)+'</span>'+
+      '</button>'+
+      '<button type="button" class="ai-preview-open-btn" data-ai-preview-open="'+index+'">PREVIEW</button>'+
     '</article>'
   ).join('');
-  els.aiPreviewGrid.querySelectorAll('[data-ai-save]').forEach(button=>
-    button.addEventListener('click',()=>saveAiBackdropChoice(Number(button.dataset.aiSave)))
+
+  els.aiPreviewGrid.querySelectorAll('[data-ai-preview-open]').forEach(button=>
+    button.addEventListener('click',()=>openAiBackdropPreview(Number(button.dataset.aiPreviewOpen)))
   );
+}
+
+function openAiBackdropPreview(index=0){
+  const previews=aiBackdropPreviewState?.previews||[];
+  if(!previews.length||!els.aiPreviewModal)return;
+
+  const safeIndex=Math.max(0,Math.min(previews.length-1,Number(index)||0));
+  aiBackdropPreviewState.selectedIndex=safeIndex;
+  const preview=previews[safeIndex];
+
+  if(els.aiPreviewImage){
+    els.aiPreviewImage.src=preview.url;
+    els.aiPreviewImage.alt='Generated Aestra backdrop variation '+(safeIndex+1);
+  }
+  if(els.aiPreviewTitle)els.aiPreviewTitle.textContent='Variation '+(safeIndex+1);
+  if(els.aiPreviewCounter)els.aiPreviewCounter.textContent=(safeIndex+1)+' / '+previews.length;
+  if(els.aiPreviewPrevBtn)els.aiPreviewPrevBtn.disabled=previews.length<2;
+  if(els.aiPreviewNextBtn)els.aiPreviewNextBtn.disabled=previews.length<2;
+
+  els.aiPreviewModal.classList.remove('hidden');
+  els.aiPreviewModal.setAttribute('aria-hidden','false');
+  document.body.classList.add('ai-preview-open');
+}
+
+function closeAiBackdropPreview(){
+  if(!els.aiPreviewModal)return;
+  els.aiPreviewModal.classList.add('hidden');
+  els.aiPreviewModal.setAttribute('aria-hidden','true');
+  document.body.classList.remove('ai-preview-open');
+}
+
+function shiftAiBackdropPreview(direction){
+  const previews=aiBackdropPreviewState?.previews||[];
+  if(previews.length<2)return;
+  const current=Number(aiBackdropPreviewState?.selectedIndex)||0;
+  const next=(current+direction+previews.length)%previews.length;
+  openAiBackdropPreview(next);
+}
+
+async function confirmAiBackdropPreview(){
+  const index=Number(aiBackdropPreviewState?.selectedIndex);
+  if(!Number.isInteger(index))return;
+  closeAiBackdropPreview();
+  await saveAiBackdropChoice(index);
 }
 
 async function generateAiBackdrop(){
@@ -3627,7 +3677,8 @@ async function generateAiBackdrop(){
       style,
       generationId:data.generationId||'',
       expandedPrompt:data.expandedPrompt||'',
-      previews:data.previews
+      previews:data.previews,
+      selectedIndex:0
     };
     renderAiBackdropPreviews();
     const failed=Number(data.failed||0);
@@ -3649,6 +3700,7 @@ async function generateAiBackdrop(){
 
 async function saveAiBackdropChoice(index){
   if(!canGMControl())return;
+  closeAiBackdropPreview();
   const previewState=aiBackdropPreviewState;
   const chosen=previewState?.previews?.[index];
   if(!previewState||!chosen)return;
@@ -3893,6 +3945,12 @@ function wire(){
   els.returnSceneBtn.addEventListener('click',()=>patchState({mode:'scene',active_reveal_id:null}));
   els.clearPinsBtn.addEventListener('click',()=>patchState({pinned_left_id:null,pinned_right_id:null}));
   els.clearSceneCastBtn?.addEventListener('click',clearSceneCast);
+  els.aiPreviewCloseBtn?.addEventListener('click',closeAiBackdropPreview);
+  els.aiPreviewBackBtn?.addEventListener('click',closeAiBackdropPreview);
+  els.aiPreviewPrevBtn?.addEventListener('click',()=>shiftAiBackdropPreview(-1));
+  els.aiPreviewNextBtn?.addEventListener('click',()=>shiftAiBackdropPreview(1));
+  els.aiPreviewConfirmBtn?.addEventListener('click',confirmAiBackdropPreview);
+  els.aiPreviewModal?.querySelectorAll('[data-ai-preview-close]').forEach(el=>el.addEventListener('click',closeAiBackdropPreview));
   els.arrangeSceneCastBtn?.addEventListener('click',toggleSceneCastArrangeMode);
   els.autoSceneCastBtn?.addEventListener('click',resetSceneCastLayout);
   els.hudToggle.addEventListener('change',()=>patchState({hud_visible:els.hudToggle.checked}));
@@ -3934,6 +3992,19 @@ function wire(){
     if(mode==='map'&&!state?.map_asset_id){els.setMapAssetBtn.click();return}
     patchState({mode,active_reveal_id:mode==='reveal'?state?.active_reveal_id:null});
   }));
+  document.addEventListener('keydown',event=>{
+    if(els.aiPreviewModal?.classList.contains('hidden'))return;
+    if(event.key==='Escape'){
+      event.preventDefault();
+      closeAiBackdropPreview();
+    }else if(event.key==='ArrowLeft'){
+      event.preventDefault();
+      shiftAiBackdropPreview(-1);
+    }else if(event.key==='ArrowRight'){
+      event.preventDefault();
+      shiftAiBackdropPreview(1);
+    }
+  });
   els.revealTabs.querySelectorAll('[data-kind]').forEach(b=>b.addEventListener('click',()=>{
     filterKind=b.dataset.kind;
     els.revealTabs.querySelectorAll('[data-kind]').forEach(x=>x.classList.toggle('active',x===b));
