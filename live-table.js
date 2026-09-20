@@ -1623,10 +1623,10 @@ async function toggleSceneEffect(effect){
 
 async function setSceneEffectSetting(key,value){
   if(!canGMControl()||state?.mode!=='scene')return;
-  const cfg=sceneEffectState();
-  if(key==='intensity')cfg.intensity=Math.max(1,Math.min(3,Number(value)||2));
-  if(key==='fade_ms')cfg.fade_ms=[350,900,1800].includes(Number(value))?Number(value):900;
-  await patchState({scene_effects:cfg});
+  const next={...sceneEffectState()};
+  if(key==='intensity')next.intensity=Math.max(1,Math.min(3,Number(value)||2));
+  if(key==='fade_ms')next.fade_ms=[350,900,1800].includes(Number(value))?Number(value):900;
+  await patchState({scene_effects:next});
 }
 
 function renderPinned(host,id){
@@ -3029,7 +3029,7 @@ function wireSceneInspector(){
 
 const DISPLAY_STATE_KEYS=new Set([
   'mode','active_scene_id','active_reveal_id','map_asset_id','pinned_left_id','pinned_right_id',
-  'hud_visible','location_title','location_subtitle','reveal_style','scene_effects','scene_cast','transition_state'
+  'hud_visible','location_title','location_subtitle','reveal_style','transition_state'
 ]);
 const CAST_STATE_KEYS=new Set(['mode','active_scene_id','active_reveal_id','pinned_left_id','pinned_right_id','scene_cast']);
 const CUE_SNAPSHOT_KEYS=new Set([
@@ -3046,8 +3046,17 @@ function renderStateChanges(keys=[]){
   const changed=new Set(keys);
 
   if(anyStateKey(keys,DISPLAY_STATE_KEYS))renderDisplay();
+  if(changed.has('scene_effects'))renderSceneEffects(state?.mode||'scene');
   if(changed.has('active_scene_id'))renderScenes();
-  if(anyStateKey(keys,CAST_STATE_KEYS))renderSceneCast();
+  if(anyStateKey(keys,CAST_STATE_KEYS)){
+    renderSceneCast();
+    if(changed.has('scene_cast')&&state?.mode==='reveal'){
+      const reveal=byId(state?.active_reveal_id);
+      if(isCompactRevealAsset(reveal)&&els.revealLayer){
+        els.revealLayer.dataset.anchor=compactRevealAnchor(normalizeSceneCast());
+      }
+    }
+  }
   if(changed.has('audio_state')||changed.has('audio_library')){
     renderAudioControls();
     syncLiveAudio();
