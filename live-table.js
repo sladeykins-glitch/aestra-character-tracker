@@ -892,49 +892,61 @@ class TransitionCanvasRenderer{
     const ctx=this.ctx,w=this.width,h=this.height;
     const swell=Math.sin(Math.PI*p);
     const oldAlpha=1-smoothstep(.18,.62,p);
+    const time=now*.001;
+    const breath=.5+.5*Math.sin(time*.9+this.seed);
+    const driftX=Math.sin(time*.78+this.seed*.17)*3.2*swell;
+    const driftY=Math.cos(time*.61+this.seed*.11)*1.8*swell;
+    const zoom=1+swell*(.010+breath*.004);
 
+    // Keep the dream movement continuous across the whole image. The previous
+    // implementation warped 7px strips individually, which produced visible
+    // bands and required 100+ filtered draw calls per frame on large displays.
     if(this.hasSnapshot&&oldAlpha>0){
-      const strip=7;
-      ctx.save();
-      ctx.globalAlpha=oldAlpha*.72;
-      ctx.filter='blur('+(2+swell*5).toFixed(1)+'px) saturate(1.08)';
-      for(let y=0;y<h;y+=strip){
-        const shift=Math.sin(y*.035+now*.0021)*swell*9;
-        const sy=Math.floor(y*this.pixelRatio);
-        const sh=Math.max(1,Math.ceil(strip*this.pixelRatio));
-        ctx.drawImage(this.snapshot,0,sy,this.snapshot.width,sh,shift,y,w,strip+1);
+      this.drawSnapshot(oldAlpha*.9,'none',zoom,driftX,driftY);
+
+      // Two faint full-frame echoes give a soft, liquid dream shimmer without
+      // chopping the image into bands or invoking an expensive per-strip blur.
+      if(swell>.02){
+        ctx.save();
+        ctx.globalCompositeOperation='screen';
+        this.drawSnapshot(oldAlpha*swell*.085,'none',zoom*1.002,driftX+3.4*swell,driftY-1.2*swell);
+        this.drawSnapshot(oldAlpha*swell*.055,'none',Math.max(.996,zoom*.998),driftX-2.6*swell,driftY+1.5*swell);
+        ctx.restore();
       }
-      ctx.restore();
     }
 
     const wash=ctx.createRadialGradient(w*.5,h*.44,0,w*.5,h*.44,Math.max(w,h)*.78);
-    wash.addColorStop(0,'rgba(236,249,255,'+(.22+swell*.38)+')');
-    wash.addColorStop(.35,'rgba(125,190,224,'+(swell*.22)+')');
-    wash.addColorStop(.72,'rgba(74,72,126,'+(swell*.27)+')');
-    wash.addColorStop(1,'rgba(4,7,15,'+(swell*.66)+')');
+    wash.addColorStop(0,'rgba(236,249,255,'+(.18+swell*.32)+')');
+    wash.addColorStop(.35,'rgba(125,190,224,'+(swell*.19)+')');
+    wash.addColorStop(.72,'rgba(74,72,126,'+(swell*.24)+')');
+    wash.addColorStop(1,'rgba(4,7,15,'+(swell*.62)+')');
     ctx.fillStyle=wash;
     ctx.fillRect(0,0,w,h);
 
-    ctx.save();
-    ctx.globalCompositeOperation='lighter';
-    for(const m of this.motes){
-      const y=(m.y-(p*m.drift*2.1)+h)%h;
-      const x=m.x+Math.sin(m.phase+now*.0012)*14*swell;
-      const r=m.r*(1+swell*.9);
-      const g=ctx.createRadialGradient(x,y,0,x,y,r*4.5);
-      g.addColorStop(0,'rgba(235,252,255,'+(m.alpha*swell)+')');
-      g.addColorStop(.38,'rgba(142,212,239,'+(m.alpha*swell*.55)+')');
-      g.addColorStop(1,'rgba(120,145,224,0)');
-      ctx.fillStyle=g;
+    // Draw all motes in one glow pass instead of constructing a radial
+    // gradient for every mote on every frame.
+    if(swell>.015&&this.motes.length){
+      ctx.save();
+      ctx.globalCompositeOperation='lighter';
+      ctx.globalAlpha=.22*swell;
+      ctx.fillStyle='rgba(211,242,255,.9)';
+      ctx.shadowColor='rgba(138,205,239,.72)';
+      ctx.shadowBlur=8+10*swell;
       ctx.beginPath();
-      ctx.arc(x,y,r*4.5,0,Math.PI*2);
+      for(const m of this.motes){
+        const y=(m.y-(p*m.drift*2.1)+h)%h;
+        const x=m.x+Math.sin(m.phase+time*1.2)*11*swell;
+        const r=Math.max(.8,m.r*(.65+swell*.55));
+        ctx.moveTo(x+r,y);
+        ctx.arc(x,y,r,0,Math.PI*2);
+      }
       ctx.fill();
+      ctx.restore();
     }
-    ctx.restore();
 
     const vignette=ctx.createRadialGradient(w*.5,h*.5,Math.min(w,h)*.18,w*.5,h*.5,Math.max(w,h)*.74);
     vignette.addColorStop(0,'rgba(0,0,0,0)');
-    vignette.addColorStop(1,'rgba(1,4,12,'+(swell*.48)+')');
+    vignette.addColorStop(1,'rgba(1,4,12,'+(swell*.44)+')');
     ctx.fillStyle=vignette;
     ctx.fillRect(0,0,w,h);
   }
