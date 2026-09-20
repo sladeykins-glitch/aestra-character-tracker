@@ -1079,3 +1079,22 @@ body:not(.display-only) .player-display.map-live::before{content:'GM MAP CONTROL
   .scene-cast-member.is-entering,.scene-cast-member.is-leaving,
   .reveal-layer[data-kind="item"] img,.reveal-layer[data-kind="clue"] img{animation:none!important}
 }
+
+/* Stronger title ambience: independently breathing moons and painted wisps. */
+.title-moon-halo,.title-wisp{position:absolute;pointer-events:none;mix-blend-mode:screen}
+.title-moon-halo{z-index:0;width:18%;aspect-ratio:1;border-radius:50%;filter:blur(12px)}
+.title-moon-red{left:27.7%;top:13.2%;background:radial-gradient(circle,rgba(255,100,92,.42) 0,rgba(220,46,55,.22) 34%,rgba(125,12,30,.08) 58%,transparent 72%);animation:aestraTitleRedMoon 6.8s ease-in-out infinite alternate}
+.title-moon-cyan{left:55.1%;top:23.4%;background:radial-gradient(circle,rgba(151,237,255,.43) 0,rgba(61,185,229,.23) 35%,rgba(25,96,151,.08) 58%,transparent 72%);animation:aestraTitleCyanMoon 8.4s ease-in-out -2.7s infinite alternate}
+.title-wisp{z-index:1;width:27%;height:12%;border-radius:50%;filter:blur(13px);opacity:.2}
+.title-wisp-red{left:18%;top:28%;background:radial-gradient(ellipse,rgba(212,47,57,.3),rgba(148,22,43,.1) 45%,transparent 72%);animation:aestraTitleRedWisp 13s ease-in-out infinite alternate}
+.title-wisp-cyan{left:59%;top:39%;background:radial-gradient(ellipse,rgba(79,190,226,.32),rgba(36,112,171,.1) 46%,transparent 72%);animation:aestraTitleCyanWisp 15s ease-in-out -4s infinite alternate}
+.title-motes-far{opacity:.56}
+.title-motes-near{opacity:.7;filter:drop-shadow(0 0 4px rgba(224,232,224,.58))}
+.title-light-sweep{z-index:3;background:linear-gradient(90deg,transparent,rgba(242,227,190,.09) 42%,rgba(188,229,243,.17) 50%,rgba(242,227,190,.08) 58%,transparent);animation-duration:11s}
+.title-crystal-glint{z-index:4;width:8px;height:8px;box-shadow:0 0 6px #fff,0 0 16px rgba(222,197,126,1),0 0 34px rgba(137,211,239,.68);animation-duration:6.5s}
+.title-crystal-glint::before{width:58px}
+.title-crystal-glint::after{height:58px}
+@keyframes aestraTitleRedMoon{0%{opacity:.36;transform:scale(.9)}55%{opacity:.72}100%{opacity:.48;transform:scale(1.12)}}
+@keyframes aestraTitleCyanMoon{0%{opacity:.3;transform:scale(.92)}45%{opacity:.66}100%{opacity:.5;transform:scale(1.15)}}
+@keyframes aestraTitleRedWisp{0%{opacity:.12;transform:translate3d(-5%,4%,0) rotate(-18deg) scale(.92)}52%{opacity:.3}100%{opacity:.16;transform:translate3d(9%,-7%,0) rotate(-10deg) scale(1.1)}}
+@keyframes aestraTitleCyanWisp{0%{opacity:.11;transform:translate3d(5%,2%,0) rotate(20deg) scale(.9)}46%{opacity:.32}100%{opacity:.15;transform:translate3d(-10%,-8%,0) rotate(12deg) scale(1.12)}}
