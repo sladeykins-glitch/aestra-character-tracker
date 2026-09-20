@@ -7,12 +7,12 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
-<meta name="aestra-live-build" content="51" />
+<meta name="aestra-live-build" content="52" />
 <title>Aestra Live Table</title>
 <link rel="icon" href="aestra-icon.svg" type="image/svg+xml" />
-<link rel="stylesheet" href="live-table.css?v=36" />
+<link rel="stylesheet" href="live-table.css?v=37" />
 </head>
-<body data-live-build="51">
+<body data-live-build="52">
 <div id="authGate" class="auth-gate">
   <form id="authForm" class="auth-card">
     <div class="aestra-mark">✦</div>
@@ -459,6 +459,124 @@
   </main>
 </div>
 
+
+<div id="sceneInspector" class="scene-inspector hidden" aria-hidden="true">
+  <button id="sceneInspectorBackdrop" class="scene-inspector-backdrop" type="button" aria-label="Close Scene Inspector"></button>
+  <aside class="scene-inspector-panel" role="dialog" aria-modal="true" aria-labelledby="sceneInspectorTitle">
+    <div class="scene-inspector-head">
+      <div>
+        <p class="eyebrow">Scene Inspector</p>
+        <h2 id="sceneInspectorTitle">Scene</h2>
+      </div>
+      <button id="sceneInspectorClose" class="scene-inspector-close" type="button" aria-label="Close Scene Inspector">×</button>
+    </div>
+
+    <div class="scene-inspector-hero">
+      <img id="sceneInspectorImage" alt="" />
+      <span id="sceneInspectorLiveBadge" class="scene-inspector-live-badge">NOT LIVE</span>
+    </div>
+
+    <div class="scene-inspector-section scene-inspector-details">
+      <div class="scene-inspector-section-head">
+        <div><span>Scene Details</span><small>Edit the title shown on the player display.</small></div>
+      </div>
+      <label>Name<input id="sceneInspectorName" type="text" maxlength="80" /></label>
+      <label>Subtitle<input id="sceneInspectorSubtitle" type="text" maxlength="120" /></label>
+      <button id="sceneInspectorSaveDetails" type="button">Save Details</button>
+    </div>
+
+    <div class="scene-inspector-live-actions">
+      <button id="sceneInspectorGo" class="primary" type="button">GO LIVE</button>
+      <button id="sceneInspectorRemove" type="button">Remove</button>
+    </div>
+
+    <p id="sceneInspectorNotice" class="scene-inspector-notice"></p>
+
+    <div class="scene-inspector-section">
+      <div class="scene-inspector-section-head">
+        <div><span>Atmosphere</span><small>Effects for the current live scene.</small></div>
+        <button id="sceneInspectorClearFx" type="button">Clear</button>
+      </div>
+      <div id="sceneInspectorFxGrid" class="scene-inspector-fx-grid"></div>
+      <div class="scene-inspector-mini-settings">
+        <label><span>Intensity</span><input id="sceneInspectorFxIntensity" type="range" min="1" max="3" step="1" value="2" /></label>
+        <label><span>Fade</span>
+          <select id="sceneInspectorFxFade">
+            <option value="350">Quick</option>
+            <option value="900">Smooth</option>
+            <option value="1800">Slow</option>
+          </select>
+        </label>
+      </div>
+    </div>
+
+    <div class="scene-inspector-section">
+      <div class="scene-inspector-section-head">
+        <div><span>Scene Cast</span><small>Characters currently on the stage.</small></div>
+        <button id="sceneInspectorManageCast" type="button">Manage</button>
+      </div>
+      <div id="sceneInspectorCastList" class="scene-inspector-cast-list"></div>
+    </div>
+
+    <div class="scene-inspector-section">
+      <div class="scene-inspector-section-head">
+        <div><span>Live Audio</span><small>Music and ambience playing with the scene.</small></div>
+      </div>
+      <div class="scene-inspector-two-col">
+        <label><span>Music</span><select id="sceneInspectorMusic"></select></label>
+        <label><span>Ambience</span><select id="sceneInspectorAmbience"></select></label>
+      </div>
+    </div>
+
+    <div class="scene-inspector-section">
+      <div class="scene-inspector-section-head">
+        <div><span>Transition</span><small>Transition used when changing scene/title.</small></div>
+      </div>
+      <div class="scene-inspector-two-col">
+        <label><span>Style</span>
+          <select id="sceneInspectorTransitionStyle">
+            <option value="soft-fade">Soft Fade</option>
+            <option value="dream">Dream</option>
+            <option value="crystal-flash">Crystal Flash</option>
+            <option value="relic-glitch">Relic Glitch</option>
+            <option value="darkness">Darkness</option>
+            <option value="memory">Memory</option>
+            <option value="impact">Impact</option>
+          </select>
+        </label>
+        <label><span>Duration</span>
+          <select id="sceneInspectorTransitionDuration">
+            <option value="800">0.8s</option>
+            <option value="1250">1.25s</option>
+            <option value="1800">1.8s</option>
+            <option value="3000">3s</option>
+          </select>
+        </label>
+      </div>
+    </div>
+
+    <div class="scene-inspector-section">
+      <div class="scene-inspector-section-head">
+        <div><span>Reveals &amp; Pins</span><small>What is layered over the current scene.</small></div>
+        <button id="sceneInspectorManageReveals" type="button">Manage</button>
+      </div>
+      <div id="sceneInspectorPinned" class="scene-inspector-pinned"></div>
+      <button id="sceneInspectorClearPins" type="button">Clear Pinned Visuals</button>
+    </div>
+
+    <div class="scene-inspector-section">
+      <div class="scene-inspector-section-head">
+        <div><span>Session Cues</span><small id="sceneInspectorCueSummary">No saved cues use this scene.</small></div>
+        <button id="sceneInspectorOpenSession" type="button">Open Session</button>
+      </div>
+    </div>
+
+    <div class="scene-inspector-danger">
+      <button id="sceneInspectorDelete" class="danger" type="button">Delete Scene Permanently</button>
+    </div>
+  </aside>
+</div>
+
 <dialog id="assetDialog">
   <form id="assetForm" method="dialog" class="asset-form">
     <div class="dialog-head">
@@ -494,6 +612,6 @@
 </dialog>
 
 <script src="config.js"></script>
-<script type="module" src="live-table.js?v=51"></script>
+<script type="module" src="live-table.js?v=52"></script>
 </body>
 </html>
