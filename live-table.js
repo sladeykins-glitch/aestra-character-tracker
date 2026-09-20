@@ -1710,14 +1710,6 @@ function sceneCard(asset){
 function renderScenes(){
   const scenes=assets.filter(a=>a.kind==='scene');
   els.sceneStrip.innerHTML=scenes.length?scenes.map(sceneCard).join(''):'<p class="muted">No scene backdrops yet. Press + to upload one.</p>';
-  els.sceneStrip.querySelectorAll('[data-scene-inspect]').forEach(b=>b.addEventListener('click',()=>openSceneInspector(b.dataset.sceneInspect)));
-  els.sceneStrip.querySelectorAll('.scene-thumb').forEach(thumb=>thumb.addEventListener('click',()=>{
-    const id=thumb.closest('[data-scene-id]')?.dataset.sceneId;
-    if(id)openSceneInspector(id);
-  }));
-  els.sceneStrip.querySelectorAll('[data-scene-go]').forEach(b=>b.addEventListener('click',()=>activateScene(b.dataset.sceneGo)));
-  els.sceneStrip.querySelectorAll('[data-remove]').forEach(b=>b.addEventListener('click',()=>removeAssetFromDisplay(b.dataset.remove)));
-  els.sceneStrip.querySelectorAll('[data-delete]').forEach(b=>b.addEventListener('click',()=>deleteAsset(b.dataset.delete)));
 }
 
 function isSceneCastAsset(asset){
@@ -1946,22 +1938,6 @@ function renderSceneCastSlots(){
     '</button>';
   }).join('');
 
-  host.querySelectorAll('[data-cast-slot]').forEach(slot=>{
-    slot.addEventListener('dragover',event=>{
-      if(slot.disabled)return;
-      event.preventDefault();
-      slot.classList.add('drag-over');
-      if(event.dataTransfer)event.dataTransfer.dropEffect='move';
-    });
-    slot.addEventListener('dragleave',()=>slot.classList.remove('drag-over'));
-    slot.addEventListener('drop',event=>{
-      event.preventDefault();
-      slot.classList.remove('drag-over');
-      if(slot.disabled)return;
-      const id=sceneCastDragId||event.dataTransfer?.getData('text/plain')||'';
-      setSceneCastSlot(id,slot.dataset.castSlot||'');
-    });
-  });
 }
 
 function renderSceneCastTray(){
@@ -2004,41 +1980,6 @@ function renderSceneCastTray(){
     '</article>';
   }).join('');
 
-  els.sceneCastTray.querySelectorAll('[data-cast-speak]').forEach(button=>
-    button.addEventListener('click',()=>setSceneCastSpeaker(button.dataset.castSpeak))
-  );
-  els.sceneCastTray.querySelectorAll('[data-cast-remove]').forEach(button=>
-    button.addEventListener('click',()=>removeNpcFromCast(button.dataset.castRemove))
-  );
-
-  els.sceneCastTray.querySelectorAll('[data-cast-chip]').forEach(chip=>{
-    chip.addEventListener('dragstart',event=>{
-      sceneCastDragId=chip.dataset.castChip||'';
-      chip.classList.add('dragging');
-      if(event.dataTransfer){
-        event.dataTransfer.effectAllowed='move';
-        event.dataTransfer.setData('text/plain',sceneCastDragId);
-      }
-    });
-    chip.addEventListener('dragend',()=>{
-      sceneCastDragId='';
-      chip.classList.remove('dragging');
-      els.sceneCastTray.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over'));
-    });
-    chip.addEventListener('dragover',event=>{
-      event.preventDefault();
-      if(sceneCastDragId&&sceneCastDragId!==chip.dataset.castChip)chip.classList.add('drag-over');
-    });
-    chip.addEventListener('dragleave',()=>chip.classList.remove('drag-over'));
-    chip.addEventListener('drop',event=>{
-      event.preventDefault();
-      chip.classList.remove('drag-over');
-      const source=sceneCastDragId||event.dataTransfer?.getData('text/plain')||'';
-      const rect=chip.getBoundingClientRect();
-      const after=event.clientY>rect.top+rect.height/2;
-      reorderSceneCast(source,chip.dataset.castChip||'',after);
-    });
-  });
 }
 
 function renderSceneCast(){
@@ -2156,12 +2097,6 @@ function revealCard(asset){
 function renderRevealGrid(){
   const visualAssets=assets.filter(a=>a.kind!=='scene'&&(filterKind==='all'||a.kind===filterKind));
   els.revealGrid.innerHTML=visualAssets.length?visualAssets.map(revealCard).join(''):'<p class="muted">No visuals in this category yet.</p>';
-  els.revealGrid.querySelectorAll('[data-show]').forEach(b=>b.addEventListener('click',()=>showReveal(b.dataset.show)));
-  els.revealGrid.querySelectorAll('[data-pin]').forEach(b=>b.addEventListener('click',()=>pinAsset(b.dataset.pin)));
-  els.revealGrid.querySelectorAll('[data-map]').forEach(b=>b.addEventListener('click',()=>setWorldMap(b.dataset.map)));
-  els.revealGrid.querySelectorAll('[data-cast-action]').forEach(b=>b.addEventListener('click',()=>addToSceneCast(b.dataset.castAction)));
-  els.revealGrid.querySelectorAll('[data-remove]').forEach(b=>b.addEventListener('click',()=>removeAssetFromDisplay(b.dataset.remove)));
-  els.revealGrid.querySelectorAll('[data-delete]').forEach(b=>b.addEventListener('click',()=>deleteAsset(b.dataset.delete)));
 }
 
 function scenePresets(){
@@ -2321,10 +2256,6 @@ function renderCuePresets(){
       '</div>'+
     '</article>';
   }).join('');
-  els.cuePresetList.querySelectorAll('[data-cue-go]').forEach(b=>b.addEventListener('click',()=>applyCuePreset(b.dataset.cueGo)));
-  els.cuePresetList.querySelectorAll('[data-cue-add-run]').forEach(b=>b.addEventListener('click',()=>addCueToSequence(b.dataset.cueAddRun)));
-  els.cuePresetList.querySelectorAll('[data-cue-update]').forEach(b=>b.addEventListener('click',()=>updateCuePreset(b.dataset.cueUpdate)));
-  els.cuePresetList.querySelectorAll('[data-cue-delete]').forEach(b=>b.addEventListener('click',()=>deleteCuePreset(b.dataset.cueDelete)));
 }
 
 async function saveCuePreset(){
@@ -2501,15 +2432,6 @@ function renderAudioControls(){
     '</article>'
   ).join('');
 
-  els.audioLibraryList.querySelectorAll('[data-audio-rename]').forEach(input=>
-    input.addEventListener('change',()=>renameAudioTrack(input.dataset.audioRename,input.value))
-  );
-  els.audioLibraryList.querySelectorAll('[data-audio-preview]').forEach(button=>
-    button.addEventListener('click',()=>previewAudioTrack(button.dataset.audioPreview))
-  );
-  els.audioLibraryList.querySelectorAll('[data-audio-delete]').forEach(button=>
-    button.addEventListener('click',()=>deleteAudioTrack(button.dataset.audioDelete))
-  );
 }
 
 async function setAudioStatePatch(patch){
@@ -2746,45 +2668,6 @@ function renderCueSequence(){
     '</article>';
   }).join('');
 
-  els.cueSequenceList.querySelectorAll('[data-sequence-go]').forEach(button=>
-    button.addEventListener('click',()=>runCueSequenceItem(button.dataset.sequenceGo))
-  );
-  els.cueSequenceList.querySelectorAll('[data-sequence-remove]').forEach(button=>
-    button.addEventListener('click',()=>removeCueFromSequence(button.dataset.sequenceRemove))
-  );
-  els.cueSequenceList.querySelectorAll('[data-sequence-note]').forEach(input=>
-    input.addEventListener('change',()=>saveCueSequenceNote(input.dataset.sequenceNote,input.value))
-  );
-
-  els.cueSequenceList.querySelectorAll('.cue-sequence-item').forEach(item=>{
-    item.addEventListener('dragstart',event=>{
-      cueSequenceDragId=item.dataset.sequenceId||'';
-      item.classList.add('dragging');
-      if(event.dataTransfer){
-        event.dataTransfer.effectAllowed='move';
-        event.dataTransfer.setData('text/plain',cueSequenceDragId);
-      }
-    });
-    item.addEventListener('dragend',()=>{
-      cueSequenceDragId='';
-      item.classList.remove('dragging');
-      els.cueSequenceList.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over'));
-    });
-    item.addEventListener('dragover',event=>{
-      event.preventDefault();
-      if(cueSequenceDragId&&cueSequenceDragId!==item.dataset.sequenceId)item.classList.add('drag-over');
-    });
-    item.addEventListener('dragleave',()=>item.classList.remove('drag-over'));
-    item.addEventListener('drop',event=>{
-      event.preventDefault();
-      item.classList.remove('drag-over');
-      const source=cueSequenceDragId||event.dataTransfer?.getData('text/plain')||'';
-      const rect=item.getBoundingClientRect();
-      const after=event.clientY>rect.top+rect.height/2;
-      reorderCueSequence(source,item.dataset.sequenceId||'',after);
-    });
-  });
-
   preloadNextCueArtwork();
 }
 
@@ -2879,7 +2762,6 @@ async function resetCueRun(){
 function renderRecent(){
   const found=recent.map(byId).filter(Boolean).slice(0,8);
   els.recentList.innerHTML=found.length?found.map(a=>'<button class="recent-chip" type="button" data-recent="'+a.id+'">'+esc(a.name)+'</button>').join(''):'<p class="muted">Things you show will appear here.</p>';
-  els.recentList.querySelectorAll('[data-recent]').forEach(b=>b.addEventListener('click',()=>showReveal(b.dataset.recent)));
 }
 
 
@@ -3001,7 +2883,6 @@ function renderSceneInspector(){
 
   if(els.sceneInspectorFxGrid){
     els.sceneInspectorFxGrid.innerHTML=sceneInspectorEffectButtons(cfg,atmosphereEditable);
-    els.sceneInspectorFxGrid.querySelectorAll('[data-inspector-fx]').forEach(button=>button.addEventListener('click',()=>toggleSceneEffect(button.dataset.inspectorFx)));
   }
   if(els.sceneInspectorFxIntensity){
     els.sceneInspectorFxIntensity.value=String(cfg.intensity);
@@ -3912,9 +3793,129 @@ function setupGmWorkspace(){
   gmWorkspaceMounted=true;
 }
 
+function wireDelegatedControls(){
+  delegate(els.sceneStrip,'click','[data-scene-inspect],[data-scene-go],[data-remove],[data-delete],.scene-thumb',(event,target)=>{
+    if(target.dataset.sceneInspect){openSceneInspector(target.dataset.sceneInspect);return}
+    if(target.classList.contains('scene-thumb')){
+      const id=target.closest('[data-scene-id]')?.dataset.sceneId;
+      if(id)openSceneInspector(id);
+      return;
+    }
+    if(target.dataset.sceneGo){activateScene(target.dataset.sceneGo);return}
+    if(target.dataset.remove){removeAssetFromDisplay(target.dataset.remove);return}
+    if(target.dataset.delete)deleteAsset(target.dataset.delete);
+  });
+
+  delegate(els.revealGrid,'click','[data-show],[data-pin],[data-map],[data-cast-action],[data-remove],[data-delete]',(event,target)=>{
+    if(target.dataset.show){showReveal(target.dataset.show);return}
+    if(target.dataset.pin){pinAsset(target.dataset.pin);return}
+    if(target.dataset.map){setWorldMap(target.dataset.map);return}
+    if(target.dataset.castAction){addToSceneCast(target.dataset.castAction);return}
+    if(target.dataset.remove){removeAssetFromDisplay(target.dataset.remove);return}
+    if(target.dataset.delete)deleteAsset(target.dataset.delete);
+  });
+
+  delegate(els.audioLibraryList,'click','[data-audio-preview],[data-audio-delete]',(event,target)=>{
+    if(target.dataset.audioPreview){previewAudioTrack(target.dataset.audioPreview);return}
+    if(target.dataset.audioDelete)deleteAudioTrack(target.dataset.audioDelete);
+  });
+  delegate(els.audioLibraryList,'change','[data-audio-rename]',(event,target)=>{
+    renameAudioTrack(target.dataset.audioRename,target.value);
+  });
+
+  delegate(els.cuePresetList,'click','[data-cue-go],[data-cue-add-run],[data-cue-update],[data-cue-delete]',(event,target)=>{
+    if(target.dataset.cueGo){applyCuePreset(target.dataset.cueGo);return}
+    if(target.dataset.cueAddRun){addCueToSequence(target.dataset.cueAddRun);return}
+    if(target.dataset.cueUpdate){updateCuePreset(target.dataset.cueUpdate);return}
+    if(target.dataset.cueDelete)deleteCuePreset(target.dataset.cueDelete);
+  });
+
+  delegate(els.cueSequenceList,'click','[data-sequence-go],[data-sequence-remove]',(event,target)=>{
+    if(target.dataset.sequenceGo){runCueSequenceItem(target.dataset.sequenceGo);return}
+    if(target.dataset.sequenceRemove)removeCueFromSequence(target.dataset.sequenceRemove);
+  });
+  delegate(els.cueSequenceList,'change','[data-sequence-note]',(event,target)=>{
+    saveCueSequenceNote(target.dataset.sequenceNote,target.value);
+  });
+  delegate(els.cueSequenceList,'dragstart','.cue-sequence-item',(event,item)=>{
+    cueSequenceDragId=item.dataset.sequenceId||'';
+    item.classList.add('dragging');
+    if(event.dataTransfer){
+      event.dataTransfer.effectAllowed='move';
+      event.dataTransfer.setData('text/plain',cueSequenceDragId);
+    }
+  });
+  delegate(els.cueSequenceList,'dragend','.cue-sequence-item',(event,item)=>{
+    cueSequenceDragId='';
+    item.classList.remove('dragging');
+    els.cueSequenceList?.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over'));
+  });
+  delegate(els.cueSequenceList,'dragover','.cue-sequence-item',(event,item)=>{
+    event.preventDefault();
+    if(cueSequenceDragId&&cueSequenceDragId!==item.dataset.sequenceId)item.classList.add('drag-over');
+  });
+  delegate(els.cueSequenceList,'dragleave','.cue-sequence-item',(event,item)=>item.classList.remove('drag-over'));
+  delegate(els.cueSequenceList,'drop','.cue-sequence-item',(event,item)=>{
+    event.preventDefault();
+    item.classList.remove('drag-over');
+    const source=cueSequenceDragId||event.dataTransfer?.getData('text/plain')||'';
+    const rect=item.getBoundingClientRect();
+    reorderCueSequence(source,item.dataset.sequenceId||'',event.clientY>rect.top+rect.height/2);
+  });
+
+  delegate(els.sceneCastTray,'click','[data-cast-speak],[data-cast-remove]',(event,target)=>{
+    if(target.dataset.castSpeak){setSceneCastSpeaker(target.dataset.castSpeak);return}
+    if(target.dataset.castRemove)removeNpcFromCast(target.dataset.castRemove);
+  });
+  delegate(els.sceneCastTray,'dragstart','[data-cast-chip]',(event,chip)=>{
+    sceneCastDragId=chip.dataset.castChip||'';
+    chip.classList.add('dragging');
+    if(event.dataTransfer){
+      event.dataTransfer.effectAllowed='move';
+      event.dataTransfer.setData('text/plain',sceneCastDragId);
+    }
+  });
+  delegate(els.sceneCastTray,'dragend','[data-cast-chip]',(event,chip)=>{
+    sceneCastDragId='';
+    chip.classList.remove('dragging');
+    els.sceneCastTray?.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over'));
+  });
+  delegate(els.sceneCastTray,'dragover','[data-cast-chip]',(event,chip)=>{
+    event.preventDefault();
+    if(sceneCastDragId&&sceneCastDragId!==chip.dataset.castChip)chip.classList.add('drag-over');
+  });
+  delegate(els.sceneCastTray,'dragleave','[data-cast-chip]',(event,chip)=>chip.classList.remove('drag-over'));
+  delegate(els.sceneCastTray,'drop','[data-cast-chip]',(event,chip)=>{
+    event.preventDefault();
+    chip.classList.remove('drag-over');
+    const source=sceneCastDragId||event.dataTransfer?.getData('text/plain')||'';
+    const rect=chip.getBoundingClientRect();
+    reorderSceneCast(source,chip.dataset.castChip||'',event.clientY>rect.top+rect.height/2);
+  });
+
+  delegate(els.sceneCastSlots,'dragover','[data-cast-slot]',(event,slot)=>{
+    if(slot.disabled)return;
+    event.preventDefault();
+    slot.classList.add('drag-over');
+    if(event.dataTransfer)event.dataTransfer.dropEffect='move';
+  });
+  delegate(els.sceneCastSlots,'dragleave','[data-cast-slot]',(event,slot)=>slot.classList.remove('drag-over'));
+  delegate(els.sceneCastSlots,'drop','[data-cast-slot]',(event,slot)=>{
+    event.preventDefault();
+    slot.classList.remove('drag-over');
+    if(slot.disabled)return;
+    const id=sceneCastDragId||event.dataTransfer?.getData('text/plain')||'';
+    setSceneCastSlot(id,slot.dataset.castSlot||'');
+  });
+
+  delegate(els.recentList,'click','[data-recent]',(event,target)=>showReveal(target.dataset.recent));
+  delegate(els.sceneInspectorFxGrid,'click','[data-inspector-fx]',(event,target)=>toggleSceneEffect(target.dataset.inspectorFx));
+}
+
 function wire(){
   window.addEventListener('message',handleMapBridgeMessage);
   wireSceneInspector();
+  wireDelegatedControls();
   document.querySelectorAll('[data-gm-tab]').forEach(button=>button.addEventListener('click',()=>{
     setGmWorkspaceTab(button.dataset.gmTab,{scroll:true});
   }));
