@@ -1514,7 +1514,7 @@ function handleMapBridgeMessage(event){
   }
 }
 
-const SCENE_EFFECT_KEYS=['rain','storm','mist','wind','snow','ash','heat','magic','cold'];
+const SCENE_EFFECT_KEYS=['rain','storm','mist','wind','snow','ash','heat','magic','cold','spores','crystal','rays','dream','relic'];
 
 function sceneEffectState(){
   const raw=state?.scene_effects&&typeof state.scene_effects==='object'?state.scene_effects:{};
@@ -1558,6 +1558,9 @@ class SceneAtmosphereRenderer{
     this.recoverFrames=0;
     this.lightningAt=0;
     this.flash=0;
+    this.relicAt=0;
+    this.relicPulse=0;
+    this.relicArcs=[];
     this.backdropSrc='';
     this.backdropReady=false;
     this.backdropImg=new Image();
@@ -1661,7 +1664,8 @@ class SceneAtmosphereRenderer{
       ash:95,
       wind:40,
       mist:16,
-      magic:42
+      magic:42,
+      spores:34
     }[type]||0;
     const stormBoost=type==='rain'&&this.cfg.effects.includes('storm')?1.7:1;
     return Math.round(base*intensity*stormBoost*this.quality);
@@ -1670,7 +1674,7 @@ class SceneAtmosphereRenderer{
   syncParticles(){
     const active=new Set(this.cfg.effects);
     if(active.has('storm'))active.add('rain');
-    const particleTypes=['rain','snow','ash','wind','mist','magic'];
+    const particleTypes=['rain','snow','ash','wind','mist','magic','spores'];
     for(const type of particleTypes){
       if(!active.has(type)){
         this.particles.set(type,[]);
@@ -1730,6 +1734,13 @@ class SceneAtmosphereRenderer{
       p.vx=-9+Math.random()*18;
       p.vy=-15-Math.random()*35;
       p.size=1.4+Math.random()*4.4;
+    }else if(type==='spores'){
+      p.x=Math.random()*w;
+      p.y=initial?Math.random()*h:h+12+Math.random()*30;
+      p.vx=-8+Math.random()*16;
+      p.vy=-8-Math.random()*24;
+      p.size=.8+Math.random()*2.8;
+      p.life=Math.random();
     }
     return p;
   }
@@ -1805,12 +1816,17 @@ class SceneAtmosphereRenderer{
     if(effects.has('storm'))effects.add('rain');
 
     if(effects.has('heat'))this.drawHeatHaze(ctx,w,h,now);
+    if(effects.has('dream'))this.drawDreamDistortion(ctx,w,h,now);
+    if(effects.has('rays'))this.drawGodRays(ctx,w,h,now);
     if(effects.has('mist'))this.drawMist(ctx,dt,w,h);
     if(effects.has('wind'))this.drawWind(ctx,dt,w,h);
     if(effects.has('rain'))this.drawRain(ctx,dt,w,h,effects.has('storm'));
     if(effects.has('snow'))this.drawSnow(ctx,dt,w,h);
     if(effects.has('ash'))this.drawAsh(ctx,dt,w,h);
+    if(effects.has('spores'))this.drawSpores(ctx,dt,w,h,now);
     if(effects.has('magic'))this.drawMagic(ctx,dt,w,h,now);
+    if(effects.has('crystal'))this.drawCrystalResonance(ctx,w,h,now);
+    if(effects.has('relic'))this.drawRelicInstability(ctx,w,h,now);
 
     if(effects.has('storm'))this.drawLightning(now,intensity);
     else this.setFlash(0);
@@ -1928,6 +1944,238 @@ class SceneAtmosphereRenderer{
       ctx.beginPath();
       ctx.arc(p.x,p.y,r,0,Math.PI*2);
       ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  drawSpores(ctx,dt,w,h,now){
+    const arr=this.particles.get('spores')||[];
+    const intensity=this.cfg.intensity||2;
+    ctx.save();
+    ctx.globalCompositeOperation='lighter';
+    for(const p of arr){
+      p.phase+=dt*(.35+p.z*.8);
+      p.x+=(p.vx+Math.sin(p.phase*1.4)*8)*dt;
+      p.y+=p.vy*p.z*dt;
+      if(p.y<-24||p.x<-30||p.x>w+30)this.recycle(p);
+
+      const twinkle=.52+.48*Math.sin(now*.0012+p.phase*2.2);
+      const halo=p.size*(3.2+p.z*2.6);
+      const alpha=(.12+.13*p.z)*twinkle*(.72+intensity*.12);
+      const g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,halo);
+      g.addColorStop(0,'rgba(239,235,167,'+Math.min(.42,alpha*1.8)+')');
+      g.addColorStop(.32,'rgba(176,220,145,'+alpha+')');
+      g.addColorStop(1,'rgba(126,193,145,0)');
+      ctx.fillStyle=g;
+      ctx.beginPath();
+      ctx.arc(p.x,p.y,halo,0,Math.PI*2);
+      ctx.fill();
+
+      if(p.z>.72){
+        ctx.globalAlpha=.28*twinkle;
+        ctx.fillStyle='rgba(248,242,194,.95)';
+        ctx.beginPath();
+        ctx.arc(p.x,p.y,Math.max(.45,p.size*.32),0,Math.PI*2);
+        ctx.fill();
+        ctx.globalAlpha=1;
+      }
+    }
+    ctx.restore();
+  }
+
+  drawGodRays(ctx,w,h,now){
+    const intensity=this.cfg.intensity||2;
+    const alpha={1:.035,2:.06,3:.09}[intensity]||.06;
+    const drift=(now*.000012)%1;
+    ctx.save();
+    ctx.globalCompositeOperation='screen';
+    ctx.filter='blur('+(this.quality>=.8?9:13)+'px)';
+
+    for(let i=0;i<5;i++){
+      const phase=(drift+i*.235)%1.18;
+      const topX=(-.18+phase)*w;
+      const lean=w*(.11+.018*i);
+      const topWidth=w*(.018+.008*(i%3));
+      const bottomWidth=w*(.09+.018*(i%2));
+      const pulse=.58+.42*Math.sin(now*.00042+i*1.9);
+
+      const g=ctx.createLinearGradient(topX,0,topX+lean,h);
+      g.addColorStop(0,'rgba(255,247,210,0)');
+      g.addColorStop(.14,'rgba(255,244,204,'+(alpha*pulse*.55)+')');
+      g.addColorStop(.65,'rgba(231,239,215,'+(alpha*pulse)+')');
+      g.addColorStop(1,'rgba(204,226,219,0)');
+
+      ctx.fillStyle=g;
+      ctx.beginPath();
+      ctx.moveTo(topX-topWidth,0);
+      ctx.lineTo(topX+topWidth,0);
+      ctx.lineTo(topX+lean+bottomWidth,h);
+      ctx.lineTo(topX+lean-bottomWidth,h);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  drawCrystalResonance(ctx,w,h,now){
+    const intensity=this.cfg.intensity||2;
+    const strength={1:.55,2:.82,3:1.12}[intensity]||.82;
+    const anchors=[
+      {x:.24,y:.59,phase:.04,tone:0},
+      {x:.53,y:.42,phase:.41,tone:1},
+      {x:.78,y:.64,phase:.73,tone:0}
+    ];
+
+    ctx.save();
+    ctx.globalCompositeOperation='lighter';
+    for(const a of anchors){
+      const cycle=(now*.000115+a.phase)%1;
+      const fade=Math.pow(1-cycle,2.1)*strength;
+      const cx=w*a.x;
+      const cy=h*a.y;
+      const radius=(18+cycle*Math.min(w,h)*.22)*(1+a.phase*.12);
+
+      const glow=ctx.createRadialGradient(cx,cy,0,cx,cy,34+radius*.2);
+      const core=a.tone===0?'132,222,244':'230,199,116';
+      glow.addColorStop(0,'rgba('+core+','+(.11*fade)+')');
+      glow.addColorStop(1,'rgba('+core+',0)');
+      ctx.fillStyle=glow;
+      ctx.beginPath();
+      ctx.arc(cx,cy,34+radius*.2,0,Math.PI*2);
+      ctx.fill();
+
+      ctx.strokeStyle='rgba('+core+','+(.17*fade)+')';
+      ctx.lineWidth=.7+intensity*.22;
+      ctx.beginPath();
+      ctx.arc(cx,cy,radius,0,Math.PI*2);
+      ctx.stroke();
+
+      ctx.strokeStyle='rgba('+core+','+(.07*fade)+')';
+      ctx.beginPath();
+      ctx.arc(cx,cy,radius*.62,0,Math.PI*2);
+      ctx.stroke();
+
+      const spoke=radius*.72;
+      for(let n=0;n<4;n++){
+        const angle=n*Math.PI/2+a.phase*2.4;
+        ctx.beginPath();
+        ctx.moveTo(cx+Math.cos(angle)*radius*.16,cy+Math.sin(angle)*radius*.16);
+        ctx.lineTo(cx+Math.cos(angle)*spoke,cy+Math.sin(angle)*spoke);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+
+  drawDreamDistortion(ctx,w,h,now){
+    if(!this.backdropReady||!this.heatBuffer?.width||!this.heatBuffer?.height)return;
+    const intensity=this.cfg.intensity||2;
+    const sourceScale=this.pixelRatio;
+    const stripH=this.quality>=.95?12:this.quality>=.68?17:24;
+    const maxShift={1:1.8,2:3.8,3:6.3}[intensity]||3.8;
+
+    ctx.save();
+    ctx.globalAlpha={1:.075,2:.115,3:.16}[intensity]||.115;
+    ctx.imageSmoothingEnabled=true;
+    for(let y=0;y<h;y+=stripH){
+      const slow=Math.sin(y*.017+now*.00074);
+      const counter=Math.sin(y*.043-now*.00108+1.9);
+      const shift=(slow+counter*.42)*maxShift;
+      const rise=Math.sin(y*.012+now*.0005)*1.15*intensity;
+      const sy=Math.max(0,Math.floor(y*sourceScale));
+      const sh=Math.max(1,Math.min(
+        this.heatBuffer.height-sy,
+        Math.ceil((stripH+2)*sourceScale)
+      ));
+      if(sh<=0)continue;
+      ctx.drawImage(
+        this.heatBuffer,
+        0,sy,this.heatBuffer.width,sh,
+        shift,y+rise,w,stripH+2
+      );
+    }
+
+    const breath=.5+.5*Math.sin(now*.00058);
+    const vignette=ctx.createRadialGradient(w*.5,h*.47,Math.min(w,h)*.12,w*.5,h*.47,Math.max(w,h)*.68);
+    vignette.addColorStop(0,'rgba(160,209,221,0)');
+    vignette.addColorStop(.62,'rgba(126,104,179,'+(.018*intensity*breath)+')');
+    vignette.addColorStop(1,'rgba(43,30,69,'+(.05*intensity*breath)+')');
+    ctx.globalCompositeOperation='screen';
+    ctx.globalAlpha=1;
+    ctx.fillStyle=vignette;
+    ctx.fillRect(0,0,w,h);
+    ctx.restore();
+  }
+
+  makeRelicBurst(w,h,intensity){
+    const count=1+intensity;
+    this.relicArcs=Array.from({length:count},(_,index)=>{
+      const x=w*(.12+Math.random()*.76);
+      const y=h*(.16+Math.random()*.66);
+      const length=Math.min(w,h)*(.12+Math.random()*.18);
+      const angle=(-.9+Math.random()*1.8)+(index%2?Math.PI*.34:-Math.PI*.18);
+      const points=[];
+      const segments=5+Math.floor(Math.random()*4);
+      for(let i=0;i<=segments;i++){
+        const t=i/segments;
+        const side=(Math.random()-.5)*length*.18*(1-Math.abs(t-.5));
+        points.push({
+          x:x+Math.cos(angle)*length*t-Math.sin(angle)*side,
+          y:y+Math.sin(angle)*length*t+Math.cos(angle)*side
+        });
+      }
+      return {points,tone:index%2};
+    });
+  }
+
+  drawRelicInstability(ctx,w,h,now){
+    const intensity=this.cfg.intensity||2;
+    if(!this.relicAt)this.relicAt=now+1800+Math.random()*3600;
+    if(now>=this.relicAt){
+      this.relicPulse=1;
+      this.makeRelicBurst(w,h,intensity);
+      this.relicAt=now+2200+Math.random()*5200;
+    }
+    if(this.relicPulse<=.012)return;
+
+    const pulse=this.relicPulse;
+    this.relicPulse*=.885;
+
+    ctx.save();
+    ctx.globalCompositeOperation='lighter';
+    ctx.lineCap='round';
+    ctx.lineJoin='round';
+
+    for(const arc of this.relicArcs){
+      const primary=arc.tone===0?'112,220,239':'234,190,91';
+      const secondary=arc.tone===0?'224,191,103':'108,210,239';
+
+      ctx.strokeStyle='rgba('+secondary+','+(.08*pulse*intensity)+')';
+      ctx.lineWidth=4.5+intensity*1.1;
+      ctx.beginPath();
+      arc.points.forEach((point,i)=>i?ctx.lineTo(point.x,point.y):ctx.moveTo(point.x,point.y));
+      ctx.stroke();
+
+      ctx.strokeStyle='rgba('+primary+','+(.5*pulse)+')';
+      ctx.lineWidth=.8+intensity*.35;
+      ctx.beginPath();
+      arc.points.forEach((point,i)=>i?ctx.lineTo(point.x,point.y):ctx.moveTo(point.x,point.y));
+      ctx.stroke();
+
+      const origin=arc.points[Math.floor(arc.points.length/2)];
+      const glow=ctx.createRadialGradient(origin.x,origin.y,0,origin.x,origin.y,55+intensity*20);
+      glow.addColorStop(0,'rgba('+primary+','+(.12*pulse)+')');
+      glow.addColorStop(1,'rgba('+primary+',0)');
+      ctx.fillStyle=glow;
+      ctx.beginPath();
+      ctx.arc(origin.x,origin.y,55+intensity*20,0,Math.PI*2);
+      ctx.fill();
+    }
+
+    if(pulse>.72){
+      ctx.globalAlpha=(pulse-.72)*.12*intensity;
+      ctx.fillStyle='rgba(190,230,235,.55)';
+      ctx.fillRect(0,0,w,h);
     }
     ctx.restore();
   }
