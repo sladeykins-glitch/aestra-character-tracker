@@ -7,12 +7,12 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
-<meta name="aestra-live-build" content="50" />
+<meta name="aestra-live-build" content="51" />
 <title>Aestra Live Table</title>
 <link rel="icon" href="aestra-icon.svg" type="image/svg+xml" />
-<link rel="stylesheet" href="live-table.css?v=35" />
+<link rel="stylesheet" href="live-table.css?v=36" />
 </head>
-<body data-live-build="50">
+<body data-live-build="51">
 <div id="authGate" class="auth-gate">
   <form id="authForm" class="auth-card">
     <div class="aestra-mark">✦</div>
@@ -124,6 +124,39 @@
           <button id="quickPrevCueBtn" type="button" class="cue-quick-prev" title="Previous cue">‹ PREV</button>
           <button id="quickNextCueBtn" type="button" class="primary cue-quick-next">START SESSION ›</button>
         </div>
+      </div>
+    </section>
+
+
+    <section id="gmWorkspaceShell" class="gm-workspace-shell">
+      <nav id="gmWorkspaceNav" class="gm-workspace-nav" aria-label="GM workspace" role="tablist">
+        <button type="button" class="active" data-gm-tab="scenes" role="tab" aria-selected="true">
+          <span class="gm-nav-icon">▣</span><span>Scenes</span>
+        </button>
+        <button type="button" data-gm-tab="reveals" role="tab" aria-selected="false">
+          <span class="gm-nav-icon">♙</span><span>Cast &amp; Reveals</span>
+        </button>
+        <button type="button" data-gm-tab="session" role="tab" aria-selected="false">
+          <span class="gm-nav-icon">◆</span><span>Session</span>
+        </button>
+        <button type="button" data-gm-tab="audio" role="tab" aria-selected="false">
+          <span class="gm-nav-icon">♫</span><span>Audio &amp; Transitions</span>
+        </button>
+        <button type="button" data-gm-tab="tools" role="tab" aria-selected="false">
+          <span class="gm-nav-icon">⌘</span><span>Map &amp; Tools</span>
+        </button>
+        <span class="gm-nav-spacer"></span>
+        <button id="gmCompactPreviewBtn" type="button" class="gm-compact-preview" aria-pressed="false">
+          <span class="gm-nav-icon">↕</span><span>Compact Preview</span>
+        </button>
+      </nav>
+
+      <div id="gmWorkspacePanels" class="gm-workspace-panels">
+        <section id="gmPanelScenes" class="gm-tab-panel gm-panel-scenes active" data-gm-panel="scenes" role="tabpanel"></section>
+        <section id="gmPanelReveals" class="gm-tab-panel gm-panel-reveals" data-gm-panel="reveals" role="tabpanel" hidden></section>
+        <section id="gmPanelSession" class="gm-tab-panel gm-panel-session" data-gm-panel="session" role="tabpanel" hidden></section>
+        <section id="gmPanelAudio" class="gm-tab-panel gm-panel-audio" data-gm-panel="audio" role="tabpanel" hidden></section>
+        <section id="gmPanelTools" class="gm-tab-panel gm-panel-tools" data-gm-panel="tools" role="tabpanel" hidden></section>
       </div>
     </section>
 
@@ -461,6 +494,6 @@
 </dialog>
 
 <script src="config.js"></script>
-<script type="module" src="live-table.js?v=50"></script>
+<script type="module" src="live-table.js?v=51"></script>
 </body>
 </html>
