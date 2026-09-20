@@ -1909,3 +1909,92 @@ body.gm-preview-compact .scene-cast-member{
 body.gm-preview-compact .party-hud{
   inline-size:min(250px,calc(100% - 24px));
 }
+
+
+/* Scene Inspector live-state indicators */
+.scene-inspector-status-strip{
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:5px;
+  margin-top:8px;
+}
+.scene-inspector-status-strip>span{
+  min-width:0;
+  padding:7px 6px;
+  border:1px solid rgba(132,151,164,.13);
+  border-radius:9px;
+  background:rgba(10,15,20,.78);
+  text-align:center;
+}
+.scene-inspector-status-strip b{
+  display:block;
+  overflow:hidden;
+  color:#78858d;
+  font-size:6px;
+  font-weight:700;
+  letter-spacing:.08em;
+  text-overflow:ellipsis;
+  text-transform:uppercase;
+  white-space:nowrap;
+}
+.scene-inspector-status-strip em{
+  display:block;
+  margin-top:3px;
+  overflow:hidden;
+  color:#aeb7bd;
+  font-size:7px;
+  font-style:normal;
+  font-weight:800;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.scene-inspector-status-strip em[data-tone="on"],
+.scene-inspector-status-strip em[data-tone="ready"]{color:#c9dfa9}
+.scene-inspector-status-strip em[data-tone="warn"]{color:#efc685}
+.scene-inspector-status-strip em[data-tone="locked"]{color:#68737a}
+.scene-inspector-head-actions{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:6px;
+}
+.scene-inspector-state{
+  display:inline-flex!important;
+  align-items:center;
+  min-height:22px;
+  padding:0 7px;
+  border:1px solid rgba(132,151,164,.16);
+  border-radius:999px;
+  background:#0c1218;
+  color:#87939b!important;
+  font:800 6.5px/1 Inter,system-ui,sans-serif!important;
+  letter-spacing:.07em;
+  white-space:nowrap;
+}
+.scene-inspector-state[data-tone="on"]{
+  border-color:rgba(106,216,142,.31);
+  color:#9ce6b4!important;
+  background:rgba(31,78,47,.18);
+}
+.scene-inspector-state[data-tone="ready"]{
+  border-color:rgba(216,182,102,.30);
+  color:#e2ca88!important;
+  background:rgba(80,65,31,.17);
+}
+.scene-inspector-state[data-tone="warn"]{
+  border-color:rgba(225,164,87,.35);
+  color:#efc685!important;
+  background:rgba(92,58,22,.18);
+}
+.scene-inspector-state[data-tone="locked"]{
+  opacity:.56;
+  color:#68737a!important;
+}
+@media(max-width:520px){
+  .scene-inspector-status-strip{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+
+/* Generated GM library thumbnails */
+.scene-thumb img,.reveal-thumb img{
+  background:#111820;
+}
