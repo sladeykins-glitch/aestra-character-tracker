@@ -2074,8 +2074,13 @@ function renderDisplay(){
   const signature=displaySignature(state);
   const currentSceneId=state.active_scene_id||'';
   const currentTransitionNonce=transitionNonce();
-  const transitionTargetChanged=(mode==='scene'&&(lastDisplayMode!=='scene'||currentSceneId!==lastRenderedSceneId))
-    ||(mode==='title'&&lastDisplayMode!=='title');
+  // A reveal sits over the current scene/title. Closing or removing it should
+  // uncover that display directly, rather than replaying its cue transition.
+  const returningFromReveal=lastDisplayMode==='reveal'&&(mode==='scene'||mode==='title');
+  const transitionTargetChanged=!returningFromReveal&&(
+    (mode==='scene'&&(lastDisplayMode!=='scene'||currentSceneId!==lastRenderedSceneId))
+    ||(mode==='title'&&lastDisplayMode!=='title')
+  );
   const cueTransitionTriggered=transitionEnabledForMode(mode)&&currentTransitionNonce!==lastRenderedTransitionNonce;
   if(displayInitialized&&(transitionTargetChanged||cueTransitionTriggered)){
     getTransitionCanvasRenderer()?.preparePreviousMode(lastDisplayMode);
