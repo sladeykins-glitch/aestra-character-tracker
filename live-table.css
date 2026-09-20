@@ -2152,6 +2152,7 @@ body.gm-preview-compact .party-hud{
   13%{opacity:1;filter:blur(0) brightness(.94) drop-shadow(0 24px 34px rgba(0,0,0,.58))}
   42%{transform:translate3d(0,0,0) scale(1)}
   78%{opacity:1;transform:translate3d(1%,0,0) scale(1.018)}
+  94%{opacity:1;transform:translate3d(2.2%,-.4%,0) scale(1.029);filter:blur(0) brightness(.94) drop-shadow(0 24px 34px rgba(0,0,0,.58))}
   100%{opacity:0;transform:translate3d(3%,-1%,0) scale(1.035);filter:blur(4px) brightness(.82) drop-shadow(0 24px 34px rgba(0,0,0,.58))}
 }
 @keyframes aestraMajorIntroCopy{
