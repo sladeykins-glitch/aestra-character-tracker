@@ -53,6 +53,17 @@ function buildPrompt(userPrompt: string, style: string) {
   return parts.join("\n").slice(0, 1980);
 }
 
+function generationModel(quality: string) {
+  return quality === "high" ? MODEL_HIGH : MODEL_STANDARD;
+}
+
+function generationSize(quality: string) {
+  return quality === "low"
+    ? { width: 1024, height: 576 }
+    : { width: 1536, height: 864 };
+}
+
+
 async function runFlux(
   accountId: string,
   apiToken: string,
