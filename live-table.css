@@ -1699,9 +1699,14 @@ body.gm-preview-compact .quick-controls{
   margin-top:7px;
 }
 body.gm-preview-compact .party-hud{
+  left:12px;
+  right:auto;
+  top:12px;
+  bottom:auto;
+  width:min(250px,calc(100% - 24px));
+  max-height:calc(100% - 24px);
   transform:scale(.82);
-  transform-origin:left bottom;
-  width:122%;
+  transform-origin:left top;
 }
 body.gm-preview-compact .location-title{
   top:16px;
@@ -1896,4 +1901,11 @@ body.gm-preview-compact .scene-cast-member{
   width:100%;
   height:100%;
   object-fit:cover;
+}
+
+
+/* Compact preview guard: the party HUD is a vertical left stack.
+   Do not expand it to preview width; older horizontal-HUD rules caused frame blowout. */
+body.gm-preview-compact .party-hud{
+  inline-size:min(250px,calc(100% - 24px));
 }
