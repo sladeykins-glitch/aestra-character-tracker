@@ -7,12 +7,12 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
-<meta name="aestra-live-build" content="48" />
+<meta name="aestra-live-build" content="49" />
 <title>Aestra Live Table</title>
 <link rel="icon" href="aestra-icon.svg" type="image/svg+xml" />
-<link rel="stylesheet" href="live-table.css?v=33" />
+<link rel="stylesheet" href="live-table.css?v=34" />
 </head>
-<body data-live-build="48">
+<body data-live-build="49">
 <div id="authGate" class="auth-gate">
   <form id="authForm" class="auth-card">
     <div class="aestra-mark">✦</div>
@@ -56,6 +56,7 @@
 
       <div id="playerDisplay" class="player-display" aria-live="polite">
         <div id="backdrop" class="backdrop"></div>
+        <canvas id="sceneFxShaderCanvas" class="scene-fx-shader-canvas" aria-hidden="true"></canvas>
         <iframe id="worldMapFrame" class="world-map-frame hidden" title="Aestra interactive world map" referrerpolicy="no-referrer"></iframe>
         <div class="atmosphere"></div>
         <div id="sceneEffects" class="scene-effects" aria-hidden="true">
@@ -453,6 +454,6 @@
 </dialog>
 
 <script src="config.js"></script>
-<script type="module" src="live-table.js?v=48"></script>
+<script type="module" src="live-table.js?v=49"></script>
 </body>
 </html>
