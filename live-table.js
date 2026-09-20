@@ -2147,10 +2147,18 @@ function renderScenes(){
   els.sceneStrip.querySelectorAll('[data-delete]').forEach(b=>b.addEventListener('click',()=>deleteAsset(b.dataset.delete)));
 }
 
+function isSceneCastAsset(asset){
+  return Boolean(asset&&(asset.kind==='npc'||asset.kind==='creature'));
+}
+
+function isCompactRevealAsset(asset){
+  return Boolean(asset&&(asset.kind==='item'||asset.kind==='clue'));
+}
+
 function normalizeSceneCast(raw=state?.scene_cast){
   const source=raw&&typeof raw==='object'?raw:{};
   const ids=Array.isArray(source.ids)
-    ? [...new Set(source.ids.filter(id=>typeof id==='string'&&byId(id)?.kind==='npc'))].slice(0,6)
+    ? [...new Set(source.ids.filter(id=>typeof id==='string'&&isSceneCastAsset(byId(id))))].slice(0,6)
     : [];
   const active_id=ids.includes(source.active_id)?source.active_id:null;
   return {ids,active_id};
@@ -2158,7 +2166,7 @@ function normalizeSceneCast(raw=state?.scene_cast){
 
 function sceneCastMemberElement(asset){
   const el=document.createElement('article');
-  el.className='scene-cast-member is-entering';
+  el.className='scene-cast-member is-entering'+(asset.kind==='creature'?' is-creature':'');
   el.dataset.castId=asset.id;
   const img=document.createElement('img');
   img.src=asset.image_url;
@@ -2174,8 +2182,11 @@ function renderPlayerSceneCast(){
   const host=els.sceneCast;
   if(!host)return;
   const cast=normalizeSceneCast();
-  const visible=state?.mode==='scene'&&cast.ids.length>0;
+  const reveal=byId(state?.active_reveal_id);
+  const compactReveal=state?.mode==='reveal'&&isCompactRevealAsset(reveal);
+  const visible=(state?.mode==='scene'||compactReveal)&&cast.ids.length>0;
   host.classList.toggle('hidden',!visible);
+  host.classList.toggle('is-reveal-muted',compactReveal&&visible);
   host.setAttribute('aria-hidden',visible?'false':'true');
   host.dataset.count=String(cast.ids.length);
   host.classList.toggle('has-active',Boolean(cast.active_id));
@@ -2230,19 +2241,21 @@ function renderSceneCastTray(){
   if(els.clearSceneCastBtn)els.clearSceneCastBtn.disabled=!cast.ids.length;
 
   if(!cast.ids.length){
-    els.sceneCastTray.innerHTML='<p class="scene-cast-empty">No NPCs in the scene yet. Use ADD CAST in the NPC library.</p>';
+    els.sceneCastTray.innerHTML='<p class="scene-cast-empty">No characters or creatures in the scene yet. Use ADD CAST in the library.</p>';
     return;
   }
 
   els.sceneCastTray.innerHTML=cast.ids.map((id,index)=>{
-    const npc=byId(id);
-    if(!npc)return '';
+    const member=byId(id);
+    if(!member)return '';
     const active=cast.active_id===id;
+    const typeLabel=member.kind==='creature'?'Creature':'NPC';
+    const featureLabel=member.kind==='creature'?(active?'FEATURED':'FEATURE'):(active?'SPEAKING':'SPEAK');
     return '<article class="scene-cast-chip'+(active?' is-active':'')+'" draggable="true" data-cast-chip="'+esc(id)+'">'+
-      '<img src="'+esc(npc.image_url)+'" alt="">'+
-      '<div class="scene-cast-chip-main"><strong>'+esc(npc.name)+'</strong><small>'+(active?'Speaking now':'NPC '+(index+1))+'</small></div>'+
+      '<img src="'+esc(member.image_url)+'" alt="">'+
+      '<div class="scene-cast-chip-main"><strong>'+esc(member.name)+'</strong><small>'+(active?'Featured now':typeLabel+' '+(index+1))+'</small></div>'+
       '<div class="scene-cast-chip-actions">'+
-        '<button type="button" class="cast-speak'+(active?' is-active':'')+'" data-cast-speak="'+esc(id)+'">'+(active?'SPEAKING':'SPEAK')+'</button>'+
+        '<button type="button" class="cast-speak'+(active?' is-active':'')+'" data-cast-speak="'+esc(id)+'">'+featureLabel+'</button>'+
         '<button type="button" class="cast-remove" data-cast-remove="'+esc(id)+'" title="Remove from scene">×</button>'+
       '</div>'+
     '</article>';
@@ -2290,10 +2303,10 @@ function renderSceneCast(){
   renderSceneCastTray();
 }
 
-async function addNpcToCast(id){
+async function addToSceneCast(id){
   if(!canGMControl())return;
-  const npc=byId(id);
-  if(!npc||npc.kind!=='npc')return;
+  const asset=byId(id);
+  if(!isSceneCastAsset(asset))return;
   const cast=normalizeSceneCast();
   if(cast.ids.includes(id)){
     await setSceneCastSpeaker(id);
@@ -2345,17 +2358,22 @@ function revealCard(asset){
     ? '<button type="button" data-map="'+asset.id+'">WORLD MAP</button>'
     : '<button type="button" data-pin="'+asset.id+'">PIN</button>';
   const cast=normalizeSceneCast();
-  const inCast=asset.kind==='npc'&&cast.ids.includes(asset.id);
+  const castable=isSceneCastAsset(asset);
+  const inCast=castable&&cast.ids.includes(asset.id);
   const speaking=inCast&&cast.active_id===asset.id;
-  const castAction=asset.kind==='npc'
-    ? '<button type="button" class="cast-action'+(inCast?' is-present':'')+'" data-cast-action="'+asset.id+'">'+(speaking?'SPEAKING':inCast?'SPEAK':'ADD CAST')+'</button>'
+  const castLabel=asset.kind==='creature'
+    ? (speaking?'FEATURED':inCast?'FEATURE':'ADD CAST')
+    : (speaking?'SPEAKING':inCast?'SPEAK':'ADD CAST');
+  const castAction=castable
+    ? '<button type="button" class="cast-action'+(inCast?' is-present':'')+'" data-cast-action="'+asset.id+'">'+castLabel+'</button>'
     : '';
+  const showLabel=asset.kind==='creature'||asset.kind==='handout'?'FULL REVEAL':'SHOW';
   const thumb=isInteractiveMap(asset)
     ? '<div class="reveal-thumb interactive-map-thumb"><span>✦</span><b>INTERACTIVE ATLAS</b></div>'
     : '<div class="reveal-thumb" style="background-image:url(\''+esc(asset.image_url)+'\')"></div>';
   return '<article class="reveal-card" data-kind="'+esc(asset.kind)+'">'+thumb+
     '<strong>'+esc(asset.name)+'</strong><small>'+esc(asset.subtitle||asset.kind.replace('_',' '))+'</small>'+
-    '<div class="card-actions"><button type="button" data-show="'+asset.id+'">SHOW</button>'+mapAction+castAction+'<button type="button" data-remove="'+asset.id+'">REMOVE</button><button type="button" class="danger" data-delete="'+asset.id+'">DELETE</button></div></article>';
+    '<div class="card-actions"><button type="button" data-show="'+asset.id+'">'+showLabel+'</button>'+mapAction+castAction+'<button type="button" data-remove="'+asset.id+'">REMOVE</button><button type="button" class="danger" data-delete="'+asset.id+'">DELETE</button></div></article>';
 }
 
 function renderRevealGrid(){
@@ -2364,7 +2382,7 @@ function renderRevealGrid(){
   els.revealGrid.querySelectorAll('[data-show]').forEach(b=>b.addEventListener('click',()=>showReveal(b.dataset.show)));
   els.revealGrid.querySelectorAll('[data-pin]').forEach(b=>b.addEventListener('click',()=>pinAsset(b.dataset.pin)));
   els.revealGrid.querySelectorAll('[data-map]').forEach(b=>b.addEventListener('click',()=>setWorldMap(b.dataset.map)));
-  els.revealGrid.querySelectorAll('[data-cast-action]').forEach(b=>b.addEventListener('click',()=>addNpcToCast(b.dataset.castAction)));
+  els.revealGrid.querySelectorAll('[data-cast-action]').forEach(b=>b.addEventListener('click',()=>addToSceneCast(b.dataset.castAction)));
   els.revealGrid.querySelectorAll('[data-remove]').forEach(b=>b.addEventListener('click',()=>removeAssetFromDisplay(b.dataset.remove)));
   els.revealGrid.querySelectorAll('[data-delete]').forEach(b=>b.addEventListener('click',()=>deleteAsset(b.dataset.delete)));
 }

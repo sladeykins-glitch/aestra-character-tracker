@@ -828,10 +828,22 @@ body:not(.display-only) .player-display.map-live::before{content:'GM MAP CONTROL
 }
 
 /* Items and clues should feel intimate, not poster-sized */
+.reveal-layer[data-kind="item"],
+.reveal-layer[data-kind="clue"]{
+  justify-content:flex-start;
+  padding-top:clamp(54px,8vh,92px);
+  padding-bottom:clamp(130px,25vh,230px);
+}
 .reveal-layer[data-kind="item"] img,
 .reveal-layer[data-kind="clue"] img{
-  max-width:min(34vw,420px);
-  max-height:46vh;
+  max-width:min(28vw,360px);
+  max-height:38vh;
+  animation:aestraRevealFloat 5.4s ease-in-out infinite;
+  will-change:transform;
+}
+@keyframes aestraRevealFloat{
+  0%,100%{transform:translateY(-3px)}
+  50%{transform:translateY(4px)}
 }
 
 /* NPCs / creatures: readable portrait scale */
@@ -865,8 +877,8 @@ body:not(.display-only) .player-display.map-live::before{content:'GM MAP CONTROL
   }
   .reveal-layer[data-kind="item"] img,
   .reveal-layer[data-kind="clue"] img{
-    max-width:62vw;
-    max-height:42vh;
+    max-width:54vw;
+    max-height:36vh;
   }
   .reveal-layer[data-kind="map"] img,
   .reveal-layer[data-kind="handout"] img{
@@ -889,8 +901,14 @@ body:not(.display-only) .player-display.map-live::before{content:'GM MAP CONTROL
   justify-content:center;
   gap:clamp(8px,1.2vw,18px);
   pointer-events:none;
+  transition:opacity .34s ease,filter .34s ease,transform .34s ease;
 }
 .scene-cast.hidden{display:none}
+.scene-cast.is-reveal-muted{
+  opacity:.74;
+  filter:brightness(.76) saturate(.82);
+  transform:translateX(-50%) translateY(5px) scale(.97);
+}
 .scene-cast-member{
   position:relative;
   flex:0 1 auto;
@@ -1020,5 +1038,6 @@ body:not(.display-only) .player-display.map-live::before{content:'GM MAP CONTROL
   .scene-cast[data-count="3"] .scene-cast-member img{max-width:28vw;max-height:46vh}
 }
 @media(prefers-reduced-motion:reduce){
-  .scene-cast-member.is-entering,.scene-cast-member.is-leaving{animation:none!important}
+  .scene-cast-member.is-entering,.scene-cast-member.is-leaving,
+  .reveal-layer[data-kind="item"] img,.reveal-layer[data-kind="clue"] img{animation:none!important}
 }
