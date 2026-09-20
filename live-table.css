@@ -945,14 +945,14 @@ body:not(.display-only) .player-display.map-live::before{content:'GM MAP CONTROL
 .scene-cast[data-count="5"] .scene-cast-member img,
 .scene-cast[data-count="6"] .scene-cast-member img{max-width:min(15vw,185px);max-height:47vh}
 .scene-cast.has-active .scene-cast-member:not(.is-active){
-  opacity:.48;
-  filter:brightness(.72) saturate(.78);
-  transform:translateY(5px) scale(.97);
+  opacity:.82;
+  filter:brightness(.9) saturate(.92);
+  transform:translateY(2px) scale(.99);
 }
 .scene-cast .scene-cast-member.is-active{
   opacity:1;
-  filter:brightness(1.08) saturate(1.04);
-  transform:translateY(-8px) scale(1.055);
+  filter:brightness(1.05) saturate(1.03);
+  transform:translateY(-4px) scale(1.03);
 }
 .scene-cast .scene-cast-member.is-active img{
   border-color:rgba(226,194,112,.34);
