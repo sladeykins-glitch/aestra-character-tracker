@@ -7,12 +7,12 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
-<meta name="aestra-live-build" content="56" />
+<meta name="aestra-live-build" content="57" />
 <title>Aestra Live Table</title>
 <link rel="icon" href="aestra-icon.svg" type="image/svg+xml" />
-<link rel="stylesheet" href="live-table.css?v=37" />
+<link rel="stylesheet" href="live-table.css?v=38" />
 </head>
-<body data-live-build="56">
+<body data-live-build="57">
 <div id="authGate" class="auth-gate">
   <form id="authForm" class="auth-card">
     <div class="aestra-mark">✦</div>
@@ -76,7 +76,7 @@
         <div id="pinRight" class="pin-card pin-right hidden"></div>
 
         <div id="revealLayer" class="reveal-layer hidden">
-          <img id="revealImage" alt="" />
+          <img id="revealImage" alt="" decoding="async" fetchpriority="high" />
           <div class="reveal-copy">
             <span id="revealKind"></span>
             <strong id="revealName"></strong>
@@ -85,7 +85,7 @@
         </div>
 
         <div id="titleLayer" class="title-layer hidden">
-          <img src="assets/ui/aestra-title-black-storybook.webp" alt="Aestra title artwork" />
+          <img src="assets/ui/aestra-title-black-storybook.webp" alt="Aestra title artwork" decoding="async" fetchpriority="high" />
           <div class="title-effects" aria-hidden="true">
             <span class="title-moon-halo title-moon-red"></span>
             <span class="title-moon-halo title-moon-cyan"></span>
@@ -472,7 +472,7 @@
     </div>
 
     <div class="scene-inspector-hero">
-      <img id="sceneInspectorImage" alt="" />
+      <img id="sceneInspectorImage" alt="" decoding="async" />
       <span id="sceneInspectorLiveBadge" class="scene-inspector-live-badge">NOT LIVE</span>
     </div>
 
@@ -612,6 +612,6 @@
 </dialog>
 
 <script src="config.js"></script>
-<script type="module" src="live-table.js?v=56"></script>
+<script type="module" src="live-table.js?v=57"></script>
 </body>
 </html>
