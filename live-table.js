@@ -18,6 +18,16 @@ let playerMapStatePollTimer=null,lastPlayerMapStateUpdatedAt='';
 let mapStatePersistBusy=false,mapStatePersistPending=null,lastMapStatePersistAt=0;
 let cueSequenceDragId='';
 let sceneCastDragId='';
+let sceneCastArrangeMode=false;
+const SCENE_CAST_SLOTS=[
+  {key:'far-left',label:'Far Left',x:8},
+  {key:'left',label:'Left',x:25},
+  {key:'centre-left',label:'Centre Left',x:42},
+  {key:'centre-right',label:'Centre Right',x:58},
+  {key:'right',label:'Right',x:75},
+  {key:'far-right',label:'Far Right',x:92}
+];
+const SCENE_CAST_SLOT_KEYS=new Set(SCENE_CAST_SLOTS.map(slot=>slot.key));
 const sceneCastLeaveTimers=new Map();
 const cuePreloadedUrls=new Set();
 const cuePreloadedAudioUrls=new Set();
@@ -2127,8 +2137,10 @@ function renderDisplay(){
     els.revealKind.textContent=reveal.kind.replace('_',' ');
     els.revealName.textContent=reveal.name;
     els.revealSubtitle.textContent=reveal.subtitle||'';
+    els.revealLayer.dataset.anchor=isCompactRevealAsset(reveal)?compactRevealAnchor(normalizeSceneCast()):'center';
   }else if(els.revealLayer){
     delete els.revealLayer.dataset.kind;
+    delete els.revealLayer.dataset.anchor;
   }
 
   els.titleLayer.classList.toggle('hidden',mode!=='title');
@@ -2179,7 +2191,60 @@ function normalizeSceneCast(raw=state?.scene_cast){
     ? [...new Set(source.ids.filter(id=>typeof id==='string'&&isSceneCastAsset(byId(id))))].slice(0,6)
     : [];
   const active_id=ids.includes(source.active_id)?source.active_id:null;
-  return {ids,active_id};
+  const layouts={};
+  if(source.layouts&&typeof source.layouts==='object'&&!Array.isArray(source.layouts)){
+    for(const [sceneId,rawLayout] of Object.entries(source.layouts).slice(0,80)){
+      if(!sceneId||!rawLayout||typeof rawLayout!=='object'||Array.isArray(rawLayout))continue;
+      const clean={};
+      for(const [id,slot] of Object.entries(rawLayout)){
+        if(typeof id==='string'&&SCENE_CAST_SLOT_KEYS.has(slot)&&isSceneCastAsset(byId(id)))clean[id]=slot;
+      }
+      if(Object.keys(clean).length)layouts[sceneId]=clean;
+    }
+  }
+  return {ids,active_id,layouts};
+}
+
+function currentSceneCastLayout(cast=normalizeSceneCast()){
+  const sceneId=state?.active_scene_id||'';
+  return sceneId&&cast.layouts?.[sceneId]&&typeof cast.layouts[sceneId]==='object'
+    ? cast.layouts[sceneId]
+    : {};
+}
+
+function sceneCastSlotMeta(key){
+  return SCENE_CAST_SLOTS.find(slot=>slot.key===key)||null;
+}
+
+function sceneCastSlotReserved(key){
+  return (key==='far-left'&&Boolean(state?.pinned_left_id))
+    ||(key==='far-right'&&Boolean(state?.pinned_right_id));
+}
+
+function castAutoXs(count){
+  return ({
+    1:[50],
+    2:[34,66],
+    3:[23,50,77],
+    4:[15,38,62,85],
+    5:[10,30,50,70,90],
+    6:[8,25,42,58,75,92]
+  })[count]||[];
+}
+
+function compactRevealAnchor(cast=normalizeSceneCast()){
+  const layout=currentSceneCastLayout(cast);
+  let left=state?.pinned_left_id?2:0;
+  let right=state?.pinned_right_id?2:0;
+  for(const id of cast.ids){
+    const slot=layout[id];
+    const index=SCENE_CAST_SLOTS.findIndex(item=>item.key===slot);
+    if(index>=0&&index<=2)left++;
+    if(index>=3)right++;
+  }
+  if(left+1<right)return 'left';
+  if(right+1<left)return 'right';
+  return 'center';
 }
 
 function sceneCastMemberElement(asset){
@@ -2189,9 +2254,27 @@ function sceneCastMemberElement(asset){
   const img=document.createElement('img');
   img.src=asset.image_url;
   img.alt=asset.name;
+  img.draggable=false;
   const name=document.createElement('strong');
   name.textContent=asset.name;
   el.append(img,name);
+  el.addEventListener('dragstart',event=>{
+    if(!sceneCastArrangeMode||!canGMControl()||state?.mode!=='scene'){
+      event.preventDefault();
+      return;
+    }
+    sceneCastDragId=el.dataset.castId||'';
+    el.classList.add('dragging');
+    if(event.dataTransfer){
+      event.dataTransfer.effectAllowed='move';
+      event.dataTransfer.setData('text/plain',sceneCastDragId);
+    }
+  });
+  el.addEventListener('dragend',()=>{
+    sceneCastDragId='';
+    el.classList.remove('dragging');
+    els.sceneCastSlots?.querySelectorAll('.drag-over').forEach(slot=>slot.classList.remove('drag-over'));
+  });
   requestAnimationFrame(()=>requestAnimationFrame(()=>el.classList.remove('is-entering')));
   return el;
 }
@@ -2203,8 +2286,16 @@ function renderPlayerSceneCast(){
   const reveal=byId(state?.active_reveal_id);
   const compactReveal=state?.mode==='reveal'&&isCompactRevealAsset(reveal);
   const visible=(state?.mode==='scene'||compactReveal)&&cast.ids.length>0;
+  const layout=currentSceneCastLayout(cast);
+  const positioned=cast.ids.some(id=>SCENE_CAST_SLOT_KEYS.has(layout[id]));
+  const arranging=sceneCastArrangeMode&&canGMControl()&&state?.mode==='scene'&&cast.ids.length>0;
+
   host.classList.toggle('hidden',!visible);
   host.classList.toggle('is-reveal-muted',compactReveal&&visible);
+  host.classList.toggle('is-positioned',positioned);
+  host.classList.toggle('is-arranging',arranging);
+  host.classList.toggle('has-pin-left',Boolean(state?.pinned_left_id));
+  host.classList.toggle('has-pin-right',Boolean(state?.pinned_right_id));
   host.setAttribute('aria-hidden',visible?'false':'true');
   host.dataset.count=String(cast.ids.length);
   host.classList.toggle('has-active',Boolean(cast.active_id));
@@ -2234,7 +2325,13 @@ function renderPlayerSceneCast(){
     sceneCastLeaveTimers.set(id,timer);
   }
 
-  for(const id of cast.ids){
+  const autoXs=castAutoXs(cast.ids.length);
+  const customXs=cast.ids
+    .map(id=>sceneCastSlotMeta(layout[id])?.x)
+    .filter(value=>Number.isFinite(value));
+  const usedAutoXs=[];
+
+  for(const [index,id] of cast.ids.entries()){
     const asset=byId(id);
     if(!asset)continue;
     let el=host.querySelector('.scene-cast-member[data-cast-id="'+CSS.escape(id)+'"]');
@@ -2249,14 +2346,92 @@ function renderPlayerSceneCast(){
       host.appendChild(el);
     }
     el.classList.toggle('is-active',cast.active_id===id);
+    el.draggable=arranging;
+    el.title=arranging?'Drag to a stage position':'';
+
+    if(positioned){
+      const custom=sceneCastSlotMeta(layout[id]);
+      let x=custom?.x;
+      if(!Number.isFinite(x)){
+        const desiredX=autoXs[index]??50;
+        const candidates=[desiredX,...SCENE_CAST_SLOTS
+          .map(slot=>slot.x)
+          .sort((a,b)=>Math.abs(a-desiredX)-Math.abs(b-desiredX))];
+        x=candidates.find(candidate=>{
+          if(state?.pinned_left_id&&candidate<16)return false;
+          if(state?.pinned_right_id&&candidate>84)return false;
+          return [...customXs,...usedAutoXs].every(other=>Math.abs(other-candidate)>10);
+        });
+        if(!Number.isFinite(x))x=desiredX;
+        usedAutoXs.push(x);
+      }
+      el.style.setProperty('--cast-x',x+'%');
+      el.dataset.castSlot=custom?.key||'auto';
+    }else{
+      el.style.removeProperty('--cast-x');
+      delete el.dataset.castSlot;
+    }
   }
+}
+
+function renderSceneCastSlots(){
+  const host=els.sceneCastSlots;
+  if(!host)return;
+  const cast=normalizeSceneCast();
+  const enabled=sceneCastArrangeMode&&canGMControl()&&state?.mode==='scene'&&cast.ids.length>0;
+  host.classList.toggle('hidden',!enabled);
+  host.setAttribute('aria-hidden',enabled?'false':'true');
+  if(!enabled){
+    host.innerHTML='';
+    return;
+  }
+
+  const layout=currentSceneCastLayout(cast);
+  host.innerHTML=SCENE_CAST_SLOTS.map(slot=>{
+    const occupiedId=cast.ids.find(id=>layout[id]===slot.key);
+    const occupied=byId(occupiedId);
+    const reserved=sceneCastSlotReserved(slot.key);
+    return '<button type="button" class="scene-cast-slot'+(occupied?' is-occupied':'')+(reserved?' is-reserved':'')+'" data-cast-slot="'+slot.key+'"'+(reserved?' disabled':'')+'>'+
+      '<span>'+esc(slot.label)+'</span>'+
+      '<strong>'+(reserved?'Pinned visual':occupied?esc(occupied.name):'Drop here')+'</strong>'+
+    '</button>';
+  }).join('');
+
+  host.querySelectorAll('[data-cast-slot]').forEach(slot=>{
+    slot.addEventListener('dragover',event=>{
+      if(slot.disabled)return;
+      event.preventDefault();
+      slot.classList.add('drag-over');
+      if(event.dataTransfer)event.dataTransfer.dropEffect='move';
+    });
+    slot.addEventListener('dragleave',()=>slot.classList.remove('drag-over'));
+    slot.addEventListener('drop',event=>{
+      event.preventDefault();
+      slot.classList.remove('drag-over');
+      if(slot.disabled)return;
+      const id=sceneCastDragId||event.dataTransfer?.getData('text/plain')||'';
+      setSceneCastSlot(id,slot.dataset.castSlot||'');
+    });
+  });
 }
 
 function renderSceneCastTray(){
   if(!els.sceneCastTray)return;
   const cast=normalizeSceneCast();
+  const layout=currentSceneCastLayout(cast);
+  const hasLayout=cast.ids.some(id=>SCENE_CAST_SLOT_KEYS.has(layout[id]));
+  if(sceneCastArrangeMode&&(state?.mode!=='scene'||!cast.ids.length))sceneCastArrangeMode=false;
   if(els.sceneCastCount)els.sceneCastCount.textContent=cast.ids.length+' / 6';
   if(els.clearSceneCastBtn)els.clearSceneCastBtn.disabled=!cast.ids.length;
+  if(els.arrangeSceneCastBtn){
+    els.arrangeSceneCastBtn.disabled=!cast.ids.length||state?.mode!=='scene';
+    els.arrangeSceneCastBtn.classList.toggle('is-active',sceneCastArrangeMode);
+    els.arrangeSceneCastBtn.textContent=sceneCastArrangeMode?'Done':'Arrange';
+  }
+  if(els.autoSceneCastBtn){
+    els.autoSceneCastBtn.disabled=!hasLayout;
+    els.autoSceneCastBtn.title=hasLayout?'Return this scene to automatic cast spacing':'This scene is already using automatic spacing';
+  }
 
   if(!cast.ids.length){
     els.sceneCastTray.innerHTML='<p class="scene-cast-empty">No characters or creatures in the scene yet. Use ADD CAST in the library.</p>';
@@ -2268,10 +2443,11 @@ function renderSceneCastTray(){
     if(!member)return '';
     const active=cast.active_id===id;
     const typeLabel=member.kind==='creature'?'Creature':'NPC';
+    const slotLabel=sceneCastSlotMeta(layout[id])?.label||'Auto';
     const featureLabel=member.kind==='creature'?(active?'FEATURED':'FEATURE'):(active?'SPEAKING':'SPEAK');
     return '<article class="scene-cast-chip'+(active?' is-active':'')+'" draggable="true" data-cast-chip="'+esc(id)+'">'+
       '<img src="'+esc(member.image_url)+'" alt="">'+
-      '<div class="scene-cast-chip-main"><strong>'+esc(member.name)+'</strong><small>'+(active?'Featured now':typeLabel+' '+(index+1))+'</small></div>'+
+      '<div class="scene-cast-chip-main"><strong>'+esc(member.name)+'</strong><small>'+(active?'Featured now':typeLabel+' '+(index+1)+' · '+slotLabel)+'</small></div>'+
       '<div class="scene-cast-chip-actions">'+
         '<button type="button" class="cast-speak'+(active?' is-active':'')+'" data-cast-speak="'+esc(id)+'">'+featureLabel+'</button>'+
         '<button type="button" class="cast-remove" data-cast-remove="'+esc(id)+'" title="Remove from scene">×</button>'+
@@ -2318,7 +2494,39 @@ function renderSceneCastTray(){
 
 function renderSceneCast(){
   renderPlayerSceneCast();
+  renderSceneCastSlots();
   renderSceneCastTray();
+}
+
+function toggleSceneCastArrangeMode(){
+  if(!canGMControl())return;
+  const cast=normalizeSceneCast();
+  if(state?.mode!=='scene'||!cast.ids.length)return;
+  sceneCastArrangeMode=!sceneCastArrangeMode;
+  renderSceneCast();
+}
+
+async function setSceneCastSlot(id,slotKey){
+  if(!canGMControl()||state?.mode!=='scene'||!id||!SCENE_CAST_SLOT_KEYS.has(slotKey)||sceneCastSlotReserved(slotKey))return;
+  const cast=normalizeSceneCast();
+  if(!cast.ids.includes(id)||!state?.active_scene_id)return;
+  const sceneId=state.active_scene_id;
+  const layouts={...cast.layouts};
+  const layout={...(layouts[sceneId]||{})};
+  for(const [otherId,otherSlot] of Object.entries(layout)){
+    if(otherId!==id&&otherSlot===slotKey)delete layout[otherId];
+  }
+  layout[id]=slotKey;
+  layouts[sceneId]=layout;
+  await patchState({scene_cast:{...cast,layouts}});
+}
+
+async function resetSceneCastLayout(){
+  if(!canGMControl()||!state?.active_scene_id)return;
+  const cast=normalizeSceneCast();
+  const layouts={...cast.layouts};
+  delete layouts[state.active_scene_id];
+  await patchState({scene_cast:{...cast,layouts}});
 }
 
 async function addToSceneCast(id){
@@ -2335,7 +2543,7 @@ async function addToSceneCast(id){
     return;
   }
   const ids=[...cast.ids,id];
-  await patchState({scene_cast:{ids,active_id:cast.active_id||id}});
+  await patchState({scene_cast:{...cast,ids,active_id:cast.active_id||id}});
 }
 
 async function removeNpcFromCast(id){
@@ -2343,19 +2551,21 @@ async function removeNpcFromCast(id){
   const cast=normalizeSceneCast();
   if(!cast.ids.includes(id))return;
   const ids=cast.ids.filter(item=>item!==id);
-  await patchState({scene_cast:{ids,active_id:cast.active_id===id?null:cast.active_id}});
+  await patchState({scene_cast:{...cast,ids,active_id:cast.active_id===id?null:cast.active_id}});
 }
 
 async function setSceneCastSpeaker(id){
   if(!canGMControl())return;
   const cast=normalizeSceneCast();
   if(!cast.ids.includes(id))return;
-  await patchState({scene_cast:{ids:cast.ids,active_id:cast.active_id===id?null:id}});
+  await patchState({scene_cast:{...cast,active_id:cast.active_id===id?null:id}});
 }
 
 async function clearSceneCast(){
   if(!canGMControl())return;
-  await patchState({scene_cast:{ids:[],active_id:null}});
+  sceneCastArrangeMode=false;
+  const cast=normalizeSceneCast();
+  await patchState({scene_cast:{...cast,ids:[],active_id:null}});
 }
 
 async function reorderSceneCast(sourceId,targetId,after=false){
@@ -2368,7 +2578,7 @@ async function reorderSceneCast(sourceId,targetId,after=false){
   const [moved]=ids.splice(from,1);
   const targetIndex=ids.indexOf(targetId);
   ids.splice(Math.max(0,targetIndex+(after?1:0)),0,moved);
-  await patchState({scene_cast:{ids,active_id:cast.active_id}});
+  await patchState({scene_cast:{...cast,ids}});
 }
 
 function revealCard(asset){
@@ -3173,6 +3383,7 @@ async function removeAssetFromDisplay(id){
   const cast=normalizeSceneCast();
   if(cast.ids.includes(id)){
     patch.scene_cast={
+      ...cast,
       ids:cast.ids.filter(item=>item!==id),
       active_id:cast.active_id===id?null:cast.active_id
     };
@@ -3583,6 +3794,8 @@ function wire(){
   els.returnSceneBtn.addEventListener('click',()=>patchState({mode:'scene',active_reveal_id:null}));
   els.clearPinsBtn.addEventListener('click',()=>patchState({pinned_left_id:null,pinned_right_id:null}));
   els.clearSceneCastBtn?.addEventListener('click',clearSceneCast);
+  els.arrangeSceneCastBtn?.addEventListener('click',toggleSceneCastArrangeMode);
+  els.autoSceneCastBtn?.addEventListener('click',resetSceneCastLayout);
   els.hudToggle.addEventListener('change',()=>patchState({hud_visible:els.hudToggle.checked}));
   document.querySelectorAll('[data-scene-fx]').forEach(button=>button.addEventListener('click',()=>toggleSceneEffect(button.dataset.sceneFx)));
   els.sceneFxIntensity?.addEventListener('change',()=>setSceneEffectSetting('intensity',els.sceneFxIntensity.value));
