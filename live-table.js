@@ -1,4 +1,5 @@
 import {drawImageCover,SceneAtmosphereRenderer} from './live-table-effects.js?v=1';
+import {LifecycleManager,changedKeys,delegate,valueEqual} from './live-table-runtime.js?v=1';
 
 const CONFIG=window.AESTRA_CONFIG||{};
 const CAMPAIGN_ID=CONFIG.campaignId;
@@ -37,6 +38,24 @@ const cueAudioPreloaders=new Map();
 let liveAudioEngine=null;
 let aiBackdropPreviewState=null;
 let gmAudioPreview=null;
+const runtimeLifecycle=new LifecycleManager();
+let realtimeChannels=[];
+
+let derivedStateRef=null;
+let derivedAssetsRef=null;
+const derivedStateCache=new Map();
+
+function derivedStateValue(key,factory){
+  if(derivedStateRef!==state||derivedAssetsRef!==assets){
+    derivedStateRef=state;
+    derivedAssetsRef=assets;
+    derivedStateCache.clear();
+  }
+  if(derivedStateCache.has(key))return derivedStateCache.get(key);
+  const value=factory();
+  derivedStateCache.set(key,value);
+  return value;
+}
 
 const esc=s=>String(s??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const byId=id=>assets.find(a=>a.id===id)||null;
@@ -47,19 +66,21 @@ const withMapRole=(url,role)=>url+(url.includes('?')?'&':'?')+'aestraRole='+enco
 const clamp01=value=>Math.max(0,Math.min(1,Number(value)||0));
 
 function audioLibrary(){
-  const raw=state?.audio_library;
-  if(!Array.isArray(raw))return [];
-  return raw
-    .filter(item=>item&&typeof item==='object'&&typeof item.id==='string'&&typeof item.url==='string')
-    .map(item=>({
-      id:item.id,
-      name:String(item.name||'Untitled Track').slice(0,80),
-      url:item.url,
-      storage_path:String(item.storage_path||''),
-      mime:String(item.mime||'audio/mpeg'),
-      created_at:item.created_at||''
-    }))
-    .slice(0,60);
+  return derivedStateValue('audioLibrary',()=>{
+    const raw=state?.audio_library;
+    if(!Array.isArray(raw))return [];
+    return raw
+      .filter(item=>item&&typeof item==='object'&&typeof item.id==='string'&&typeof item.url==='string')
+      .map(item=>({
+        id:item.id,
+        name:String(item.name||'Untitled Track').slice(0,80),
+        url:item.url,
+        storage_path:String(item.storage_path||''),
+        mime:String(item.mime||'audio/mpeg'),
+        created_at:item.created_at||''
+      }))
+      .slice(0,60);
+  });
 }
 
 function audioById(id){
@@ -1519,13 +1540,15 @@ function handleMapBridgeMessage(event){
 const SCENE_EFFECT_KEYS=['rain','storm','mist','wind','snow','ash','heat','magic','cold','spores','crystal','rays','dream','relic','clouds','petals','fireflies','underwater','moon','blackpetals','rainglass'];
 
 function sceneEffectState(){
-  const raw=state?.scene_effects&&typeof state.scene_effects==='object'?state.scene_effects:{};
-  const effects=Array.isArray(raw.effects)
-    ? [...new Set(raw.effects.filter(effect=>SCENE_EFFECT_KEYS.includes(effect)))]
-    : [];
-  const intensity=[1,2,3].includes(Number(raw.intensity))?Number(raw.intensity):2;
-  const fadeMs=[350,900,1800].includes(Number(raw.fade_ms))?Number(raw.fade_ms):900;
-  return {effects,intensity,fade_ms:fadeMs};
+  return derivedStateValue('sceneEffects',()=>{
+    const raw=state?.scene_effects&&typeof state.scene_effects==='object'?state.scene_effects:{};
+    const effects=Array.isArray(raw.effects)
+      ? [...new Set(raw.effects.filter(effect=>SCENE_EFFECT_KEYS.includes(effect)))]
+      : [];
+    const intensity=[1,2,3].includes(Number(raw.intensity))?Number(raw.intensity):2;
+    const fadeMs=[350,900,1800].includes(Number(raw.fade_ms))?Number(raw.fade_ms):900;
+    return {effects,intensity,fade_ms:fadeMs};
+  });
 }
 
 let sceneAtmosphereRenderer=null;
@@ -1705,7 +1728,13 @@ function isCompactRevealAsset(asset){
   return Boolean(asset&&(asset.kind==='item'||asset.kind==='clue'));
 }
 
-function normalizeSceneCast(raw=state?.scene_cast){
+function normalizeSceneCast(raw){
+  const useLive=arguments.length===0||raw===undefined||raw===state?.scene_cast;
+  if(useLive)return derivedStateValue('sceneCast',()=>normalizeSceneCastValue(state?.scene_cast));
+  return normalizeSceneCastValue(raw);
+}
+
+function normalizeSceneCastValue(raw){
   const source=raw&&typeof raw==='object'?raw:{};
   const ids=Array.isArray(source.ids)
     ? [...new Set(source.ids.filter(id=>typeof id==='string'&&isSceneCastAsset(byId(id))))].slice(0,6)
@@ -2136,11 +2165,13 @@ function renderRevealGrid(){
 }
 
 function scenePresets(){
-  const raw=state?.scene_presets;
-  if(!Array.isArray(raw))return [];
-  return raw
-    .filter(p=>p&&typeof p==='object'&&typeof p.id==='string'&&p.snapshot&&typeof p.snapshot==='object')
-    .slice(0,36);
+  return derivedStateValue('scenePresets',()=>{
+    const raw=state?.scene_presets;
+    if(!Array.isArray(raw))return [];
+    return raw
+      .filter(p=>p&&typeof p==='object'&&typeof p.id==='string'&&p.snapshot&&typeof p.snapshot==='object')
+      .slice(0,36);
+  });
 }
 
 function normalizedCueSequence(raw=state?.cue_sequence){
@@ -2156,7 +2187,7 @@ function normalizedCueSequence(raw=state?.cue_sequence){
 }
 
 function cueSequence(){
-  return normalizedCueSequence();
+  return derivedStateValue('cueSequence',()=>normalizedCueSequence(state?.cue_sequence));
 }
 
 function cueSequenceIndex(){
@@ -3097,14 +3128,69 @@ function wireSceneInspector(){
   });
 }
 
-function renderAll(){renderDisplay();renderScenes();renderSceneCast();renderAudioControls();renderTransitionControls();renderCueSequence();renderCuePresets();renderRevealGrid();renderRecent();renderSceneInspector();syncLiveAudio()}
+const DISPLAY_STATE_KEYS=new Set([
+  'mode','active_scene_id','active_reveal_id','map_asset_id','pinned_left_id','pinned_right_id',
+  'hud_visible','location_title','location_subtitle','reveal_style','scene_effects','scene_cast','transition_state'
+]);
+const CAST_STATE_KEYS=new Set(['mode','active_scene_id','active_reveal_id','pinned_left_id','pinned_right_id','scene_cast']);
+const CUE_SNAPSHOT_KEYS=new Set([
+  'mode','active_scene_id','active_reveal_id','map_asset_id','pinned_left_id','pinned_right_id',
+  'location_title','location_subtitle','reveal_style','hud_visible','scene_effects','scene_cast','audio_state','transition_state'
+]);
+
+function anyStateKey(keys,set){
+  return keys.some(key=>set.has(key));
+}
+
+function renderStateChanges(keys=[]){
+  if(!keys.length)return;
+  const changed=new Set(keys);
+
+  if(anyStateKey(keys,DISPLAY_STATE_KEYS))renderDisplay();
+  if(changed.has('active_scene_id'))renderScenes();
+  if(anyStateKey(keys,CAST_STATE_KEYS))renderSceneCast();
+  if(changed.has('audio_state')||changed.has('audio_library')){
+    renderAudioControls();
+    syncLiveAudio();
+  }
+  if(changed.has('transition_state')||changed.has('mode'))renderTransitionControls();
+  if(changed.has('cue_sequence')||changed.has('cue_sequence_index'))renderCueSequence();
+  if(changed.has('scene_presets')||anyStateKey(keys,CUE_SNAPSHOT_KEYS))renderCuePresets();
+  if(changed.has('scene_cast'))renderRevealGrid();
+  renderSceneInspector();
+}
+
+function renderAll(){
+  renderDisplay();
+  renderScenes();
+  renderSceneCast();
+  renderAudioControls();
+  renderTransitionControls();
+  renderCueSequence();
+  renderCuePresets();
+  renderRevealGrid();
+  renderRecent();
+  renderSceneInspector();
+  syncLiveAudio();
+}
 
 async function patchState(patch){
   if(!canGMControl())return null;
-  const payload={...patch,updated_by:user.id,updated_at:new Date().toISOString()};
+  const effective={};
+  for(const [key,value] of Object.entries(patch||{})){
+    if(!valueEqual(state?.[key],value))effective[key]=value;
+  }
+  const requestedKeys=Object.keys(effective);
+  if(!requestedKeys.length)return state;
+
+  const previous=state;
+  const payload={...effective,updated_by:user.id,updated_at:new Date().toISOString()};
   const {data,error}=await supabase.from('live_table_state').update(payload).eq('campaign_id',CAMPAIGN_ID).select().single();
   if(error){alert(error.message);return null}
-  if(acceptLiveState(data))renderAll();
+  if(acceptLiveState(data)){
+    const keys=changedKeys(previous,state);
+    renderStateChanges(keys.length?keys:requestedKeys);
+  }
   return data;
 }
 
@@ -3116,6 +3202,7 @@ async function activateScene(id){
 async function showReveal(id){
   const asset=byId(id);if(!asset)return;
   recent=[id,...recent.filter(x=>x!==id)].slice(0,8);
+  renderRecent();
   await patchState({mode:'reveal',active_reveal_id:id});
 }
 
@@ -3177,6 +3264,7 @@ async function deleteAsset(id){
 async function setWorldMap(id){
   const asset=byId(id);if(!asset)return;
   recent=[id,...recent.filter(x=>x!==id)].slice(0,8);
+  renderRecent();
   await patchState({mode:'map',map_asset_id:id,active_reveal_id:null});
 }
 
@@ -3670,7 +3758,10 @@ async function subscribeRealtime(){
       if(err)console.warn('Realtime map mirror channel error',err);
     });
   supabase.channel('aestra-live-state')
-    .on('postgres_changes',{event:'*',schema:'public',table:'live_table_state',filter:'campaign_id=eq.'+CAMPAIGN_ID},payload=>{if(acceptLiveState(payload.new))renderAll()})
+    .on('postgres_changes',{event:'*',schema:'public',table:'live_table_state',filter:'campaign_id=eq.'+CAMPAIGN_ID},payload=>{
+      const previous=state;
+      if(acceptLiveState(payload.new))renderStateChanges(changedKeys(previous,state));
+    })
     .subscribe();
   supabase.channel('aestra-live-assets')
     .on('postgres_changes',{event:'*',schema:'public',table:'live_table_assets',filter:'campaign_id=eq.'+CAMPAIGN_ID},async()=>{await loadAssets();renderAll()})
