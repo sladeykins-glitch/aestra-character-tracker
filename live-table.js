@@ -1540,11 +1540,258 @@ function drawImageCover(ctx,img,dx,dy,dw,dh){
   ctx.drawImage(img,sx,sy,sw,sh,dx,dy,dw,dh);
 }
 
-class SceneAtmosphereRenderer{
+class SceneShaderRenderer{
   constructor(canvas,host){
     this.canvas=canvas;
     this.host=host;
+    this.gl=null;
+    this.program=null;
+    this.buffer=null;
+    this.texture=null;
+    this.textureReady=false;
+    this.available=false;
+    this.imageWidth=0;
+    this.imageHeight=0;
+    this.width=0;
+    this.height=0;
+    this.lastQuality=1;
+    this.uniforms={};
+    this.init();
+  }
+
+  compile(type,source){
+    const gl=this.gl;
+    const shader=gl.createShader(type);
+    gl.shaderSource(shader,source);
+    gl.compileShader(shader);
+    if(!gl.getShaderParameter(shader,gl.COMPILE_STATUS)){
+      console.warn('Scene shader compile failed',gl.getShaderInfoLog(shader));
+      gl.deleteShader(shader);
+      return null;
+    }
+    return shader;
+  }
+
+  init(){
+    if(!this.canvas)return;
+    const gl=this.canvas.getContext('webgl',{
+      alpha:true,
+      antialias:false,
+      premultipliedAlpha:false,
+      preserveDrawingBuffer:false,
+      powerPreference:'high-performance'
+    });
+    if(!gl)return;
+    this.gl=gl;
+
+    const vertexSource=[
+      'attribute vec2 a_position;',
+      'varying vec2 v_uv;',
+      'void main(){',
+      '  v_uv=a_position*0.5+0.5;',
+      '  gl_Position=vec4(a_position,0.0,1.0);',
+      '}'
+    ].join('\n');
+
+    const fragmentSource=[
+      'precision mediump float;',
+      'varying vec2 v_uv;',
+      'uniform sampler2D u_tex;',
+      'uniform float u_time;',
+      'uniform vec2 u_crop;',
+      'uniform vec4 u_fx;',
+      'uniform float u_intensity;',
+      'vec2 coverUv(vec2 uv){return (uv-0.5)*u_crop+0.5;}',
+      'float resonanceRing(vec2 uv,vec2 center,float phase){',
+      '  float d=distance(uv,center);',
+      '  float travel=fract(u_time*0.082+phase);',
+      '  return exp(-abs(d-travel*0.43)*92.0)*(1.0-travel);',
+      '}',
+      'void main(){',
+      '  float heat=u_fx.x;',
+      '  float dream=u_fx.y;',
+      '  float crystal=u_fx.z;',
+      '  float relic=u_fx.w;',
+      '  vec2 uv=v_uv;',
+      '  vec2 displacement=vec2(0.0);',
+      '  float lower=smoothstep(0.18,1.0,1.0-uv.y);',
+      '  float heatWave=sin(uv.y*88.0+u_time*2.15)+0.56*sin(uv.y*47.0-u_time*1.37)+0.28*sin(uv.y*151.0+u_time*0.91);',
+      '  displacement.x+=heat*lower*heatWave*(0.0015+0.0037*u_intensity);',
+      '  displacement.y+=heat*lower*sin(uv.x*34.0+u_time*1.68)*(0.00045+0.00105*u_intensity);',
+      '  vec2 dreamWave=vec2(sin(uv.y*31.0+u_time*0.73)+0.45*sin(uv.y*69.0-u_time*1.04),sin(uv.x*24.0-u_time*0.51)+0.32*sin((uv.x+uv.y)*51.0+u_time*0.61));',
+      '  displacement+=dream*dreamWave*(0.00075+0.00175*u_intensity);',
+      '  float ringA=resonanceRing(uv,vec2(0.24,0.41),0.04);',
+      '  float ringB=resonanceRing(uv,vec2(0.53,0.58),0.41);',
+      '  float ringC=resonanceRing(uv,vec2(0.78,0.36),0.73);',
+      '  vec2 dirA=normalize(uv-vec2(0.24,0.41)+vec2(0.0001));',
+      '  vec2 dirB=normalize(uv-vec2(0.53,0.58)+vec2(0.0001));',
+      '  vec2 dirC=normalize(uv-vec2(0.78,0.36)+vec2(0.0001));',
+      '  displacement+=crystal*(dirA*ringA+dirB*ringB+dirC*ringC)*(0.0012+0.0022*u_intensity);',
+      '  float relicPulse=pow(max(0.0,sin(u_time*1.31+0.8)),20.0)*relic;',
+      '  float relicNoise=sin(uv.y*137.0+u_time*7.3)+0.6*sin((uv.x+uv.y)*91.0-u_time*5.1);',
+      '  displacement.x+=relicPulse*relicNoise*(0.0008+0.0028*u_intensity);',
+      '  displacement.y+=relicPulse*sin(uv.x*119.0-u_time*6.2)*(0.0004+0.0014*u_intensity);',
+      '  vec2 texUv=clamp(coverUv(uv+displacement),vec2(0.001),vec2(0.999));',
+      '  vec2 radial=normalize(uv-0.5+vec2(0.0001));',
+      '  float chroma=(dream*0.00115+relicPulse*0.0036)*(0.45+u_intensity);',
+      '  vec2 chromaShift=radial*chroma*u_crop;',
+      '  vec3 color;',
+      '  color.r=texture2D(u_tex,clamp(texUv+chromaShift,vec2(0.001),vec2(0.999))).r;',
+      '  color.g=texture2D(u_tex,texUv).g;',
+      '  color.b=texture2D(u_tex,clamp(texUv-chromaShift,vec2(0.001),vec2(0.999))).b;',
+      '  float dreamBreath=0.5+0.5*sin(u_time*0.58);',
+      '  float vignette=smoothstep(0.22,0.76,distance(uv,vec2(0.5)));',
+      '  color+=dream*vec3(0.020,0.010,0.036)*vignette*dreamBreath*u_intensity;',
+      '  color+=heat*vec3(0.024,0.008,-0.004)*lower*u_intensity;',
+      '  float crystalGlow=(ringA+ringB+ringC)*crystal;',
+      '  color+=vec3(0.020,0.065,0.085)*crystalGlow*u_intensity;',
+      '  color+=vec3(0.055,0.090,0.105)*relicPulse*u_intensity;',
+      '  gl_FragColor=vec4(color,1.0);',
+      '}'
+    ].join('\n');
+
+    const vs=this.compile(gl.VERTEX_SHADER,vertexSource);
+    const fs=this.compile(gl.FRAGMENT_SHADER,fragmentSource);
+    if(!vs||!fs)return;
+
+    const program=gl.createProgram();
+    gl.attachShader(program,vs);
+    gl.attachShader(program,fs);
+    gl.linkProgram(program);
+    gl.deleteShader(vs);
+    gl.deleteShader(fs);
+    if(!gl.getProgramParameter(program,gl.LINK_STATUS)){
+      console.warn('Scene shader link failed',gl.getProgramInfoLog(program));
+      gl.deleteProgram(program);
+      return;
+    }
+
+    this.program=program;
+    this.buffer=gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER,this.buffer);
+    gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
+
+    this.texture=gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D,this.texture);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+
+    this.position=gl.getAttribLocation(program,'a_position');
+    this.uniforms={
+      tex:gl.getUniformLocation(program,'u_tex'),
+      time:gl.getUniformLocation(program,'u_time'),
+      crop:gl.getUniformLocation(program,'u_crop'),
+      fx:gl.getUniformLocation(program,'u_fx'),
+      intensity:gl.getUniformLocation(program,'u_intensity')
+    };
+
+    gl.clearColor(0,0,0,0);
+    this.available=true;
+    this.resize(1);
+    this.clear();
+
+    this.canvas.addEventListener('webglcontextlost',event=>{
+      event.preventDefault();
+      this.available=false;
+      this.textureReady=false;
+      this.canvas.classList.remove('active');
+    });
+  }
+
+  resize(quality=1){
+    if(!this.canvas||!this.host)return;
+    const rect=this.host.getBoundingClientRect();
+    if(!rect.width||!rect.height)return;
+    this.width=rect.width;
+    this.height=rect.height;
+    this.lastQuality=quality;
+
+    const maxPixels=2073600*Math.max(.58,quality);
+    const pixelScale=Math.min(
+      window.devicePixelRatio||1,
+      1,
+      Math.sqrt(maxPixels/Math.max(1,this.width*this.height))
+    );
+    const w=Math.max(1,Math.round(this.width*pixelScale));
+    const h=Math.max(1,Math.round(this.height*pixelScale));
+    if(this.canvas.width!==w||this.canvas.height!==h){
+      this.canvas.width=w;
+      this.canvas.height=h;
+      this.canvas.style.width=this.width+'px';
+      this.canvas.style.height=this.height+'px';
+    }
+  }
+
+  setBackdropImage(img){
+    if(!this.available||!this.gl||!this.texture||!img?.naturalWidth)return;
+    const gl=this.gl;
+    try{
+      gl.bindTexture(gl.TEXTURE_2D,this.texture);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true);
+      gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,img);
+      this.imageWidth=img.naturalWidth;
+      this.imageHeight=img.naturalHeight;
+      this.textureReady=true;
+    }catch(err){
+      console.warn('Scene shader texture unavailable; using 2D fallback',err);
+      this.textureReady=false;
+      this.clear();
+    }
+  }
+
+  clear(){
+    if(this.gl&&this.available){
+      this.gl.viewport(0,0,this.canvas.width||1,this.canvas.height||1);
+      this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+    }
+    this.canvas?.classList.remove('active');
+  }
+
+  render(now,effects,intensity){
+    const heat=effects.has('heat')?1:0;
+    const dream=effects.has('dream')?1:0;
+    const crystal=effects.has('crystal')?1:0;
+    const relic=effects.has('relic')?1:0;
+    if(!(heat||dream||crystal||relic)){
+      this.clear();
+      return false;
+    }
+    if(!this.available||!this.textureReady||!this.gl||!this.program)return false;
+
+    this.resize(this.lastQuality);
+    const gl=this.gl;
+    const viewAspect=this.width/Math.max(1,this.height);
+    const imageAspect=this.imageWidth/Math.max(1,this.imageHeight);
+    let cropX=1,cropY=1;
+    if(viewAspect>imageAspect)cropY=imageAspect/viewAspect;
+    else cropX=viewAspect/imageAspect;
+
+    gl.viewport(0,0,this.canvas.width,this.canvas.height);
+    gl.useProgram(this.program);
+    gl.bindBuffer(gl.ARRAY_BUFFER,this.buffer);
+    gl.enableVertexAttribArray(this.position);
+    gl.vertexAttribPointer(this.position,2,gl.FLOAT,false,0,0);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D,this.texture);
+    gl.uniform1i(this.uniforms.tex,0);
+    gl.uniform1f(this.uniforms.time,now/1000);
+    gl.uniform2f(this.uniforms.crop,cropX,cropY);
+    gl.uniform4f(this.uniforms.fx,heat,dream,crystal,relic);
+    gl.uniform1f(this.uniforms.intensity,Math.max(.25,Math.min(1,Number(intensity||2)/3)));
+    gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+    this.canvas.classList.add('active');
+    return true;
+  }
+}
+
+class SceneAtmosphereRenderer{
+  constructor(canvas,host,shaderCanvas){
+    this.canvas=canvas;
+    this.host=host;
     this.ctx=canvas?.getContext('2d',{alpha:true,desynchronized:true})||null;
+    this.shader=new SceneShaderRenderer(shaderCanvas,host);
     this.cfg={effects:[],intensity:2,fade_ms:900};
     this.particles=new Map();
     this.running=false;
@@ -1568,6 +1815,7 @@ class SceneAtmosphereRenderer{
     this.backdropImg.onload=()=>{
       this.backdropReady=true;
       this.refreshHeatBuffer();
+      this.shader?.setBackdropImage(this.backdropImg);
     };
     this.backdropImg.onerror=()=>{
       this.backdropReady=false;
@@ -1602,6 +1850,7 @@ class SceneAtmosphereRenderer{
       this.canvas.style.width=this.width+'px';
       this.canvas.style.height=this.height+'px';
     }
+    this.shader?.resize(this.quality);
     if(this.heatBuffer&&(this.heatBuffer.width!==w||this.heatBuffer.height!==h)){
       this.heatBuffer.width=w;
       this.heatBuffer.height=h;
@@ -1614,6 +1863,7 @@ class SceneAtmosphereRenderer{
     if(next===this.backdropSrc)return;
     this.backdropSrc=next;
     this.backdropReady=false;
+    this.shader?.clear();
     if(!next){
       this.backdropImg.removeAttribute('src');
       this.clearHeatBuffer();
@@ -1805,6 +2055,7 @@ class SceneAtmosphereRenderer{
 
   drawStatic(){
     this.clear();
+    this.shader?.clear();
   }
 
   draw(dt,now){
@@ -1815,8 +2066,9 @@ class SceneAtmosphereRenderer{
     const effects=new Set(this.cfg.effects);
     if(effects.has('storm'))effects.add('rain');
 
-    if(effects.has('heat'))this.drawHeatHaze(ctx,w,h,now);
-    if(effects.has('dream'))this.drawDreamDistortion(ctx,w,h,now);
+    const shaderRendered=this.shader?.render(now,effects,this.cfg.intensity)===true;
+    if(effects.has('heat')&&!shaderRendered)this.drawHeatHaze(ctx,w,h,now);
+    if(effects.has('dream')&&!shaderRendered)this.drawDreamDistortion(ctx,w,h,now);
     if(effects.has('rays'))this.drawGodRays(ctx,w,h,now);
     if(effects.has('mist'))this.drawMist(ctx,dt,w,h);
     if(effects.has('wind'))this.drawWind(ctx,dt,w,h);
@@ -2266,7 +2518,7 @@ class SceneAtmosphereRenderer{
 
 function getSceneAtmosphereRenderer(){
   if(!sceneAtmosphereRenderer&&els.sceneFxCanvas&&els.sceneEffects){
-    sceneAtmosphereRenderer=new SceneAtmosphereRenderer(els.sceneFxCanvas,els.sceneEffects);
+    sceneAtmosphereRenderer=new SceneAtmosphereRenderer(els.sceneFxCanvas,els.sceneEffects,els.sceneFxShaderCanvas);
   }
   return sceneAtmosphereRenderer;
 }
