@@ -3053,8 +3053,8 @@ function renderStateChanges(keys=[]){
     syncLiveAudio();
   }
   if(changed.has('transition_state')||changed.has('mode'))renderTransitionControls();
-  if(changed.has('cue_sequence')||changed.has('cue_sequence_index'))renderCueSequence();
-  if(changed.has('scene_presets')||anyStateKey(keys,CUE_SNAPSHOT_KEYS))renderCuePresets();
+  if(changed.has('cue_sequence')||changed.has('cue_sequence_index')||changed.has('scene_presets'))renderCueSequence();
+  if(changed.has('scene_presets')||changed.has('audio_library')||anyStateKey(keys,CUE_SNAPSHOT_KEYS))renderCuePresets();
   if(changed.has('scene_cast'))renderRevealGrid();
   if(changed.has('mode'))syncBackgroundTasks();
   renderSceneInspector();
