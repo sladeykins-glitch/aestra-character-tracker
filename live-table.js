@@ -4244,6 +4244,7 @@ async function generateAiBackdrop(){
   const prompt=els.aiPrompt.value.trim();
   const quality=els.aiQuality.value;
   const style=els.aiStyle?.value||'storybook';
+  const aestraDetails=document.getElementById('aiAestraDetails')?.value||'subtle';
   const variations=Math.max(2,Math.min(4,Number(els.aiVariations?.value||4)));
   if(!name){els.aiStatus.textContent='Give the scene a name first.';els.aiSceneName.focus();return}
   if(!prompt){els.aiStatus.textContent='Describe the backdrop you want first.';els.aiPrompt.focus();return}
@@ -4263,6 +4264,7 @@ async function generateAiBackdrop(){
         prompt,
         quality,
         style,
+        aestraDetails,
         variations,
         cleanupPaths:oldPreviewPaths
       }
@@ -4277,6 +4279,7 @@ async function generateAiBackdrop(){
       prompt,
       quality,
       style,
+      aestraDetails,
       generationId:data.generationId||'',
       expandedPrompt:data.expandedPrompt||'',
       previews:data.previews,
@@ -4322,6 +4325,7 @@ async function saveAiBackdropChoice(index){
         prompt:previewState.prompt,
         quality:previewState.quality,
         style:previewState.style,
+        aestraDetails:previewState.aestraDetails||'subtle',
         generationId:previewState.generationId,
         selectedPath:chosen.path,
         previewPaths:previewState.previews.map(item=>item.path)
