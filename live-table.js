@@ -31,6 +31,10 @@ const SCENE_CAST_SLOTS=[
   {key:'far-right',label:'Far Right',x:92}
 ];
 const SCENE_CAST_SLOT_KEYS=new Set(SCENE_CAST_SLOTS.map(slot=>slot.key));
+const SCENE_CAST_SIZE_TIERS=['tiny','small','medium','large','massive'];
+const SCENE_CAST_SIZE_KEYS=new Set(SCENE_CAST_SIZE_TIERS);
+const SCENE_CAST_DEFAULT_SIZE='medium';
+const sceneCastArtworkBoundsCache=new Map();
 const sceneCastLeaveTimers=new Map();
 const cuePreloadedUrls=new Set();
 const cuePreloadedAudioUrls=new Set();
@@ -2389,7 +2393,132 @@ function normalizeSceneCastValue(raw){
       if(Object.keys(clean).length)layouts[sceneId]=clean;
     }
   }
-  return {ids,active_id,layouts};
+  const sizes={};
+  if(source.sizes&&typeof source.sizes==='object'&&!Array.isArray(source.sizes)){
+    for(const [id,tier] of Object.entries(source.sizes).slice(0,160)){
+      if(typeof id==='string'&&SCENE_CAST_SIZE_KEYS.has(tier)&&isSceneCastAsset(byId(id)))sizes[id]=tier;
+    }
+  }
+  return {ids,active_id,layouts,sizes};
+}
+
+function sceneCastSizeTier(cast,id){
+  const tier=cast?.sizes?.[id];
+  return SCENE_CAST_SIZE_KEYS.has(tier)?tier:SCENE_CAST_DEFAULT_SIZE;
+}
+
+function sceneCastSizeLabel(tier){
+  return tier?String(tier).charAt(0).toUpperCase()+String(tier).slice(1):'Medium';
+}
+
+function sceneCastSizeOptions(selected){
+  return SCENE_CAST_SIZE_TIERS.map(tier=>
+    '<option value="'+tier+'"'+(tier===selected?' selected':'')+'>'+sceneCastSizeLabel(tier)+'</option>'
+  ).join('');
+}
+
+function fallbackSceneCastArtworkBounds(img){
+  const width=Number(img?.naturalWidth)||1;
+  const height=Number(img?.naturalHeight)||1;
+  return {ratio:Math.max(.08,Math.min(5,width/height)),imageHeight:'100%',imageTop:'0%',imageLeft:'0%'};
+}
+
+function sceneCastArtworkBounds(url,img){
+  const key=String(url||'');
+  if(!key)return Promise.resolve(fallbackSceneCastArtworkBounds(img));
+  if(sceneCastArtworkBoundsCache.has(key))return sceneCastArtworkBoundsCache.get(key);
+
+  const promise=new Promise(resolve=>{
+    const fallback=()=>{
+      if(img?.complete&&img.naturalWidth){resolve(fallbackSceneCastArtworkBounds(img));return}
+      let settled=false;
+      const finish=()=>{
+        if(settled)return;
+        settled=true;
+        resolve(fallbackSceneCastArtworkBounds(img));
+      };
+      img?.addEventListener('load',finish,{once:true});
+      setTimeout(finish,1000);
+    };
+
+    const probe=new Image();
+    probe.crossOrigin='anonymous';
+    probe.decoding='async';
+    probe.onload=()=>{
+      const naturalWidth=Number(probe.naturalWidth)||1;
+      const naturalHeight=Number(probe.naturalHeight)||1;
+      const maxSide=256;
+      const scale=Math.min(1,maxSide/Math.max(naturalWidth,naturalHeight));
+      const width=Math.max(1,Math.round(naturalWidth*scale));
+      const height=Math.max(1,Math.round(naturalHeight*scale));
+      const canvas=document.createElement('canvas');
+      canvas.width=width;
+      canvas.height=height;
+      const ctx=canvas.getContext('2d',{willReadFrequently:true});
+      if(!ctx){resolve(fallbackSceneCastArtworkBounds(probe));return}
+
+      try{
+        ctx.clearRect(0,0,width,height);
+        ctx.drawImage(probe,0,0,width,height);
+        const pixels=ctx.getImageData(0,0,width,height).data;
+        let minX=width,minY=height,maxX=-1,maxY=-1;
+        for(let y=0;y<height;y++){
+          for(let x=0;x<width;x++){
+            if(pixels[(y*width+x)*4+3]<18)continue;
+            if(x<minX)minX=x;
+            if(x>maxX)maxX=x;
+            if(y<minY)minY=y;
+            if(y>maxY)maxY=y;
+          }
+        }
+
+        if(maxX<minX||maxY<minY){resolve(fallbackSceneCastArtworkBounds(probe));return}
+
+        minX=Math.max(0,minX-1);
+        minY=Math.max(0,minY-1);
+        maxX=Math.min(width-1,maxX+1);
+        maxY=Math.min(height-1,maxY+1);
+        const bx=minX/width;
+        const by=minY/height;
+        const bw=Math.max(1/width,(maxX-minX+1)/width);
+        const bh=Math.max(1/height,(maxY-minY+1)/height);
+        const rawAspect=naturalWidth/naturalHeight;
+        const ratio=Math.max(.08,Math.min(5,rawAspect*bw/bh));
+        resolve({
+          ratio,
+          imageHeight:(100/bh).toFixed(3)+'%',
+          imageTop:(-by/bh*100).toFixed(3)+'%',
+          imageLeft:(-bx/bw*100).toFixed(3)+'%'
+        });
+      }catch(_){
+        fallback();
+      }
+    };
+    probe.onerror=fallback;
+    probe.src=key;
+  });
+
+  sceneCastArtworkBoundsCache.set(key,promise);
+  return promise;
+}
+
+function applySceneCastArtworkBounds(img,url){
+  const wrapper=img?.closest('.scene-cast-art');
+  if(!wrapper)return;
+  sceneCastArtworkBounds(url,img).then(bounds=>{
+    if(!wrapper.isConnected)return;
+    wrapper.style.aspectRatio=String(bounds.ratio||.65);
+    img.style.height=bounds.imageHeight||'100%';
+    img.style.top=bounds.imageTop||'0%';
+    img.style.left=bounds.imageLeft||'0%';
+    wrapper.dataset.artworkBounds='ready';
+  }).catch(()=>{
+    const bounds=fallbackSceneCastArtworkBounds(img);
+    wrapper.style.aspectRatio=String(bounds.ratio);
+    img.style.height='100%';
+    img.style.top='0%';
+    img.style.left='0%';
+  });
 }
 
 function currentSceneCastLayout(cast=normalizeSceneCast()){
@@ -2438,6 +2567,8 @@ function sceneCastMemberElement(asset){
   const el=document.createElement('article');
   el.className='scene-cast-member is-entering'+(asset.kind==='creature'?' is-creature':'');
   el.dataset.castId=asset.id;
+  const art=document.createElement('div');
+  art.className='scene-cast-art';
   const img=document.createElement('img');
   img.src=asset.image_url;
   img.alt=asset.name;
@@ -2446,7 +2577,9 @@ function sceneCastMemberElement(asset){
   img.draggable=false;
   const name=document.createElement('strong');
   name.textContent=asset.name;
-  el.append(img,name);
+  art.appendChild(img);
+  el.append(art,name);
+  applySceneCastArtworkBounds(img,asset.image_url);
   el.addEventListener('dragstart',event=>{
     if(!sceneCastArrangeMode||!canGMControl()||state?.mode!=='scene'){
       event.preventDefault();
@@ -2530,10 +2663,14 @@ function renderPlayerSceneCast(){
     }else{
       const img=el.querySelector('img');
       const label=el.querySelector('strong');
-      if(img&&img.src!==asset.image_url)img.src=asset.image_url;
+      if(img){
+        if(img.src!==asset.image_url)img.src=asset.image_url;
+        applySceneCastArtworkBounds(img,asset.image_url);
+      }
       if(label)label.textContent=asset.name;
       host.appendChild(el);
     }
+    el.dataset.castSize=sceneCastSizeTier(cast,id);
     el.classList.toggle('is-active',cast.active_id===id);
     el.draggable=arranging;
     el.title=arranging?'Drag to a stage position':'';
@@ -2618,9 +2755,11 @@ function renderSceneCastTray(){
     const typeLabel=member.kind==='creature'?'Creature':'NPC';
     const slotLabel=sceneCastSlotMeta(layout[id])?.label||'Auto';
     const featureLabel=member.kind==='creature'?(active?'FEATURED':'FEATURE'):(active?'SPEAKING':'SPEAK');
+    const sizeTier=sceneCastSizeTier(cast,id);
     return '<article class="scene-cast-chip'+(active?' is-active':'')+'" draggable="true" data-cast-chip="'+esc(id)+'">'+
       '<img src="'+esc(member.image_url)+'" alt="">'+
-      '<div class="scene-cast-chip-main"><strong>'+esc(member.name)+'</strong><small>'+(active?'Featured now':typeLabel+' '+(index+1)+' · '+slotLabel)+'</small></div>'+
+      '<div class="scene-cast-chip-main"><strong>'+esc(member.name)+'</strong><small>'+(active?'Featured now':typeLabel+' '+(index+1)+' · '+slotLabel)+'</small>'+
+        '<label class="scene-cast-chip-size"><span>Size</span><select data-cast-size="'+esc(id)+'" aria-label="'+esc(member.name)+' size">'+sceneCastSizeOptions(sizeTier)+'</select></label></div>'+
       '<div class="scene-cast-chip-actions">'+
         '<button type="button" class="cast-speak'+(active?' is-active':'')+'" data-cast-speak="'+esc(id)+'">'+featureLabel+'</button>'+
         '<button type="button" class="cast-remove" data-cast-remove="'+esc(id)+'" title="Remove from scene">×</button>'+
@@ -2697,6 +2836,14 @@ async function setSceneCastSpeaker(id){
   const cast=normalizeSceneCast();
   if(!cast.ids.includes(id))return;
   await patchState({scene_cast:{...cast,active_id:cast.active_id===id?null:id}});
+}
+
+async function setSceneCastSize(id,tier){
+  if(!canGMControl()||!SCENE_CAST_SIZE_KEYS.has(tier))return;
+  const cast=normalizeSceneCast();
+  if(!cast.ids.includes(id))return;
+  const sizes={...cast.sizes,[id]:tier};
+  await patchState({scene_cast:{...cast,sizes}});
 }
 
 async function clearSceneCast(){
@@ -3475,10 +3622,14 @@ function sceneInspectorCastMarkup(enabled){
     const member=byId(id);
     if(!member)return '';
     const active=cast.active_id===id;
+    const sizeTier=sceneCastSizeTier(cast,id);
     return '<article class="scene-inspector-cast-chip'+(active?' active':'')+'">'+
       '<img src="'+esc(member.image_url)+'" alt="">'+
-      '<div><strong>'+esc(member.name)+'</strong><small>'+(active?'Featured now':esc(member.kind==='creature'?'Creature':'NPC'))+'</small></div>'+
+      '<div><strong>'+esc(member.name)+'</strong><small>'+(active?'Featured now':esc(member.kind==='creature'?'Creature':'NPC'))+' · '+sceneCastSizeLabel(sizeTier)+'</small></div>'+
       '<button type="button" data-inspector-cast-remove="'+esc(id)+'" title="Remove from scene">×</button>'+
+      '<div class="scene-inspector-cast-size" role="group" aria-label="'+esc(member.name)+' size">'+
+        SCENE_CAST_SIZE_TIERS.map(tier=>'<button type="button" data-inspector-cast-size="'+esc(id)+'" data-size-tier="'+tier+'" class="'+(tier===sizeTier?'active':'')+'">'+sceneCastSizeLabel(tier)+'</button>').join('')+
+      '</div>'+
     '</article>';
   }).join('');
 }
@@ -3584,6 +3735,7 @@ function renderSceneInspector(){
   if(els.sceneInspectorCastList){
     els.sceneInspectorCastList.innerHTML=sceneInspectorCastMarkup(liveControl);
     els.sceneInspectorCastList.querySelectorAll('[data-inspector-cast-remove]').forEach(button=>button.addEventListener('click',()=>removeNpcFromCast(button.dataset.inspectorCastRemove)));
+    els.sceneInspectorCastList.querySelectorAll('[data-inspector-cast-size]').forEach(button=>button.addEventListener('click',()=>setSceneCastSize(button.dataset.inspectorCastSize,button.dataset.sizeTier)));
   }
   if(els.sceneInspectorManageCast)els.sceneInspectorManageCast.disabled=!current;
 
@@ -4670,6 +4822,9 @@ function wireDelegatedControls(){
   delegate(els.sceneCastTray,'click','[data-cast-speak],[data-cast-remove]',(event,target)=>{
     if(target.dataset.castSpeak){setSceneCastSpeaker(target.dataset.castSpeak);return}
     if(target.dataset.castRemove)removeNpcFromCast(target.dataset.castRemove);
+  });
+  delegate(els.sceneCastTray,'change','[data-cast-size]',(event,target)=>{
+    setSceneCastSize(target.dataset.castSize,target.value);
   });
   delegate(els.sceneCastTray,'dragstart','[data-cast-chip]',(event,chip)=>{
     sceneCastDragId=chip.dataset.castChip||'';
