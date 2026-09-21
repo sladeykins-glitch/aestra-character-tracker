@@ -30,7 +30,7 @@ function sanitizePaths(value: unknown, prefix: string) {
     .slice(0, 12))];
 }
 
-function buildPrompt(userPrompt: string, style: string) {
+function buildPrompt(userPrompt: string, style: string, aestraDetails = "subtle") {
   const aestra = [
     "Standalone widescreen environmental painting for the fantasy world Aestra.",
     "Edge-to-edge artwork with uninterrupted scenery from top to bottom and side to side.",
@@ -52,7 +52,14 @@ function buildPrompt(userPrompt: string, style: string) {
     "Favor atmosphere, geography, architecture, lighting, and lived-in environmental details over decorative magical objects unless the scene specifically asks for them."
   ];
 
-  const parts = [...aestra];
+  const detailGuidance: Record<string, string> = {
+    off: "Aestra-specific relic, steampunk, crystal, brass machinery, ancient technology, and ruin motifs are OFF. Do not add any of these unless the user's scene request explicitly asks for them.",
+    subtle: "Keep Aestra-specific relic, steampunk, crystal, brass machinery, ancient technology, and ruin motifs very subtle. Do not add them unless they naturally support the requested scene; ordinary places should remain ordinary.",
+    normal: "Use a moderate amount of Aestra world flavour where it naturally fits: occasional relic, crystal, old-technology, ruin, or brass details are welcome, but they must not dominate the requested scene.",
+    strong: "Lean strongly into Aestra world flavour: prominently incorporate relic technology, crystal energy, ancient ruins, weathered brass mechanisms, and lost-civilization details where compositionally appropriate."
+  };
+
+  const parts = [...aestra, detailGuidance[aestraDetails] || detailGuidance.subtle];
   if (style === "storybook") parts.push(...storybook);
   else parts.push(...painterly);
   parts.push("Scene request: " + userPrompt);
@@ -164,6 +171,7 @@ Deno.serve(async (req: Request) => {
     const userPrompt = String(body?.prompt || "").trim().slice(0, 1100);
     const quality = ["low", "medium", "high"].includes(body?.quality) ? body.quality : "medium";
     const style = body?.style === "aestra" ? "aestra" : "storybook";
+    const aestraDetails = ["off", "subtle", "normal", "strong"].includes(body?.aestraDetails) ? body.aestraDetails : "subtle";
 
     if (!campaignId) return json({ error: "Campaign is required." }, 400);
     const previewPrefix = campaignId + "/ai/previews/";
@@ -233,7 +241,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const variations = Math.max(2, Math.min(4, Number(body?.variations) || 4));
-    const prompt = buildPrompt(userPrompt, style);
+    const prompt = buildPrompt(userPrompt, style, aestraDetails);
     const generationId = crypto.randomUUID();
 
     const attempts = await Promise.allSettled(
