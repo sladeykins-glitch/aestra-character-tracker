@@ -6,6 +6,7 @@ const CAMPAIGN_ID=CONFIG.campaignId;
 const DISPLAY_QUERY=new URLSearchParams(location.search).get('display')==='1';
 const els=Object.fromEntries([...document.querySelectorAll('[id]')].map(el=>[el.id,el]));
 let supabase=null,user=null,isGM=false,state=null,assets=[],party=[],recent=[],filterKind='all',previewUrl='';
+let libraryDragAssetId='';
 const IS_PLAYER_DISPLAY=DISPLAY_QUERY;
 const canGMControl=()=>isGM&&!IS_PLAYER_DISPLAY;
 const shouldReceivePlayerMap=()=>IS_PLAYER_DISPLAY||!isGM;
@@ -2349,9 +2350,175 @@ function renderDisplay(){
   displayInitialized=true;
 }
 
+
+const LIBRARY_FOLDER_KINDS=['scene','npc','item','map','handout','creature','clue','location_detail','other'];
+
+function normalizeAssetFolders(raw=state?.asset_folders){
+  const source=raw&&typeof raw==='object'&&!Array.isArray(raw)?raw:{};
+  const out={};
+  for(const kind of LIBRARY_FOLDER_KINDS){
+    const list=Array.isArray(source[kind])?source[kind]:[];
+    out[kind]=list.filter(folder=>folder&&typeof folder.id==='string'&&typeof folder.name==='string')
+      .map(folder=>({id:folder.id,name:String(folder.name).trim().slice(0,60)||'Untitled Folder'})).slice(0,80);
+  }
+  return out;
+}
+
+function assetFolderId(asset){
+  const id=assetMetadata(asset).library_folder_id;
+  return typeof id==='string'&&id?id:'';
+}
+
+function folderCollapsedKey(kind,id){return 'aestra-live-folder:'+CAMPAIGN_ID+':'+kind+':'+id}
+function folderIsCollapsed(kind,id){
+  try{
+    const value=localStorage.getItem(folderCollapsedKey(kind,id));
+    return value===null?true:value==='1';
+  }catch(_){return true}
+}
+function setFolderCollapsed(kind,id,collapsed){
+  try{localStorage.setItem(folderCollapsedKey(kind,id),collapsed?'1':'0')}catch(_){}
+}
+
+function libraryFolderToolbar(kind){
+  return '<div class="library-folder-toolbar"><button type="button" data-folder-add="'+esc(kind)+'">＋ Folder</button><span>Drag cards into folders to organise them.</span></div>';
+}
+
+function libraryFolderBlock(kind,folder,items,cardRenderer){
+  const collapsed=folderIsCollapsed(kind,folder.id);
+  return '<section class="library-folder'+(collapsed?' is-collapsed':'')+'" data-folder-kind="'+esc(kind)+'" data-folder-id="'+esc(folder.id)+'">'+
+    '<div class="library-folder-head" data-folder-toggle="'+esc(folder.id)+'" data-folder-kind="'+esc(kind)+'">'+
+      '<button type="button" class="library-folder-chevron" aria-label="'+(collapsed?'Open':'Close')+' folder">'+(collapsed?'▸':'▾')+'</button>'+
+      '<strong>📁 '+esc(folder.name)+'</strong><span>'+items.length+'</span>'+
+      '<div class="library-folder-actions"><button type="button" data-folder-rename="'+esc(folder.id)+'" data-folder-kind="'+esc(kind)+'">Rename</button><button type="button" data-folder-delete="'+esc(folder.id)+'" data-folder-kind="'+esc(kind)+'">Delete</button></div>'+
+    '</div>'+
+    '<div class="library-folder-content">'+(items.length?items.map(cardRenderer).join(''):'<p class="library-folder-empty">Drop assets here</p>')+'</div>'+
+  '</section>';
+}
+
+function renderFolderedLibrary(kind,items,cardRenderer,{toolbar=true}={}){
+  const folders=normalizeAssetFolders()[kind]||[];
+  const validIds=new Set(folders.map(folder=>folder.id));
+  const byFolder=new Map(folders.map(folder=>[folder.id,[]]));
+  const unsorted=[];
+  for(const item of items){
+    const id=assetFolderId(item);
+    if(id&&validIds.has(id))byFolder.get(id).push(item);
+    else unsorted.push(item);
+  }
+  let html=toolbar?libraryFolderToolbar(kind):'';
+  html+=folders.map(folder=>libraryFolderBlock(kind,folder,byFolder.get(folder.id)||[],cardRenderer)).join('');
+  if(unsorted.length||!folders.length){
+    const looseId='__unsorted__';
+    const collapsed=folders.length?folderIsCollapsed(kind,looseId):false;
+    html+='<section class="library-folder library-unsorted'+(collapsed?' is-collapsed':'')+'" data-folder-kind="'+esc(kind)+'" data-folder-id="'+looseId+'">'+
+      (folders.length?'<div class="library-folder-head" data-folder-toggle="'+looseId+'" data-folder-kind="'+esc(kind)+'"><button type="button" class="library-folder-chevron">'+(collapsed?'▸':'▾')+'</button><strong>Unsorted</strong><span>'+unsorted.length+'</span></div>':'')+
+      '<div class="library-folder-content">'+(unsorted.length?unsorted.map(cardRenderer).join(''):'<p class="library-folder-empty">No assets yet.</p>')+'</div></section>';
+  }
+  return html;
+}
+
+async function createLibraryFolder(kind){
+  if(!canGMControl()||!LIBRARY_FOLDER_KINDS.includes(kind))return;
+  const name=prompt('Folder name');
+  if(!name?.trim())return;
+  const folders=normalizeAssetFolders();
+  folders[kind]=[...folders[kind],{id:crypto.randomUUID(),name:name.trim().slice(0,60)}];
+  await patchState({asset_folders:folders});
+  renderScenes();renderRevealGrid();
+}
+
+async function renameLibraryFolder(kind,id){
+  if(!canGMControl())return;
+  const folders=normalizeAssetFolders();
+  const folder=folders[kind]?.find(item=>item.id===id);
+  if(!folder)return;
+  const name=prompt('Rename folder',folder.name);
+  if(!name?.trim())return;
+  folders[kind]=folders[kind].map(item=>item.id===id?{...item,name:name.trim().slice(0,60)}:item);
+  await patchState({asset_folders:folders});
+  renderScenes();renderRevealGrid();
+}
+
+async function deleteLibraryFolder(kind,id){
+  if(!canGMControl())return;
+  const folders=normalizeAssetFolders();
+  const folder=folders[kind]?.find(item=>item.id===id);
+  if(!folder)return;
+  if(!confirm('Delete folder "'+folder.name+'"? Its assets will move to Unsorted.'))return;
+  const affected=assets.filter(asset=>asset.kind===kind&&assetFolderId(asset)===id);
+  for(const asset of affected){
+    const metadata={...assetMetadata(asset)};
+    delete metadata.library_folder_id;
+    const result=await supabase.from('live_table_assets').update({metadata,updated_at:new Date().toISOString()}).eq('id',asset.id).select().single();
+    if(!result.error)assets=assets.map(item=>item.id===asset.id?result.data:item);
+  }
+  folders[kind]=folders[kind].filter(item=>item.id!==id);
+  await patchState({asset_folders:folders});
+  renderScenes();renderRevealGrid();
+}
+
+async function moveAssetToLibraryFolder(assetId,kind,folderId){
+  if(!canGMControl())return;
+  const asset=byId(assetId);
+  if(!asset||asset.kind!==kind)return;
+  const metadata={...assetMetadata(asset)};
+  if(folderId==='__unsorted__')delete metadata.library_folder_id;
+  else{
+    const valid=normalizeAssetFolders()[kind]?.some(folder=>folder.id===folderId);
+    if(!valid)return;
+    metadata.library_folder_id=folderId;
+  }
+  const result=await supabase.from('live_table_assets').update({metadata,updated_at:new Date().toISOString()}).eq('id',asset.id).select().single();
+  if(result.error){alert(result.error.message);return}
+  assets=assets.map(item=>item.id===asset.id?result.data:item);
+  renderScenes();renderRevealGrid();
+}
+
+function wireLibraryFolders(host){
+  if(!host)return;
+  delegate(host,'click','[data-folder-add],[data-folder-toggle],[data-folder-rename],[data-folder-delete]',(event,target)=>{
+    if(target.dataset.folderAdd){createLibraryFolder(target.dataset.folderAdd);return}
+    const kind=target.dataset.folderKind||target.closest('[data-folder-kind]')?.dataset.folderKind;
+    if(target.dataset.folderRename){event.stopPropagation();renameLibraryFolder(kind,target.dataset.folderRename);return}
+    if(target.dataset.folderDelete){event.stopPropagation();deleteLibraryFolder(kind,target.dataset.folderDelete);return}
+    if(target.dataset.folderToggle){
+      if(event.target.closest('.library-folder-actions'))return;
+      const id=target.dataset.folderToggle;
+      const folder=target.closest('.library-folder');
+      const collapsed=!folder.classList.contains('is-collapsed');
+      setFolderCollapsed(kind,id,collapsed);
+      folder.classList.toggle('is-collapsed',collapsed);
+      const chevron=folder.querySelector('.library-folder-chevron');
+      if(chevron)chevron.textContent=collapsed?'▸':'▾';
+    }
+  });
+  delegate(host,'dragstart','.scene-card,.reveal-card',(event,card)=>{
+    libraryDragAssetId=card.dataset.sceneId||card.dataset.assetId||'';
+    if(event.dataTransfer){event.dataTransfer.effectAllowed='move';event.dataTransfer.setData('text/plain',libraryDragAssetId)}
+  });
+  delegate(host,'dragend','.scene-card,.reveal-card',()=>{
+    libraryDragAssetId='';
+    host.querySelectorAll('.is-folder-drop').forEach(el=>el.classList.remove('is-folder-drop'));
+  });
+  delegate(host,'dragover','.library-folder',(event,folder)=>{
+    if(!libraryDragAssetId)return;
+    event.preventDefault();folder.classList.add('is-folder-drop');
+  });
+  delegate(host,'dragleave','.library-folder',(event,folder)=>{
+    if(!folder.contains(event.relatedTarget))folder.classList.remove('is-folder-drop');
+  });
+  delegate(host,'drop','.library-folder',(event,folder)=>{
+    event.preventDefault();folder.classList.remove('is-folder-drop');
+    const id=libraryDragAssetId||event.dataTransfer?.getData('text/plain')||'';
+    moveAssetToLibraryFolder(id,folder.dataset.folderKind||'',folder.dataset.folderId||'__unsorted__');
+    libraryDragAssetId='';
+  });
+}
+
 function sceneCard(asset){
   const active=state?.active_scene_id===asset.id;
-  return '<article class="scene-card'+(active?' active':'')+'" data-scene-id="'+asset.id+'">'+
+  return '<article class="scene-card'+(active?' active':'')+'" draggable="true" data-scene-id="'+asset.id+'">'+
     '<div class="scene-thumb"><img src="'+esc(assetThumbnailUrl(asset))+'" alt="" loading="'+(active?'eager':'lazy')+'" decoding="async" fetchpriority="'+(active?'high':'low')+'"></div>'+
     '<div><strong>'+esc(asset.name)+'</strong><small>'+esc(asset.subtitle||'Scene backdrop')+'</small></div>'+
     '<div class="scene-actions"><button type="button" class="scene-inspect-btn" data-scene-inspect="'+asset.id+'">INSPECT</button><button type="button" data-scene-go="'+asset.id+'">'+(active?'LIVE':'GO')+'</button><button type="button" data-remove="'+asset.id+'">REMOVE</button><button type="button" class="danger" data-delete="'+asset.id+'">DELETE</button></div></article>';
@@ -2359,7 +2526,7 @@ function sceneCard(asset){
 
 function renderScenes(){
   const scenes=assets.filter(a=>a.kind==='scene');
-  els.sceneStrip.innerHTML=scenes.length?scenes.map(sceneCard).join(''):'<p class="muted">No scene backdrops yet. Press + to upload one.</p>';
+  els.sceneStrip.innerHTML=renderFolderedLibrary('scene',scenes,sceneCard);
 }
 
 function isSceneCastAsset(asset){
@@ -2890,14 +3057,22 @@ function revealCard(asset){
   const thumb=isInteractiveMap(asset)
     ? '<div class="reveal-thumb interactive-map-thumb"><span>✦</span><b>INTERACTIVE ATLAS</b></div>'
     : '<div class="reveal-thumb"><img src="'+esc(assetThumbnailUrl(asset))+'" alt="" loading="lazy" decoding="async" fetchpriority="low"></div>';
-  return '<article class="reveal-card" data-kind="'+esc(asset.kind)+'">'+thumb+
+  return '<article class="reveal-card" draggable="true" data-asset-id="'+asset.id+'" data-kind="'+esc(asset.kind)+'">'+thumb+
     '<strong>'+esc(asset.name)+'</strong><small>'+esc(asset.subtitle||asset.kind.replace('_',' '))+'</small>'+
     '<div class="card-actions"><button type="button" data-show="'+asset.id+'">'+showLabel+'</button>'+mapAction+castAction+introAction+'<button type="button" data-remove="'+asset.id+'">REMOVE</button><button type="button" class="danger" data-delete="'+asset.id+'">DELETE</button></div></article>';
 }
 
 function renderRevealGrid(){
   const visualAssets=assets.filter(a=>a.kind!=='scene'&&(filterKind==='all'||a.kind===filterKind));
-  els.revealGrid.innerHTML=visualAssets.length?visualAssets.map(revealCard).join(''):'<p class="muted">No visuals in this category yet.</p>';
+  if(filterKind!=='all'){
+    els.revealGrid.innerHTML=renderFolderedLibrary(filterKind,visualAssets,revealCard);
+    return;
+  }
+  const kinds=LIBRARY_FOLDER_KINDS.filter(kind=>kind!=='scene'&&visualAssets.some(asset=>asset.kind===kind));
+  els.revealGrid.innerHTML=kinds.length?kinds.map(kind=>
+    '<div class="library-kind-group"><div class="library-kind-title">'+esc(kind.replaceAll('_',' '))+'</div>'+
+    renderFolderedLibrary(kind,visualAssets.filter(asset=>asset.kind===kind),revealCard)+'</div>'
+  ).join(''):'<p class="muted">No visuals in the library yet.</p>';
 }
 
 function scenePresets(){
@@ -4752,6 +4927,8 @@ function setupGmWorkspace(){
 }
 
 function wireDelegatedControls(){
+  wireLibraryFolders(els.sceneStrip);
+  wireLibraryFolders(els.revealGrid);
   delegate(els.sceneStrip,'click','[data-scene-inspect],[data-scene-go],[data-remove],[data-delete],.scene-thumb',(event,target)=>{
     if(target.dataset.sceneInspect){openSceneInspector(target.dataset.sceneInspect);return}
     if(target.classList.contains('scene-thumb')){
