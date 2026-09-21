@@ -906,11 +906,11 @@ export class SceneAtmosphereRenderer{
 
   drawCloudShadowsFallback(ctx,w,h,now){
     const intensity=this.cfg.intensity||2;
-    const alpha={1:.055,2:.09,3:.14,4:.21,5:.30}[intensity]||.09;
+    const alpha={1:.07,2:.13,3:.22,4:.34,5:.50}[intensity]||.13;
     ctx.save();
     ctx.globalCompositeOperation='multiply';
     ctx.filter='blur(42px)';
-    for(let i=0;i<7;i++){
+    for(let i=0;i<9;i++){
       const drift=((now*.000011+i*.22)%1.35)-.18;
       const x=w*drift;
       const y=h*(.18+(i%3)*.26);
@@ -969,14 +969,14 @@ export class SceneAtmosphereRenderer{
     const drift=(now*.000012)%1;
     ctx.save();
     ctx.globalCompositeOperation='screen';
-    ctx.filter='blur('+(this.quality>=.8?7:11)+'px)';
+    ctx.filter='blur('+(this.quality>=.8?5:8)+'px)';
 
     for(let i=0;i<5;i++){
       const phase=(drift+i*.235)%1.18;
       const topX=(-.18+phase)*w;
       const lean=w*(.11+.018*i);
-      const topWidth=w*(.022+.010*(i%3));
-      const bottomWidth=w*(.12+.024*(i%2));
+      const topWidth=w*(.026+.012*(i%3));
+      const bottomWidth=w*(.15+.032*(i%2));
       const pulse=.58+.42*Math.sin(now*.00042+i*1.9);
 
       const g=ctx.createLinearGradient(topX,0,topX+lean,h);
