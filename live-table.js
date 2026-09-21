@@ -2191,7 +2191,7 @@ function sceneEffectState(){
     const effects=Array.isArray(raw.effects)
       ? [...new Set(raw.effects.filter(effect=>SCENE_EFFECT_KEYS.includes(effect)))]
       : [];
-    const intensity=[1,2,3].includes(Number(raw.intensity))?Number(raw.intensity):2;
+    const intensity=[1,2,3,4,5].includes(Number(raw.intensity))?Number(raw.intensity):2;
     const fadeMs=[350,900,1800].includes(Number(raw.fade_ms))?Number(raw.fade_ms):900;
     return {effects,intensity,fade_ms:fadeMs};
   });
@@ -2258,7 +2258,7 @@ async function toggleSceneEffect(effect){
 async function setSceneEffectSetting(key,value){
   if(!canGMControl()||state?.mode!=='scene')return;
   const next={...sceneEffectState()};
-  if(key==='intensity')next.intensity=Math.max(1,Math.min(3,Number(value)||2));
+  if(key==='intensity')next.intensity=Math.max(1,Math.min(5,Number(value)||2));
   if(key==='fade_ms')next.fade_ms=[350,900,1800].includes(Number(value))?Number(value):900;
   await patchState({scene_effects:next});
 }
@@ -2947,7 +2947,7 @@ function normalizeCueEffects(raw){
     : [];
   return {
     effects,
-    intensity:[1,2,3].includes(Number(raw?.intensity))?Number(raw.intensity):2,
+    intensity:[1,2,3,4,5].includes(Number(raw?.intensity))?Number(raw.intensity):2,
     fade_ms:[350,900,1800].includes(Number(raw?.fade_ms))?Number(raw.fade_ms):900
   };
 }
