@@ -274,7 +274,7 @@ class SceneShaderRenderer{
     gl.uniform2f(this.uniforms.crop,cropX,cropY);
     gl.uniform4f(this.uniforms.fx,heat,dream,crystal,relic);
     gl.uniform4f(this.uniforms.fx2,underwater,clouds,moon,0);
-    gl.uniform1f(this.uniforms.intensity,Math.max(.25,Math.min(1,Number(intensity||2)/3)));
+    gl.uniform1f(this.uniforms.intensity,Math.max(.12,Math.min(1.35,[0,.18,.38,.65,.95,1.35][Number(intensity||2)]||.38)));
     gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
     this.canvas.classList.add('active');
     return true;
@@ -390,7 +390,7 @@ export class SceneAtmosphereRenderer{
   setConfig(cfg){
     this.cfg={
       effects:Array.isArray(cfg?.effects)?cfg.effects.slice():[],
-      intensity:[1,2,3].includes(Number(cfg?.intensity))?Number(cfg.intensity):2,
+      intensity:[1,2,3,4,5].includes(Number(cfg?.intensity))?Number(cfg.intensity):2,
       fade_ms:Number(cfg?.fade_ms)||900
     };
     this.syncParticles();
@@ -402,7 +402,7 @@ export class SceneAtmosphereRenderer{
   }
 
   targetCount(type){
-    const intensity=[0,.85,1.3,1.85][this.cfg.intensity]||1;
+    const intensity=[0,.45,.85,1.35,2.05,3.0][this.cfg.intensity]||.85;
     const base={
       rain:190,
       snow:120,
@@ -591,7 +591,7 @@ export class SceneAtmosphereRenderer{
     this.clear();
     const ctx=this.ctx;
     const w=this.width,h=this.height;
-    const intensity=this.cfg.intensity/3;
+    const intensity=[0,.22,.42,.66,.84,1][this.cfg.intensity]||.42;
     const effects=new Set(this.cfg.effects);
     if(effects.has('storm'))effects.add('rain');
 
