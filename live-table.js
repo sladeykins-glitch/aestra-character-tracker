@@ -1,4 +1,4 @@
-import {drawImageCover,SceneAtmosphereRenderer} from './live-table-effects.js?v=1';
+import {drawImageCover,SceneAtmosphereRenderer} from './live-table-effects.js?v=2';
 import {LifecycleManager,changedKeys,delegate,valueEqual} from './live-table-runtime.js?v=1';
 
 const CONFIG=window.AESTRA_CONFIG||{};
