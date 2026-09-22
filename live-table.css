@@ -2426,3 +2426,29 @@ body.gm-preview-compact .party-hud{
   .party-sprite-list{grid-template-columns:1fr}
   .party-sprite-tuning{grid-template-columns:1fr}
 }
+
+
+/* Party HUD animated sprites v1 */
+.party-animation-controls{display:inline-flex;align-items:center;gap:3px;min-height:38px;padding:3px;border:1px solid var(--line);border-radius:9px;background:#10161d}
+.party-animation-controls>span{padding:0 7px 0 6px;font-size:8px;letter-spacing:.1em;text-transform:uppercase;color:#7f8b95}
+.party-animation-controls button{min-height:30px;padding:0 9px;border-radius:6px;font-size:8px}
+.party-animation-controls button.active{border-color:rgba(216,182,102,.62);background:linear-gradient(180deg,rgba(82,68,35,.58),rgba(31,28,20,.72));color:#f3dda0;box-shadow:0 0 12px rgba(216,182,102,.08)}
+.party-hud{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.party-card{position:relative;grid-template-columns:64px 38px minmax(0,1fr);gap:7px;min-width:0;overflow:visible}
+.party-card.no-party-sprite{grid-template-columns:38px minmax(0,1fr)}
+.party-sprite-stage{position:relative;width:64px;height:68px;align-self:end;overflow:visible;pointer-events:none}
+.party-hud-sprite{position:absolute;left:50%;bottom:0;width:64px;height:68px;object-fit:contain;object-position:center bottom;transform-origin:center bottom;transform:translate(calc(-50% + var(--party-sprite-x,0px)),var(--party-sprite-y,0px)) scale(var(--party-sprite-scale,1));filter:drop-shadow(0 4px 4px rgba(0,0,0,.5));animation:partySpriteSwap .18s ease both;will-change:transform}
+@keyframes partySpriteSwap{from{opacity:0;filter:drop-shadow(0 4px 4px rgba(0,0,0,.5)) blur(2px)}to{opacity:1;filter:drop-shadow(0 4px 4px rgba(0,0,0,.5)) blur(0)}}
+.party-token-wrap{display:grid;place-items:center;min-width:0}
+.party-card .party-portrait{width:36px;height:36px}
+.party-card-info{min-width:0}
+.party-card-info .party-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.gm-preview-compact .party-card{grid-template-columns:52px 32px minmax(0,1fr);gap:5px}
+body.gm-preview-compact .party-card.no-party-sprite{grid-template-columns:32px minmax(0,1fr)}
+body.gm-preview-compact .party-sprite-stage{width:52px;height:56px}
+body.gm-preview-compact .party-hud-sprite{width:52px;height:56px}
+body.gm-preview-compact .party-card .party-portrait{width:30px;height:30px}
+@media(max-width:720px){
+  .party-animation-controls>span{display:none}
+  .party-animation-controls button{padding:0 7px}
+}
