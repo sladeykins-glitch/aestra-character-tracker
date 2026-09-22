@@ -748,6 +748,52 @@ function partyAnimationForCharacter(characterId){
   return idle?.url?idle:null;
 }
 
+let partySpriteAnimationRaf=0;
+function updatePartySpriteSheetFrame(el,frame){
+  const cols=Math.max(1,Number(el.dataset.columns)||1);
+  const rows=Math.max(1,Number(el.dataset.rows)||1);
+  const count=Math.max(1,Math.min(cols*rows,Number(el.dataset.frameCount)||cols*rows));
+  const safe=((frame%count)+count)%count;
+  const col=safe%cols;
+  const row=Math.floor(safe/cols);
+  el.dataset.frame=String(safe);
+  const img=el.querySelector('.party-sprite-sheet-image');
+  if(img){
+    img.style.left=(-col*100)+'%';
+    img.style.top=(-row*100)+'%';
+  }
+}
+
+function startPartySpriteAnimationLoop(){
+  if(partySpriteAnimationRaf)return;
+  const tick=timestamp=>{
+    const sheets=document.querySelectorAll('.party-sprite-sheet[data-frame-count]');
+    sheets.forEach(el=>{
+      const fps=Math.max(1,Math.min(30,Number(el.dataset.fps)||10));
+      const nextAt=Number(el.dataset.nextFrameAt)||0;
+      if(timestamp<nextAt)return;
+      const frame=(Number(el.dataset.frame)||0)+1;
+      updatePartySpriteSheetFrame(el,frame);
+      el.dataset.nextFrameAt=String(timestamp+(1000/fps));
+    });
+    partySpriteAnimationRaf=requestAnimationFrame(tick);
+  };
+  partySpriteAnimationRaf=requestAnimationFrame(tick);
+}
+
+function partySpriteMarkup(animation,cfg){
+  if(!animation?.url)return '';
+  const commonStyle='--party-sprite-scale:'+(cfg.scale/100)+';--party-sprite-x:'+cfg.x+'px;--party-sprite-y:'+cfg.y+'px';
+  if(animation.type==='sheet'){
+    const cols=Math.max(1,Number(animation.columns)||1);
+    const rows=Math.max(1,Number(animation.rows)||1);
+    const count=Math.max(1,Math.min(cols*rows,Number(animation.frame_count)||cols*rows));
+    const fps=Math.max(1,Math.min(30,Number(animation.fps)||10));
+    return '<div class="party-sprite-stage" aria-hidden="true"><div class="party-sprite-sheet party-hud-sprite" data-columns="'+cols+'" data-rows="'+rows+'" data-frame-count="'+count+'" data-fps="'+fps+'" data-frame="0" style="'+commonStyle+'"><img class="party-sprite-sheet-image" src="'+esc(animation.url)+'" alt="" style="width:'+(cols*100)+'%;height:'+(rows*100)+'%" /></div></div>';
+  }
+  return '<div class="party-sprite-stage" aria-hidden="true"><img class="party-hud-sprite" src="'+esc(animation.url)+'" alt="" style="'+commonStyle+'" /></div>';
+}
+
 function renderPartyAnimationControls(){
   const group=els.partyAnimationControls;
   if(!group)return;
@@ -772,9 +818,7 @@ function renderParty(){
       : '<div class="party-portrait">'+esc((c.name||'?')[0].toUpperCase())+'</div>';
     const cfg=partySpriteCharacter(c.character_id);
     const animation=partyAnimationForCharacter(c.character_id);
-    const sprite=animation
-      ? '<div class="party-sprite-stage" aria-hidden="true"><img class="party-hud-sprite" src="'+esc(animation.url)+'" alt="" style="--party-sprite-scale:'+(cfg.scale/100)+';--party-sprite-x:'+cfg.x+'px;--party-sprite-y:'+cfg.y+'px" /></div>'
-      : '';
+    const sprite=partySpriteMarkup(animation,cfg);
     const statuses=(c.statuses||[]).map(s=>'<span class="status-pill">'+esc(s)+'</span>').join('');
     return '<article class="party-card'+(animation?' has-party-sprite':' no-party-sprite')+'" data-character-id="'+esc(c.character_id)+'">'+
       sprite+
@@ -785,6 +829,7 @@ function renderParty(){
       '<div class="resource ip"><span>IP</span><div class="resource-bar"><i style="width:'+pct(c.ip_current,c.ip_max)+'%"></i></div><b>'+Number(c.ip_current||0)+'/'+Number(c.ip_max||0)+'</b></div>'+
       (statuses?'<div class="status-row">'+statuses+'</div>':'')+'</div></article>';
   }).join('');
+  startPartySpriteAnimationLoop();
 }
 
 
@@ -807,8 +852,13 @@ function normalizePartySpriteCharacter(raw){
       url:String(item.url||''),
       storage_path:String(item.storage_path||''),
       name:String(item.name||''),
-      mime:String(item.mime||'')
-    }:{url:'',storage_path:'',name:'',mime:''};
+      mime:String(item.mime||''),
+      type:item.type==='sheet'?'sheet':'animated',
+      columns:Math.max(1,Math.min(16,Number(item.columns)||1)),
+      rows:Math.max(1,Math.min(16,Number(item.rows)||1)),
+      frame_count:Math.max(1,Math.min(256,Number(item.frame_count)||1)),
+      fps:Math.max(1,Math.min(30,Number(item.fps)||10))
+    }:{url:'',storage_path:'',name:'',mime:'',type:'animated',columns:1,rows:1,frame_count:1,fps:10};
   }
   return {
     animations:normalizedAnimations,
@@ -839,6 +889,18 @@ function renderPartySpriteEditor(){
       const preview=anim.url
         ? '<img src="'+esc(anim.url)+'" alt="'+esc(character.name||'Character')+' '+PARTY_SPRITE_STATE_LABELS[animationState]+' animation" />'
         : '<span class="party-sprite-placeholder">No animation</span>';
+      const sheetControls=anim.url?'<div class="party-sprite-format">'+
+        '<label>Format<select data-party-sprite-format="'+esc(character.character_id)+'" data-party-sprite-state="'+animationState+'">'+
+          '<option value="animated"'+(anim.type!=='sheet'?' selected':'')+'>Animated file</option>'+
+          '<option value="sheet"'+(anim.type==='sheet'?' selected':'')+'>Sprite sheet</option>'+
+        '</select></label>'+
+        (anim.type==='sheet'?'<div class="party-sprite-sheet-fields">'+
+          '<label>Columns<input type="number" min="1" max="16" value="'+anim.columns+'" data-party-sprite-sheet-field="columns" data-character-id="'+esc(character.character_id)+'" data-party-sprite-state="'+animationState+'" /></label>'+
+          '<label>Rows<input type="number" min="1" max="16" value="'+anim.rows+'" data-party-sprite-sheet-field="rows" data-character-id="'+esc(character.character_id)+'" data-party-sprite-state="'+animationState+'" /></label>'+
+          '<label>Frames<input type="number" min="1" max="256" value="'+anim.frame_count+'" data-party-sprite-sheet-field="frame_count" data-character-id="'+esc(character.character_id)+'" data-party-sprite-state="'+animationState+'" /></label>'+
+          '<label>FPS<input type="number" min="1" max="30" value="'+anim.fps+'" data-party-sprite-sheet-field="fps" data-character-id="'+esc(character.character_id)+'" data-party-sprite-state="'+animationState+'" /></label>'+
+        '</div>':'')+
+      '</div>':'';
       return '<div class="party-sprite-slot'+(anim.url?' has-file':'')+'">'+
         '<div class="party-sprite-slot-head"><strong>'+PARTY_SPRITE_STATE_LABELS[animationState]+'</strong>'+
         (anim.url?'<button type="button" data-party-sprite-remove="'+esc(character.character_id)+'" data-party-sprite-state="'+animationState+'" title="Remove '+PARTY_SPRITE_STATE_LABELS[animationState]+' animation">×</button>':'')+
@@ -847,7 +909,7 @@ function renderPartySpriteEditor(){
         '<label class="party-sprite-upload">'+(anim.url?'Replace':'Upload')+
           '<input type="file" accept="image/png,image/gif,image/webp" data-party-sprite-file="'+esc(character.character_id)+'" data-party-sprite-state="'+animationState+'" />'+
         '</label>'+
-        '<small>'+esc(anim.name||'PNG, GIF or WebP · up to 20 MB')+'</small>'+
+        '<small>'+esc(anim.name||'PNG, GIF or WebP · up to 20 MB')+'</small>'+sheetControls+
       '</div>';
     }).join('');
     return '<article class="party-sprite-character" data-party-sprite-character="'+esc(character.character_id)+'">'+
@@ -905,7 +967,12 @@ async function uploadPartySprite(characterId,animationState,input){
       url,
       storage_path:storagePath,
       name:String(file.name||PARTY_SPRITE_STATE_LABELS[animationState]).slice(0,120),
-      mime:file.type||('image/'+ext)
+      mime:file.type||('image/'+ext),
+      type:ext==='png'?'sheet':'animated',
+      columns:ext==='png'?5:1,
+      rows:ext==='png'?5:1,
+      frame_count:ext==='png'?25:1,
+      fps:10
     };
     const saved=await savePartySpriteCharacter(characterId,next);
     if(!saved){
@@ -931,7 +998,7 @@ async function removePartySprite(characterId,animationState){
   const old=current.animations[animationState];
   if(!old.url)return;
   const next=normalizePartySpriteCharacter(current);
-  next.animations[animationState]={url:'',storage_path:'',name:'',mime:''};
+  next.animations[animationState]={url:'',storage_path:'',name:'',mime:'',type:'animated',columns:1,rows:1,frame_count:1,fps:10};
   const saved=await savePartySpriteCharacter(characterId,next);
   if(saved&&old.storage_path){
     const removed=await supabase.storage.from('live-table').remove([old.storage_path]);
@@ -958,6 +1025,25 @@ function setupPartySpriteEditor(){
     const characterId=target?.dataset?.partySpriteFile;
     if(characterId){
       uploadPartySprite(characterId,target.dataset.partySpriteState,target);
+      return;
+    }
+    if(target?.dataset?.partySpriteFormat){
+      const characterId=target.dataset.partySpriteFormat;
+      const animationState=target.dataset.partySpriteState;
+      const current=partySpriteCharacter(characterId);
+      const next=normalizePartySpriteCharacter(current);
+      next.animations[animationState]={...next.animations[animationState],type:target.value==='sheet'?'sheet':'animated'};
+      savePartySpriteCharacter(characterId,next);
+      return;
+    }
+    if(target?.dataset?.partySpriteSheetField){
+      const characterId=target.dataset.characterId;
+      const animationState=target.dataset.partySpriteState;
+      const field=target.dataset.partySpriteSheetField;
+      const current=partySpriteCharacter(characterId);
+      const next=normalizePartySpriteCharacter(current);
+      next.animations[animationState]={...next.animations[animationState],[field]:Number(target.value)};
+      savePartySpriteCharacter(characterId,next);
       return;
     }
     if(target?.dataset?.partySpriteScale)savePartySpriteTuning(target.dataset.partySpriteScale,{scale:Number(target.value)});
