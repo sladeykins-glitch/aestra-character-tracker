@@ -14,4 +14,4 @@ await load('./build-remove-controls-final.js?v=4');
 await load('./unified-build-library-v3.js?v=2');
 await load('./class-skill-level-sync.js?v=1');
 await load('./inventory-navigation-v2.js?v=2');
-await load('./pwa-register.js?v=24');
+await load('./pwa-register.js?v=25');
