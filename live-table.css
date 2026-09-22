@@ -2452,3 +2452,13 @@ body.gm-preview-compact .party-card .party-portrait{width:30px;height:30px}
   .party-animation-controls>span{display:none}
   .party-animation-controls button{padding:0 7px}
 }
+
+
+/* Sprite sheet playback v1 */
+.party-sprite-format{display:grid;gap:5px;margin-top:7px;padding-top:7px;border-top:1px solid rgba(255,255,255,.06)}
+.party-sprite-format>label{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:6px;font-size:7px;color:#8e9aa3}
+.party-sprite-format select,.party-sprite-sheet-fields input{min-width:0;height:27px;padding:3px 6px;font-size:8px}
+.party-sprite-sheet-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}
+.party-sprite-sheet-fields label{display:grid;gap:3px;font-size:7px;color:#8e9aa3}
+.party-sprite-sheet{overflow:hidden;object-fit:initial}
+.party-sprite-sheet-image{position:absolute;max-width:none;max-height:none;object-fit:fill;image-rendering:auto}
