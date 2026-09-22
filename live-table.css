@@ -2388,3 +2388,41 @@ body.gm-preview-compact .party-hud{
 .library-folder-content .scene-card{display:grid}
 .library-folder-content .reveal-card{display:flex}
 @media(max-width:720px){.library-folder-actions button{padding:0 6px!important}.library-folder-toolbar span{display:none}.library-folder-head{gap:5px}}
+
+
+/* Party sprite assignment v1 */
+.gm-panel-reveals>.gm-party-sprites-module{grid-column:1/-1}
+.party-sprite-note{font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:#d2b969;border:1px solid rgba(210,185,105,.28);border-radius:999px;padding:5px 8px}
+.party-sprite-help{margin:-2px 0 10px;font-size:10px;line-height:1.45}
+.party-sprite-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:10px}
+.party-sprite-empty{margin:0;padding:18px;border:1px dashed rgba(255,255,255,.12);border-radius:10px;color:#89949e;text-align:center;font-size:10px}
+.party-sprite-character{min-width:0;padding:10px;border:1px solid rgba(212,185,111,.16);border-radius:12px;background:linear-gradient(180deg,rgba(10,15,20,.78),rgba(8,11,15,.92));transition:opacity .16s ease,border-color .16s ease}
+.party-sprite-character.is-saving{opacity:.58;border-color:rgba(110,185,211,.48)}
+.party-sprite-character>header{display:flex;align-items:center;gap:9px;margin-bottom:9px}
+.party-sprite-character>header>div:last-child{min-width:0}
+.party-sprite-character>header strong{display:block;font:700 12px Georgia,serif;color:#eee4c9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.party-sprite-character>header small{display:block;margin-top:2px;font-size:8px;color:#85919a}
+.party-sprite-character-id{width:38px;height:38px;flex:0 0 38px;border-radius:50%;overflow:hidden;border:1px solid rgba(231,205,136,.38);background:#18212a;display:grid;place-items:center;color:#d8c37a;font:700 12px Georgia,serif}
+.party-sprite-character-id img{width:100%;height:100%;object-fit:cover}
+.party-sprite-slots{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.party-sprite-slot{min-width:0;padding:7px;border:1px solid rgba(255,255,255,.08);border-radius:9px;background:rgba(3,7,10,.38)}
+.party-sprite-slot.has-file{border-color:rgba(96,166,190,.24)}
+.party-sprite-slot-head{display:flex;align-items:center;justify-content:space-between;gap:4px;margin-bottom:5px}
+.party-sprite-slot-head strong{font-size:8px;letter-spacing:.1em;text-transform:uppercase;color:#d8c37a}
+.party-sprite-slot-head button{width:22px;height:22px;min-height:0;padding:0;border-radius:6px;color:#c77d77}
+.party-sprite-preview{height:82px;display:grid;place-items:center;overflow:hidden;border-radius:7px;background:radial-gradient(circle,rgba(34,47,57,.42),rgba(9,13,17,.72));border:1px solid rgba(255,255,255,.05)}
+.party-sprite-preview img{display:block;width:100%;height:100%;object-fit:contain}
+.party-sprite-placeholder{font-size:8px;color:#66727c}
+.party-sprite-upload{display:block;margin-top:6px;min-height:27px;padding:6px 7px;border:1px solid rgba(112,147,165,.22);border-radius:7px;background:#111921;color:#bdc9d0;text-align:center;font-size:8px;cursor:pointer}
+.party-sprite-upload:hover{border-color:rgba(208,181,104,.42);color:#eadcae}
+.party-sprite-upload input{position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none}
+.party-sprite-slot>small{display:block;margin-top:4px;min-height:20px;font-size:7px;line-height:1.25;color:#68747d;word-break:break-word}
+.party-sprite-tuning{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) auto;gap:8px;align-items:end;margin-top:9px;padding-top:9px;border-top:1px solid rgba(255,255,255,.07)}
+.party-sprite-tuning label{display:grid;grid-template-columns:1fr auto;gap:3px 6px;font-size:8px;color:#aeb8c0}
+.party-sprite-tuning label output{color:#d8c37a;font-variant-numeric:tabular-nums}
+.party-sprite-tuning input[type=range]{grid-column:1/-1;width:100%;accent-color:#c8a85a}
+.party-sprite-tuning button{min-height:32px;font-size:8px;white-space:nowrap}
+@media(max-width:760px){
+  .party-sprite-list{grid-template-columns:1fr}
+  .party-sprite-tuning{grid-template-columns:1fr}
+}
