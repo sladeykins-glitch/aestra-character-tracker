@@ -4,7 +4,7 @@ const __aestraBootStarted=performance.now();
 // parallel up-front. This removes the long network waterfall without changing
 // which enhancement layer wins when several layers touch the same UI.
 const AESTRA_MAIN_LAYERS=[
-  './ambient-music.js?v=5','./app-core.js?v=2','./live-table-link.js?v=1','./gm-structured.js?v=1','./enhancements.js?v=2','./status-fix.js?v=2',
+  './ambient-music.js?v=5','./app-core.js?v=3','./live-table-link.js?v=1','./gm-structured.js?v=1','./enhancements.js?v=2','./status-fix.js?v=2',
   './core-library.js?v=6','./high-fantasy-library.js?v=2','./rules-aware.js?v=4','./aestra-visuals.js?v=2',
   './aestra-theme.js?v=1','./aestra-title-v2.js?v=2','./resource-glow.js?v=1','./compact-attributes.js?v=2',
   './compact-ip.js?v=1','./build-menu.js?v=3','./build-remove-force.js?v=2','./ui-icons.js?v=2',
@@ -32,7 +32,7 @@ const AESTRA_FOLLOWUP_LAYERS=[
   './mutant-tools.js?v=1','./pilot-tools.js?v=1','./techno-fantasy-picker.js?v=2','./techno-heroic-picker.js?v=1',
   './completion-sweep.js?v=5','./campaign-settings.js?v=2','./rules-compendium-v2.js?v=1','./character-creation-v2.js?v=1',
   './aestra-session-suite.js?v=1','./build122-stabilization.js?v=1','./hero-console-v2.js?v=1','./compact-header.js?v=2',
-  './pwa-register.js?v=6'
+  './pwa-register.js?v=25'
 ];
 
 (function preloadAestraModules(){
