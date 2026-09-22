@@ -4062,6 +4062,14 @@ function renderStateChanges(keys=[]){
   if(changed.has('cue_sequence')||changed.has('cue_sequence_index')||changed.has('scene_presets'))renderCueSequence();
   if(changed.has('scene_presets')||changed.has('audio_library')||anyStateKey(keys,CUE_SNAPSHOT_KEYS))renderCuePresets();
   if(changed.has('scene_cast'))renderRevealGrid();
+  // Folder definitions live in live_table_state. Re-render both library views whenever
+  // they change (including realtime updates from another GM tab/device), otherwise the
+  // DOM can keep an older folder layout until an unrelated render makes folders seem
+  // to randomly disappear/reappear.
+  if(changed.has('asset_folders')){
+    renderScenes();
+    renderRevealGrid();
+  }
   if(changed.has('mode'))syncBackgroundTasks();
   renderSceneInspector();
 }
