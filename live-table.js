@@ -805,11 +805,23 @@ function renderPartyAnimationControls(){
   });
 }
 
+function syncPartyHudSafeArea(){
+  if(!els.playerDisplay||!els.partyHud)return;
+  const hidden=els.partyHud.classList.contains('hidden')||state?.hud_visible===false||state?.mode==='map';
+  const height=hidden?0:Math.ceil(els.partyHud.getBoundingClientRect().height);
+  els.playerDisplay.style.setProperty('--party-hud-safe-height',height+'px');
+}
+
 function renderParty(){
-  if(!state?.hud_visible){els.partyHud.classList.add('hidden');return}
+  if(!state?.hud_visible){
+    els.partyHud.classList.add('hidden');
+    syncPartyHudSafeArea();
+    return;
+  }
   els.partyHud.classList.remove('hidden');
   if(!party.length){
-    els.partyHud.innerHTML='<div class="party-card no-party-sprite"><div class="party-portrait">✦</div><div><div class="party-name">PARTY</div><div class="muted" style="font-size:9px">Character sheets will appear here.</div></div></div>';
+    els.partyHud.innerHTML='<div class="party-card-shell no-party-sprite"><div class="party-card"><div class="party-portrait">✦</div><div><div class="party-name">PARTY</div><div class="muted" style="font-size:9px">Character sheets will appear here.</div></div></div></div>';
+    requestAnimationFrame(syncPartyHudSafeArea);
     return;
   }
   els.partyHud.innerHTML=party.map(c=>{
@@ -820,16 +832,21 @@ function renderParty(){
     const animation=partyAnimationForCharacter(c.character_id);
     const sprite=partySpriteMarkup(animation,cfg);
     const statuses=(c.statuses||[]).map(s=>'<span class="status-pill">'+esc(s)+'</span>').join('');
-    return '<article class="party-card'+(animation?' has-party-sprite':' no-party-sprite')+'" data-character-id="'+esc(c.character_id)+'">'+
+    return '<article class="party-card-shell'+(animation?' has-party-sprite':' no-party-sprite')+'" data-character-id="'+esc(c.character_id)+'">'+
+      '<div class="party-card">'+
+        '<div class="party-token-wrap">'+portrait+'</div>'+
+        '<div class="party-card-info"><div class="party-name">'+esc(c.name||'Unnamed')+'</div>'+
+          '<div class="resource"><span>HP</span><div class="resource-bar"><i style="width:'+pct(c.hp_current,c.hp_max)+'%"></i></div><b>'+Number(c.hp_current||0)+'/'+Number(c.hp_max||0)+'</b></div>'+
+          '<div class="resource mp"><span>MP</span><div class="resource-bar"><i style="width:'+pct(c.mp_current,c.mp_max)+'%"></i></div><b>'+Number(c.mp_current||0)+'/'+Number(c.mp_max||0)+'</b></div>'+
+          '<div class="resource ip"><span>IP</span><div class="resource-bar"><i style="width:'+pct(c.ip_current,c.ip_max)+'%"></i></div><b>'+Number(c.ip_current||0)+'/'+Number(c.ip_max||0)+'</b></div>'+
+          (statuses?'<div class="status-row">'+statuses+'</div>':'')+
+        '</div>'+
+      '</div>'+
       sprite+
-      '<div class="party-token-wrap">'+portrait+'</div>'+
-      '<div class="party-card-info"><div class="party-name">'+esc(c.name||'Unnamed')+'</div>'+
-      '<div class="resource"><span>HP</span><div class="resource-bar"><i style="width:'+pct(c.hp_current,c.hp_max)+'%"></i></div><b>'+Number(c.hp_current||0)+'/'+Number(c.hp_max||0)+'</b></div>'+
-      '<div class="resource mp"><span>MP</span><div class="resource-bar"><i style="width:'+pct(c.mp_current,c.mp_max)+'%"></i></div><b>'+Number(c.mp_current||0)+'/'+Number(c.mp_max||0)+'</b></div>'+
-      '<div class="resource ip"><span>IP</span><div class="resource-bar"><i style="width:'+pct(c.ip_current,c.ip_max)+'%"></i></div><b>'+Number(c.ip_current||0)+'/'+Number(c.ip_max||0)+'</b></div>'+
-      (statuses?'<div class="status-row">'+statuses+'</div>':'')+'</div></article>';
+    '</article>';
   }).join('');
   startPartySpriteAnimationLoop();
+  requestAnimationFrame(syncPartyHudSafeArea);
 }
 
 
@@ -853,7 +870,7 @@ function normalizePartySpriteCharacter(raw){
       storage_path:String(item.storage_path||''),
       name:String(item.name||''),
       mime:String(item.mime||''),
-      type:item.type==='sheet'?'sheet':'animated',
+      type:(String(item.mime||'').toLowerCase()==='image/gif'||/\.gif$/i.test(String(item.name||'')))?'animated':(item.type==='sheet'?'sheet':'animated'),
       columns:Math.max(1,Math.min(16,Number(item.columns)||1)),
       rows:Math.max(1,Math.min(16,Number(item.rows)||1)),
       frame_count:Math.max(1,Math.min(256,Number(item.frame_count)||1)),
@@ -889,12 +906,15 @@ function renderPartySpriteEditor(){
       const preview=anim.url
         ? '<img src="'+esc(anim.url)+'" alt="'+esc(character.name||'Character')+' '+PARTY_SPRITE_STATE_LABELS[animationState]+' animation" />'
         : '<span class="party-sprite-placeholder">No animation</span>';
+      const isGif=String(anim.mime||'').toLowerCase()==='image/gif'||/\.gif$/i.test(String(anim.name||''));
       const sheetControls=anim.url?'<div class="party-sprite-format">'+
-        '<label>Format<select data-party-sprite-format="'+esc(character.character_id)+'" data-party-sprite-state="'+animationState+'">'+
-          '<option value="animated"'+(anim.type!=='sheet'?' selected':'')+'>Animated file</option>'+
-          '<option value="sheet"'+(anim.type==='sheet'?' selected':'')+'>Sprite sheet</option>'+
-        '</select></label>'+
-        (anim.type==='sheet'?'<div class="party-sprite-sheet-fields">'+
+        (isGif
+          ? '<div class="party-sprite-format-badge">Animated GIF · detected automatically</div>'
+          : '<label>Format<select data-party-sprite-format="'+esc(character.character_id)+'" data-party-sprite-state="'+animationState+'">'+
+              '<option value="animated"'+(anim.type!=='sheet'?' selected':'')+'>Animated file</option>'+
+              '<option value="sheet"'+(anim.type==='sheet'?' selected':'')+'>Sprite sheet</option>'+
+            '</select></label>')+
+        (!isGif&&anim.type==='sheet'?'<div class="party-sprite-sheet-fields">'+
           '<label>Columns<input type="number" min="1" max="16" value="'+anim.columns+'" data-party-sprite-sheet-field="columns" data-character-id="'+esc(character.character_id)+'" data-party-sprite-state="'+animationState+'" /></label>'+
           '<label>Rows<input type="number" min="1" max="16" value="'+anim.rows+'" data-party-sprite-sheet-field="rows" data-character-id="'+esc(character.character_id)+'" data-party-sprite-state="'+animationState+'" /></label>'+
           '<label>Frames<input type="number" min="1" max="256" value="'+anim.frame_count+'" data-party-sprite-sheet-field="frame_count" data-character-id="'+esc(character.character_id)+'" data-party-sprite-state="'+animationState+'" /></label>'+
@@ -2653,6 +2673,7 @@ function renderDisplay(){
   // The world map already represents the party with the caravan marker.
   // Hide the character HUD there to keep the map presentation uncluttered.
   els.partyHud.classList.toggle('hidden',mode==='map'||state.hud_visible===false);
+  requestAnimationFrame(syncPartyHudSafeArea);
   lastDisplaySignature=signature;
   lastDisplayMode=mode;
   lastRenderedSceneId=currentSceneId;
