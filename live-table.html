@@ -7,12 +7,12 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
-<meta name="aestra-live-build" content="69" />
+<meta name="aestra-live-build" content="70" />
 <title>Aestra Live Table</title>
 <link rel="icon" href="aestra-icon.svg" type="image/svg+xml" />
-<link rel="stylesheet" href="live-table.css?v=46" />
+<link rel="stylesheet" href="live-table.css?v=47" />
 </head>
-<body data-live-build="69">
+<body data-live-build="70">
 <div id="authGate" class="auth-gate">
   <form id="authForm" class="auth-card">
     <div class="aestra-mark">✦</div>
@@ -132,6 +132,12 @@
         <button id="returnSceneBtn" class="primary" type="button">Return to Scene</button>
         <button id="clearPinsBtn" type="button">Clear Pinned</button>
         <label class="switch"><input id="hudToggle" type="checkbox" checked /><span>Party HUD</span></label>
+        <div id="partyAnimationControls" class="party-animation-controls" role="group" aria-label="Party animation">
+          <span>Party</span>
+          <button type="button" data-party-animation="idle" aria-pressed="true">Idle</button>
+          <button type="button" data-party-animation="run" aria-pressed="false">Run</button>
+          <button type="button" data-party-animation="sleep" aria-pressed="false">Sleep</button>
+        </div>
 
         <div id="cueQuickRun" class="cue-quick-run">
           <div class="cue-quick-status">
@@ -732,6 +738,6 @@
 </dialog>
 
 <script src="config.js"></script>
-<script type="module" src="live-table.js?v=69"></script>
+<script type="module" src="live-table.js?v=70"></script>
 </body>
 </html>
