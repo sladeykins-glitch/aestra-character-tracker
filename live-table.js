@@ -756,6 +756,199 @@ function renderParty(){
   }).join('');
 }
 
+
+/* Party sprite assignment v1 */
+const PARTY_SPRITE_STATES=['idle','run','sleep'];
+const PARTY_SPRITE_STATE_LABELS={idle:'Idle',run:'Run',sleep:'Sleep'};
+
+function partySpriteSettings(){
+  const raw=state?.party_sprite_settings;
+  return raw&&typeof raw==='object'&&!Array.isArray(raw)?raw:{};
+}
+
+function normalizePartySpriteCharacter(raw){
+  const source=raw&&typeof raw==='object'&&!Array.isArray(raw)?raw:{};
+  const animations=source.animations&&typeof source.animations==='object'&&!Array.isArray(source.animations)?source.animations:{};
+  const normalizedAnimations={};
+  for(const key of PARTY_SPRITE_STATES){
+    const item=animations[key];
+    normalizedAnimations[key]=item&&typeof item==='object'&&!Array.isArray(item)?{
+      url:String(item.url||''),
+      storage_path:String(item.storage_path||''),
+      name:String(item.name||''),
+      mime:String(item.mime||'')
+    }:{url:'',storage_path:'',name:'',mime:''};
+  }
+  return {
+    animations:normalizedAnimations,
+    scale:Math.max(50,Math.min(150,Number(source.scale)||100)),
+    x:Math.max(-80,Math.min(80,Number(source.x)||0)),
+    y:Math.max(-80,Math.min(80,Number(source.y)||0))
+  };
+}
+
+function partySpriteCharacter(characterId){
+  return normalizePartySpriteCharacter(partySpriteSettings()[characterId]);
+}
+
+function renderPartySpriteEditor(){
+  const list=document.getElementById('partySpriteList');
+  if(!list||!canGMControl())return;
+  if(!party.length){
+    list.innerHTML='<p class="party-sprite-empty">Party characters will appear here when character sheets are linked to the Live Table.</p>';
+    return;
+  }
+  list.innerHTML=party.map(character=>{
+    const cfg=partySpriteCharacter(character.character_id);
+    const portrait=character.portrait_url
+      ? '<img src="'+esc(character.portrait_url)+'" alt="" />'
+      : '<span>'+esc((character.name||'?')[0].toUpperCase())+'</span>';
+    const slots=PARTY_SPRITE_STATES.map(animationState=>{
+      const anim=cfg.animations[animationState];
+      const preview=anim.url
+        ? '<img src="'+esc(anim.url)+'" alt="'+esc(character.name||'Character')+' '+PARTY_SPRITE_STATE_LABELS[animationState]+' animation" />'
+        : '<span class="party-sprite-placeholder">No animation</span>';
+      return '<div class="party-sprite-slot'+(anim.url?' has-file':'')+'">'+
+        '<div class="party-sprite-slot-head"><strong>'+PARTY_SPRITE_STATE_LABELS[animationState]+'</strong>'+
+        (anim.url?'<button type="button" data-party-sprite-remove="'+esc(character.character_id)+'" data-party-sprite-state="'+animationState+'" title="Remove '+PARTY_SPRITE_STATE_LABELS[animationState]+' animation">×</button>':'')+
+        '</div>'+
+        '<div class="party-sprite-preview">'+preview+'</div>'+
+        '<label class="party-sprite-upload">'+(anim.url?'Replace':'Upload')+
+          '<input type="file" accept="image/png,image/gif,image/webp" data-party-sprite-file="'+esc(character.character_id)+'" data-party-sprite-state="'+animationState+'" />'+
+        '</label>'+
+        '<small>'+esc(anim.name||'PNG, GIF or WebP · up to 20 MB')+'</small>'+
+      '</div>';
+    }).join('');
+    return '<article class="party-sprite-character" data-party-sprite-character="'+esc(character.character_id)+'">'+
+      '<header><div class="party-sprite-character-id">'+portrait+'</div><div><strong>'+esc(character.name||'Unnamed')+'</strong><small>'+esc(character.player_name||'Party character')+'</small></div></header>'+
+      '<div class="party-sprite-slots">'+slots+'</div>'+
+      '<div class="party-sprite-tuning">'+
+        '<label>Scale <output data-party-sprite-scale-output="'+esc(character.character_id)+'">'+Math.round(cfg.scale)+'%</output>'+
+          '<input type="range" min="50" max="150" step="1" value="'+cfg.scale+'" data-party-sprite-scale="'+esc(character.character_id)+'" /></label>'+
+        '<label>X offset <output>'+Math.round(cfg.x)+'</output><input type="range" min="-80" max="80" step="1" value="'+cfg.x+'" data-party-sprite-x="'+esc(character.character_id)+'" /></label>'+
+        '<label>Y offset <output>'+Math.round(cfg.y)+'</output><input type="range" min="-80" max="80" step="1" value="'+cfg.y+'" data-party-sprite-y="'+esc(character.character_id)+'" /></label>'+
+        '<button type="button" data-party-sprite-reset="'+esc(character.character_id)+'">Reset alignment</button>'+
+      '</div>'+
+    '</article>';
+  }).join('');
+}
+
+async function savePartySpriteCharacter(characterId,nextConfig){
+  if(!canGMControl()||!characterId)return null;
+  const next={...partySpriteSettings(),[characterId]:normalizePartySpriteCharacter(nextConfig)};
+  return patchState({party_sprite_settings:next});
+}
+
+function partySpriteExt(file){
+  const fromName=(String(file?.name||'').split('.').pop()||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+  if(['png','gif','webp'].includes(fromName))return fromName;
+  return ({'image/png':'png','image/gif':'gif','image/webp':'webp'})[file?.type]||'webp';
+}
+
+async function uploadPartySprite(characterId,animationState,input){
+  if(!canGMControl()||!PARTY_SPRITE_STATES.includes(animationState))return;
+  const file=input?.files?.[0];
+  if(input)input.value='';
+  if(!file)return;
+  if(file.size>20*1024*1024){alert('Character animations must be 20 MB or smaller.');return}
+  if(!['image/png','image/gif','image/webp'].includes(file.type)&&!/\.(png|gif|webp)$/i.test(file.name||'')){
+    alert('Choose a PNG, GIF or WebP animation.');
+    return;
+  }
+  const card=document.querySelector('[data-party-sprite-character="'+CSS.escape(characterId)+'"]');
+  card?.classList.add('is-saving');
+  const current=partySpriteCharacter(characterId);
+  const old=current.animations[animationState];
+  const ext=partySpriteExt(file);
+  const storagePath=CAMPAIGN_ID+'/party-sprites/'+characterId+'/'+animationState+'-'+crypto.randomUUID()+'.'+ext;
+  try{
+    const up=await supabase.storage.from('live-table').upload(storagePath,file,{
+      cacheControl:'31536000',
+      upsert:false,
+      contentType:file.type||('image/'+ext)
+    });
+    if(up.error)throw up.error;
+    const url=supabase.storage.from('live-table').getPublicUrl(storagePath).data.publicUrl;
+    const next=normalizePartySpriteCharacter(current);
+    next.animations[animationState]={
+      url,
+      storage_path:storagePath,
+      name:String(file.name||PARTY_SPRITE_STATE_LABELS[animationState]).slice(0,120),
+      mime:file.type||('image/'+ext)
+    };
+    const saved=await savePartySpriteCharacter(characterId,next);
+    if(!saved){
+      await supabase.storage.from('live-table').remove([storagePath]);
+      return;
+    }
+    if(old.storage_path&&old.storage_path!==storagePath){
+      const removed=await supabase.storage.from('live-table').remove([old.storage_path]);
+      if(removed.error)console.warn('Could not remove replaced party sprite',removed.error);
+    }
+  }catch(err){
+    console.error('Party sprite upload failed',err);
+    alert(err?.message||'Could not upload that character animation.');
+  }finally{
+    card?.classList.remove('is-saving');
+    renderPartySpriteEditor();
+  }
+}
+
+async function removePartySprite(characterId,animationState){
+  if(!canGMControl()||!PARTY_SPRITE_STATES.includes(animationState))return;
+  const current=partySpriteCharacter(characterId);
+  const old=current.animations[animationState];
+  if(!old.url)return;
+  const next=normalizePartySpriteCharacter(current);
+  next.animations[animationState]={url:'',storage_path:'',name:'',mime:''};
+  const saved=await savePartySpriteCharacter(characterId,next);
+  if(saved&&old.storage_path){
+    const removed=await supabase.storage.from('live-table').remove([old.storage_path]);
+    if(removed.error)console.warn('Could not remove party sprite storage object',removed.error);
+  }
+}
+
+async function savePartySpriteTuning(characterId,patch){
+  const current=partySpriteCharacter(characterId);
+  await savePartySpriteCharacter(characterId,{...current,...patch});
+}
+
+function setupPartySpriteEditor(){
+  if(!canGMControl()||document.getElementById('partySpritePanel')||!els.gmPanelReveals)return;
+  const panel=gmModule('gm-party-sprites-module','Party Sprites');
+  panel.id='partySpritePanel';
+  panel.innerHTML='<div class="section-head compact"><div><p class="eyebrow">Party HUD</p><h2>Character Sprites</h2></div><span class="party-sprite-note">Linked by character</span></div>'+
+    '<p class="muted party-sprite-help">Assign Idle, Run and Sleep animations to each party character. Scale and offsets apply to that character across every animation.</p>'+
+    '<div id="partySpriteList" class="party-sprite-list"></div>';
+  els.gmPanelReveals.append(panel);
+
+  panel.addEventListener('change',event=>{
+    const target=event.target;
+    const characterId=target?.dataset?.partySpriteFile;
+    if(characterId){
+      uploadPartySprite(characterId,target.dataset.partySpriteState,target);
+      return;
+    }
+    if(target?.dataset?.partySpriteScale)savePartySpriteTuning(target.dataset.partySpriteScale,{scale:Number(target.value)});
+    if(target?.dataset?.partySpriteX)savePartySpriteTuning(target.dataset.partySpriteX,{x:Number(target.value)});
+    if(target?.dataset?.partySpriteY)savePartySpriteTuning(target.dataset.partySpriteY,{y:Number(target.value)});
+  });
+  panel.addEventListener('input',event=>{
+    const target=event.target;
+    const output=target?.closest('label')?.querySelector('output');
+    if(!output)return;
+    if(target.dataset.partySpriteScale)output.textContent=Math.round(Number(target.value)||100)+'%';
+    else output.textContent=String(Math.round(Number(target.value)||0));
+  });
+  panel.addEventListener('click',event=>{
+    const remove=event.target.closest('[data-party-sprite-remove]');
+    if(remove){removePartySprite(remove.dataset.partySpriteRemove,remove.dataset.partySpriteState);return}
+    const reset=event.target.closest('[data-party-sprite-reset]');
+    if(reset)savePartySpriteTuning(reset.dataset.partySpriteReset,{scale:100,x:0,y:0});
+  });
+  renderPartySpriteEditor();
+}
+
 function setBackdrop(asset){
   els.backdrop.style.backgroundImage=asset?.image_url?'url("'+asset.image_url.replace(/"/g,'%22')+'")':'';
 }
@@ -4070,6 +4263,7 @@ function renderStateChanges(keys=[]){
     renderScenes();
     renderRevealGrid();
   }
+  if(changed.has('party_sprite_settings'))renderPartySpriteEditor();
   if(changed.has('mode'))syncBackgroundTasks();
   renderSceneInspector();
 }
@@ -4086,6 +4280,7 @@ function renderAll(){
   renderRecent();
   renderSceneInspector();
   renderMajorIntro();
+  renderPartySpriteEditor();
   syncLiveAudio();
 }
 
@@ -4787,7 +4982,7 @@ async function subscribeRealtime(){
     })
     .subscribe();
   const partyChannel=supabase.channel('aestra-live-party')
-    .on('postgres_changes',{event:'*',schema:'public',table:'live_table_party',filter:'campaign_id=eq.'+CAMPAIGN_ID},async()=>{await loadParty();renderParty()})
+    .on('postgres_changes',{event:'*',schema:'public',table:'live_table_party',filter:'campaign_id=eq.'+CAMPAIGN_ID},async()=>{await loadParty();renderParty();renderPartySpriteEditor()})
     .subscribe();
   const mapStateChannel=supabase.channel('aestra-live-map-state')
     .on('postgres_changes',{event:'*',schema:'public',table:'live_table_map_state',filter:'campaign_id=eq.'+CAMPAIGN_ID},payload=>{
@@ -4897,6 +5092,7 @@ function setupGmWorkspace(){
   if(els.sceneCastPanel)revealsPanel.append(els.sceneCastPanel);
   revealColumn.classList.add('gm-reveal-module');
   revealsPanel.append(revealColumn);
+  setupPartySpriteEditor();
 
   if(els.cueSequencePanel)sessionPanel.append(els.cueSequencePanel);
   if(els.cuePresetsPanel)sessionPanel.append(els.cuePresetsPanel);
