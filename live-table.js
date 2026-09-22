@@ -702,7 +702,13 @@ function liveStateRevision(value){
 function acceptLiveState(next,{force=false}={}){
   if(!next)return false;
   if(!force&&state&&liveStateRevision(next)<liveStateRevision(state))return false;
-  state=next;
+
+  // Realtime/update payloads can occasionally be partial. Never let a state-only
+  // change (for example Idle -> Run) erase unrelated persisted settings such as
+  // party_sprite_settings from the in-memory Live Table state.
+  state=state&&typeof state==='object'
+    ? {...state,...next}
+    : next;
   return true;
 }
 
@@ -5450,12 +5456,23 @@ function wire(){
   els.arrangeSceneCastBtn?.addEventListener('click',toggleSceneCastArrangeMode);
   els.autoSceneCastBtn?.addEventListener('click',resetSceneCastLayout);
   els.hudToggle.addEventListener('change',()=>patchState({hud_visible:els.hudToggle.checked}));
-  els.partyAnimationControls?.addEventListener('click',event=>{
+  els.partyAnimationControls?.addEventListener('click',async event=>{
     const button=event.target.closest('[data-party-animation]');
     if(!button)return;
     const next=button.dataset.partyAnimation;
     if(!PARTY_SPRITE_STATES.includes(next))return;
-    patchState({party_animation_state:next});
+
+    await patchState({party_animation_state:next});
+
+    // Defensive refresh: if an incomplete realtime payload ever left the local
+    // state without sprite assignments, immediately restore the authoritative row.
+    const localSprites=state?.party_sprite_settings;
+    if(!localSprites||typeof localSprites!=='object'||Array.isArray(localSprites)){
+      await loadState();
+      renderParty();
+      renderPartySpriteEditor();
+      renderPartyAnimationControls();
+    }
   });
   document.querySelectorAll('[data-scene-fx]').forEach(button=>button.addEventListener('click',()=>toggleSceneEffect(button.dataset.sceneFx)));
   els.sceneFxIntensity?.addEventListener('change',()=>setSceneEffectSetting('intensity',els.sceneFxIntensity.value));
