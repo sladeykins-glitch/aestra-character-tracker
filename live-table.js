@@ -736,19 +736,50 @@ async function loadMapState(){
   mapState=data||null;
 }
 
+function partyAnimationState(){
+  return PARTY_SPRITE_STATES.includes(state?.party_animation_state)?state.party_animation_state:'idle';
+}
+
+function partyAnimationForCharacter(characterId){
+  const cfg=partySpriteCharacter(characterId);
+  const requested=cfg.animations[partyAnimationState()];
+  if(requested?.url)return requested;
+  const idle=cfg.animations.idle;
+  return idle?.url?idle:null;
+}
+
+function renderPartyAnimationControls(){
+  const group=els.partyAnimationControls;
+  if(!group)return;
+  const current=partyAnimationState();
+  group.querySelectorAll('[data-party-animation]').forEach(button=>{
+    const active=button.dataset.partyAnimation===current;
+    button.classList.toggle('active',active);
+    button.setAttribute('aria-pressed',active?'true':'false');
+  });
+}
+
 function renderParty(){
   if(!state?.hud_visible){els.partyHud.classList.add('hidden');return}
   els.partyHud.classList.remove('hidden');
   if(!party.length){
-    els.partyHud.innerHTML='<div class="party-card"><div class="party-portrait">✦</div><div><div class="party-name">PARTY</div><div class="muted" style="font-size:9px">Character sheets will appear here.</div></div></div>';
+    els.partyHud.innerHTML='<div class="party-card no-party-sprite"><div class="party-portrait">✦</div><div><div class="party-name">PARTY</div><div class="muted" style="font-size:9px">Character sheets will appear here.</div></div></div>';
     return;
   }
   els.partyHud.innerHTML=party.map(c=>{
     const portrait=c.portrait_url
       ? '<img class="party-portrait" src="'+esc(c.portrait_url)+'" alt="'+esc(c.name)+' portrait" decoding="async" fetchpriority="high">'
       : '<div class="party-portrait">'+esc((c.name||'?')[0].toUpperCase())+'</div>';
+    const cfg=partySpriteCharacter(c.character_id);
+    const animation=partyAnimationForCharacter(c.character_id);
+    const sprite=animation
+      ? '<div class="party-sprite-stage" aria-hidden="true"><img class="party-hud-sprite" src="'+esc(animation.url)+'" alt="" style="--party-sprite-scale:'+(cfg.scale/100)+';--party-sprite-x:'+cfg.x+'px;--party-sprite-y:'+cfg.y+'px" /></div>'
+      : '';
     const statuses=(c.statuses||[]).map(s=>'<span class="status-pill">'+esc(s)+'</span>').join('');
-    return '<article class="party-card">'+portrait+'<div><div class="party-name">'+esc(c.name||'Unnamed')+'</div>'+
+    return '<article class="party-card'+(animation?' has-party-sprite':' no-party-sprite')+'" data-character-id="'+esc(c.character_id)+'">'+
+      sprite+
+      '<div class="party-token-wrap">'+portrait+'</div>'+
+      '<div class="party-card-info"><div class="party-name">'+esc(c.name||'Unnamed')+'</div>'+
       '<div class="resource"><span>HP</span><div class="resource-bar"><i style="width:'+pct(c.hp_current,c.hp_max)+'%"></i></div><b>'+Number(c.hp_current||0)+'/'+Number(c.hp_max||0)+'</b></div>'+
       '<div class="resource mp"><span>MP</span><div class="resource-bar"><i style="width:'+pct(c.mp_current,c.mp_max)+'%"></i></div><b>'+Number(c.mp_current||0)+'/'+Number(c.mp_max||0)+'</b></div>'+
       '<div class="resource ip"><span>IP</span><div class="resource-bar"><i style="width:'+pct(c.ip_current,c.ip_max)+'%"></i></div><b>'+Number(c.ip_current||0)+'/'+Number(c.ip_max||0)+'</b></div>'+
@@ -4263,7 +4294,8 @@ function renderStateChanges(keys=[]){
     renderScenes();
     renderRevealGrid();
   }
-  if(changed.has('party_sprite_settings'))renderPartySpriteEditor();
+  if(changed.has('party_sprite_settings')){renderPartySpriteEditor();renderParty();}
+  if(changed.has('party_animation_state')){renderParty();renderPartyAnimationControls();}
   if(changed.has('mode'))syncBackgroundTasks();
   renderSceneInspector();
 }
@@ -4281,6 +4313,7 @@ function renderAll(){
   renderSceneInspector();
   renderMajorIntro();
   renderPartySpriteEditor();
+  renderPartyAnimationControls();
   syncLiveAudio();
 }
 
@@ -5310,6 +5343,13 @@ function wire(){
   els.arrangeSceneCastBtn?.addEventListener('click',toggleSceneCastArrangeMode);
   els.autoSceneCastBtn?.addEventListener('click',resetSceneCastLayout);
   els.hudToggle.addEventListener('change',()=>patchState({hud_visible:els.hudToggle.checked}));
+  els.partyAnimationControls?.addEventListener('click',event=>{
+    const button=event.target.closest('[data-party-animation]');
+    if(!button)return;
+    const next=button.dataset.partyAnimation;
+    if(!PARTY_SPRITE_STATES.includes(next))return;
+    patchState({party_animation_state:next});
+  });
   document.querySelectorAll('[data-scene-fx]').forEach(button=>button.addEventListener('click',()=>toggleSceneEffect(button.dataset.sceneFx)));
   els.sceneFxIntensity?.addEventListener('change',()=>setSceneEffectSetting('intensity',els.sceneFxIntensity.value));
   els.sceneFxFade?.addEventListener('change',()=>setSceneEffectSetting('fade_ms',els.sceneFxFade.value));
