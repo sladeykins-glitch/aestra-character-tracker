@@ -2591,3 +2591,57 @@ body.gm-preview-compact .party-card-shell>.party-card{
   .party-hud{grid-template-columns:1fr}
   .party-card-shell{--party-card-min:210px}
 }
+
+
+/* Party HUD open-card polish v4: no frame border, all three resources contained */
+.party-card-shell{
+  min-height:88px;
+}
+.party-card-shell>.party-card{
+  aspect-ratio:auto;
+  min-height:82px;
+  height:auto;
+  padding:9px 12px;
+  overflow:visible;
+  border:0!important;
+  border-radius:8px;
+  background:
+    linear-gradient(90deg,rgba(5,9,13,.88) 0%,rgba(7,12,17,.78) 72%,rgba(7,12,17,.48) 100%);
+  box-shadow:none;
+}
+.party-card-shell>.party-card::before{
+  content:none!important;
+  display:none!important;
+}
+.party-card-shell .party-card-info{
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  min-height:64px;
+  padding:1px 0 2px;
+}
+.party-card-shell .resource{
+  margin-top:3px;
+  grid-template-columns:18px minmax(92px,1fr) 34px;
+  gap:5px;
+}
+.party-card-shell .resource>b{
+  min-width:34px;
+  padding-right:1px;
+}
+.party-card-shell .party-sprite-stage{
+  bottom:1px;
+}
+body.gm-preview-compact .party-card-shell{
+  min-height:78px;
+}
+body.gm-preview-compact .party-card-shell>.party-card{
+  min-height:72px;
+  padding:7px 10px;
+}
+@media(max-width:700px){
+  .party-card-shell{min-height:82px}
+  .party-card-shell>.party-card{min-height:76px;padding:7px 9px}
+  .party-card-shell .resource{grid-template-columns:16px minmax(72px,1fr) 31px;gap:4px}
+  .party-card-shell .resource>b{min-width:31px}
+}
