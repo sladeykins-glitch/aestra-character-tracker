@@ -5462,16 +5462,18 @@ function wire(){
     const next=button.dataset.partyAnimation;
     if(!PARTY_SPRITE_STATES.includes(next))return;
 
-    await patchState({party_animation_state:next});
-
-    // Defensive refresh: if an incomplete realtime payload ever left the local
-    // state without sprite assignments, immediately restore the authoritative row.
-    const localSprites=state?.party_sprite_settings;
-    if(!localSprites||typeof localSprites!=='object'||Array.isArray(localSprites)){
+    // Always begin and end an animation switch from the authoritative state row.
+    // This keeps Idle/Run/Sleep switching independent from sprite assignment data.
+    button.disabled=true;
+    try{
+      await loadState();
+      await patchState({party_animation_state:next});
       await loadState();
       renderParty();
       renderPartySpriteEditor();
       renderPartyAnimationControls();
+    }finally{
+      button.disabled=false;
     }
   });
   document.querySelectorAll('[data-scene-fx]').forEach(button=>button.addEventListener('click',()=>toggleSceneEffect(button.dataset.sceneFx)));
@@ -5547,8 +5549,12 @@ function wire(){
 async function startApp(){
   showApp();
   await checkRole();
-  setupGmWorkspace();
+
+  // Load authoritative data before mounting GM modules. The party sprite editor
+  // renders immediately when it is mounted, so mounting it before state/party data
+  // arrived could briefly build an empty editor and later race a state-only render.
   await Promise.all([loadState(),loadAssets(),loadParty(),loadMapState()]);
+  setupGmWorkspace();
   renderAll();
 
   // Background work only runs while its display mode is actually active.
