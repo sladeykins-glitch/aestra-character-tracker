@@ -2661,3 +2661,99 @@ body.gm-preview-compact .party-card-shell.has-sprite-pair{--party-sprite-lane:11
   .party-card-shell.has-sprite-pair{--party-sprite-lane:104px;--party-card-min:200px}
   .party-card-shell.has-sprite-pair .party-hud-sprite{width:52px;height:64px}
 }
+
+/* Compact party rail: keep each actor tied to its resource row. */
+.party-hud,.display-only .party-hud{
+  left:14px;
+  top:14px;
+  width:min(332px,calc(100% - 28px));
+  max-height:calc(100% - 28px);
+  box-sizing:border-box;
+  gap:2px;
+  padding:6px 8px;
+  overflow-x:hidden;
+  overflow-y:auto;
+  border:1px solid rgba(212,187,121,.16);
+  border-radius:12px;
+  background:linear-gradient(90deg,rgba(5,9,14,.80),rgba(8,13,18,.63));
+  box-shadow:0 8px 24px rgba(0,0,0,.18);
+  backdrop-filter:blur(5px);
+}
+.party-card-shell,
+.party-card-shell.no-party-sprite,
+body.gm-preview-compact .party-card-shell{
+  min-width:0;
+  width:100%;
+  min-height:68px;
+  box-sizing:border-box;
+  padding-right:var(--party-sprite-lane);
+  border-bottom:1px solid rgba(222,199,145,.11);
+}
+.party-card-shell:last-child{border-bottom:0}
+.party-card-shell:has(.status-row){min-height:86px}
+.party-card-shell:has(.status-row)>.party-card{min-height:86px;height:auto}
+.party-card-shell:not(.no-party-sprite){--party-sprite-lane:86px}
+.party-card-shell.has-sprite-pair,
+body.gm-preview-compact .party-card-shell.has-sprite-pair{--party-sprite-lane:110px}
+.party-card-shell>.party-card,
+body.gm-preview-compact .party-card-shell>.party-card{
+  min-width:0;
+  min-height:68px;
+  height:68px;
+  aspect-ratio:auto;
+  display:grid;
+  grid-template-columns:29px minmax(0,1fr);
+  gap:6px;
+  padding:5px 4px;
+  border-radius:6px;
+  background:rgba(11,17,23,.14);
+  overflow:hidden;
+}
+.party-card-shell .party-card-info{min-height:0;padding:0}
+.party-card-shell .party-card .party-portrait,
+body.gm-preview-compact .party-card-shell .party-card .party-portrait{width:28px;height:28px}
+.party-card-shell .party-name{font-size:12px;line-height:1.1;letter-spacing:0}
+.party-card-shell .resource,
+body.gm-preview-compact .party-card-shell .resource{
+  margin-top:3px;
+  grid-template-columns:16px minmax(0,1fr) 31px;
+  gap:4px;
+  font-size:9px;
+  line-height:1;
+}
+.party-card-shell .resource>b{min-width:31px;font-size:9px}
+.party-card-shell .resource-bar{height:4px}
+.party-card-shell .party-sprite-stage,
+body.gm-preview-compact .party-card-shell .party-sprite-stage{
+  right:0;
+  bottom:0;
+  width:var(--party-sprite-lane);
+  height:68px;
+}
+.party-card-shell .party-hud-sprite,
+body.gm-preview-compact .party-card-shell .party-hud-sprite{
+  width:66px;
+  height:68px;
+}
+.party-card-shell .party-sprite-pair .party-hud-sprite,
+body.gm-preview-compact .party-card-shell .party-sprite-pair .party-hud-sprite{
+  width:55px;
+  height:68px;
+}
+body.gm-preview-compact .party-hud{
+  width:min(332px,calc(100% - 24px));
+  inline-size:min(332px,calc(100% - 24px));
+  transform:scale(.76);
+}
+@media(max-width:640px){
+  .party-hud,.display-only .party-hud{
+    left:8px;
+    top:8px;
+    width:min(306px,calc(100% - 16px));
+    max-height:46%;
+  }
+  .party-card-shell:not(.no-party-sprite){--party-sprite-lane:76px}
+  .party-card-shell.has-sprite-pair{--party-sprite-lane:96px}
+  .party-card-shell .party-hud-sprite{width:58px;height:66px}
+  .party-card-shell .party-sprite-pair .party-hud-sprite{width:48px;height:66px}
+}
