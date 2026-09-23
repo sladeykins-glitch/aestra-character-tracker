@@ -3017,3 +3017,30 @@ body.gm-preview-compact .location-title{top:20px}
 @media(max-width:640px){
   .location-title{top:22px}
 }
+
+/* A shorter six-member party rail without shrinking resource text. */
+.party-card-shell,
+.party-card-shell.no-party-sprite,
+body.gm-preview-compact .party-card-shell{
+  min-height:60px;
+}
+.party-card-shell>.party-card,
+body.gm-preview-compact .party-card-shell>.party-card{
+  height:60px;
+  min-height:60px;
+  padding-block:3px;
+}
+.party-card-shell .resource,
+body.gm-preview-compact .party-card-shell .resource{
+  margin-top:2px;
+}
+.party-card-shell .party-sprite-stage,
+body.gm-preview-compact .party-card-shell .party-sprite-stage{
+  height:60px;
+}
+.party-card-shell .party-hud-sprite,
+body.gm-preview-compact .party-card-shell .party-hud-sprite,
+.party-card-shell .party-sprite-pair .party-hud-sprite,
+body.gm-preview-compact .party-card-shell .party-sprite-pair .party-hud-sprite{
+  height:60px;
+}
