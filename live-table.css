@@ -2997,3 +2997,23 @@ body.gm-preview-compact .party-card-shell .party-sprite-pair .party-hud-sprite{
   }
   .party-card-shell .resource>b{min-width:35px}
 }
+
+/* Keep the scene title close to the top, readable over bright artwork. */
+.location-title{
+  top:34px;
+  isolation:isolate;
+}
+.location-title::before{
+  content:"";
+  position:absolute;
+  z-index:-1;
+  inset:-14px -24px -12px;
+  background:radial-gradient(ellipse at 50% 45%,rgba(4,7,12,.62) 0%,rgba(4,7,12,.30) 46%,transparent 78%);
+  filter:blur(9px);
+  pointer-events:none;
+}
+.location-title strong{margin-top:3px}
+body.gm-preview-compact .location-title{top:20px}
+@media(max-width:640px){
+  .location-title{top:22px}
+}
