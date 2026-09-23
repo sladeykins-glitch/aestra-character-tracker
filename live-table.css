@@ -2645,3 +2645,19 @@ body.gm-preview-compact .party-card-shell>.party-card{
   .party-card-shell .resource{grid-template-columns:16px minmax(72px,1fr) 31px;gap:4px}
   .party-card-shell .resource>b{min-width:31px}
 }
+
+/* Two visual sprites sharing one party card */
+.party-sprite-secondary-add{margin-top:9px;min-height:32px;width:100%;border:1px dashed rgba(210,185,105,.35);color:#d8c37a;background:rgba(210,185,105,.05)}
+.party-sprite-secondary-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:12px 0 7px;padding-top:10px;border-top:1px solid rgba(255,255,255,.09)}
+.party-sprite-secondary-head strong{color:#d8c37a;font:700 12px Georgia,serif}
+.party-sprite-secondary-head button{min-height:30px;font-size:10px;color:#cfa6a1}
+.party-card-shell.has-sprite-pair{--party-sprite-lane:140px}
+.party-card-shell .party-sprite-pair{width:var(--party-sprite-lane)}
+.party-card-shell .party-sprite-member{position:absolute;bottom:0;width:50%;height:100%}
+.party-card-shell .party-sprite-member:first-child{left:0}
+.party-card-shell .party-sprite-member:last-child{right:0}
+body.gm-preview-compact .party-card-shell.has-sprite-pair{--party-sprite-lane:112px}
+@media(max-width:700px){
+  .party-card-shell.has-sprite-pair{--party-sprite-lane:104px;--party-card-min:200px}
+  .party-card-shell.has-sprite-pair .party-hud-sprite{width:52px;height:64px}
+}
