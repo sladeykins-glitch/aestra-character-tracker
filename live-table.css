@@ -2533,7 +2533,7 @@ body.gm-preview-compact .party-card .party-portrait{width:30px;height:30px}
   pointer-events:none!important;
 }
 .player-display .scene-cast{
-  bottom:calc(26px + var(--party-hud-safe-height,0px));
+  bottom:26px;
 }
 .player-display .pin-card{
   max-height:calc(100% - var(--party-hud-safe-height,0px) - 112px);
