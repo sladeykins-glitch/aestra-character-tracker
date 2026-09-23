@@ -3044,3 +3044,21 @@ body.gm-preview-compact .party-card-shell .party-hud-sprite,
 body.gm-preview-compact .party-card-shell .party-sprite-pair .party-hud-sprite{
   height:60px;
 }
+
+/* Recessed tracks and a restrained satin highlight on the live resources. */
+.party-card-shell .resource-bar{
+  background:linear-gradient(180deg,#111a22,#27313a);
+  box-shadow:inset 0 1px 2px rgba(0,0,0,.76),0 0 0 1px rgba(233,224,192,.13);
+}
+.party-card-shell .resource-bar i{
+  position:relative;
+  box-shadow:inset 0 1px rgba(255,255,255,.30),inset 0 -1px rgba(0,0,0,.28);
+}
+.party-card-shell .resource-bar i::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius:inherit;
+  background:linear-gradient(180deg,rgba(255,255,255,.16),transparent 55%,rgba(0,0,0,.10));
+  pointer-events:none;
+}
