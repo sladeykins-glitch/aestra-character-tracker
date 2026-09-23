@@ -2841,3 +2841,18 @@ body.gm-preview-compact .party-hud{
   .party-card-shell .party-card .party-portrait{width:30px;height:30px}
   .party-card-shell>.party-card{grid-template-columns:31px minmax(0,1fr)}
 }
+
+/* Aestra display typography: ceremonial headings, clear at-a-glance resources. */
+.auth-card h1,.gm-header h1,.section-head h2,
+.location-title strong,.party-card-shell .party-name,
+.reveal-copy strong,.pin-card strong,
+.scene-cast-head h3,.scene-effects-head h3{
+  font-family:"Cinzel",Georgia,serif;
+}
+.location-title strong{font-weight:600}
+.party-card-shell .party-name{font-weight:600;letter-spacing:.005em}
+.party-card-shell .resource,
+body.gm-preview-compact .party-card-shell .resource{
+  font-family:"Inter",system-ui,sans-serif;
+  font-variant-numeric:tabular-nums;
+}
