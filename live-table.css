@@ -2944,3 +2944,56 @@ body.gm-preview-compact .party-card-shell .resource{
   }
   .party-card-shell .resource>b{min-width:37px}
 }
+
+/* Pack HUD data and sprites together after shortening resource bars. */
+.party-hud,.display-only .party-hud{
+  width:min(315px,calc(100% - 28px));
+  padding-inline:7px;
+}
+body.gm-preview-compact .party-hud{
+  width:min(315px,calc(100% - 24px));
+  inline-size:min(315px,calc(100% - 24px));
+}
+.party-card-shell:not(.no-party-sprite){--party-sprite-lane:70px}
+.party-card-shell.has-sprite-pair,
+body.gm-preview-compact .party-card-shell.has-sprite-pair{--party-sprite-lane:92px}
+.party-card-shell .resource,
+body.gm-preview-compact .party-card-shell .resource{
+  grid-template-columns:17px minmax(0,80px) 37px;
+  gap:5px;
+}
+.party-card-shell .resource>b{min-width:37px}
+.party-card-shell .party-hud-sprite,
+body.gm-preview-compact .party-card-shell .party-hud-sprite{
+  width:62px;
+  height:65px;
+}
+.party-card-shell .party-sprite-pair .party-hud-sprite,
+body.gm-preview-compact .party-card-shell .party-sprite-pair .party-hud-sprite{
+  width:46px;
+  height:65px;
+}
+@media(max-width:640px){
+  .party-hud,.display-only .party-hud{
+    width:min(315px,calc(100% - 16px));
+    padding-inline:7px;
+  }
+  .party-card-shell:not(.no-party-sprite){--party-sprite-lane:70px}
+  .party-card-shell.has-sprite-pair{--party-sprite-lane:92px}
+  .party-card-shell .resource,
+  body.gm-preview-compact .party-card-shell .resource{
+    grid-template-columns:16px minmax(0,80px) 37px;
+    gap:4px;
+  }
+}
+@media(max-width:360px){
+  .party-card-shell:not(.no-party-sprite){--party-sprite-lane:64px}
+  .party-card-shell.has-sprite-pair{--party-sprite-lane:80px}
+  .party-card-shell .party-sprite-pair .party-hud-sprite{width:40px}
+  .party-card-shell .resource,
+  body.gm-preview-compact .party-card-shell .resource{
+    grid-template-columns:16px minmax(0,64px) 35px;
+    gap:4px;
+  }
+  .party-card-shell .resource>b{min-width:35px}
+}
