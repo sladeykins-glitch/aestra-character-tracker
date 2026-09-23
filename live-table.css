@@ -2882,8 +2882,9 @@ body.gm-preview-compact .party-card-shell .resource{
 }
 .scene-cast-member .scene-cast-art img{z-index:1}
 .scene-cast-member strong{
-  display:grid;
-  place-items:center;
+  display:block;
+  text-align:center;
+  line-height:23px;
   flex:none;
   box-sizing:border-box;
   min-width:84px;
