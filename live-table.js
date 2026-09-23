@@ -746,11 +746,12 @@ function partyAnimationState(){
   return PARTY_SPRITE_STATES.includes(state?.party_animation_state)?state.party_animation_state:'idle';
 }
 
-function partyAnimationForCharacter(characterId){
+function partyAnimationForCharacter(characterId,slot='primary'){
   const cfg=partySpriteCharacter(characterId);
-  const requested=cfg.animations[partyAnimationState()];
+  const animations=slot==='secondary'?cfg.secondary_animations:cfg.animations;
+  const requested=animations[partyAnimationState()];
   if(requested?.url)return requested;
-  const idle=cfg.animations.idle;
+  const idle=animations.idle;
   return idle?.url?idle:null;
 }
 
@@ -787,17 +788,27 @@ function startPartySpriteAnimationLoop(){
   partySpriteAnimationRaf=requestAnimationFrame(tick);
 }
 
-function partySpriteMarkup(animation,cfg){
-  if(!animation?.url)return '';
+function partySpriteMarkup(animation,cfg,secondaryAnimation=null){
+  if(!animation?.url&&!secondaryAnimation?.url)return '';
   const commonStyle='--party-sprite-scale:'+(cfg.scale/100)+';--party-sprite-x:'+cfg.x+'px;--party-sprite-y:'+cfg.y+'px';
-  if(animation.type==='sheet'){
-    const cols=Math.max(1,Number(animation.columns)||1);
-    const rows=Math.max(1,Number(animation.rows)||1);
-    const count=Math.max(1,Math.min(cols*rows,Number(animation.frame_count)||cols*rows));
-    const fps=Math.max(1,Math.min(30,Number(animation.fps)||10));
-    return '<div class="party-sprite-stage" aria-hidden="true"><div class="party-sprite-sheet party-hud-sprite" data-columns="'+cols+'" data-rows="'+rows+'" data-frame-count="'+count+'" data-fps="'+fps+'" data-frame="0" style="'+commonStyle+'"><img class="party-sprite-sheet-image" src="'+esc(animation.url)+'" alt="" style="width:'+(cols*100)+'%;height:'+(rows*100)+'%" /></div></div>';
+  const spriteImage=anim=>{
+    if(!anim?.url)return '';
+    if(anim.type==='sheet'){
+      const cols=Math.max(1,Number(anim.columns)||1);
+      const rows=Math.max(1,Number(anim.rows)||1);
+      const count=Math.max(1,Math.min(cols*rows,Number(anim.frame_count)||cols*rows));
+      const fps=Math.max(1,Math.min(30,Number(anim.fps)||10));
+      return '<div class="party-sprite-sheet party-hud-sprite" data-columns="'+cols+'" data-rows="'+rows+'" data-frame-count="'+count+'" data-fps="'+fps+'" data-frame="0" style="'+commonStyle+'"><img class="party-sprite-sheet-image" src="'+esc(anim.url)+'" alt="" style="width:'+(cols*100)+'%;height:'+(rows*100)+'%" /></div>';
+    }
+    return '<img class="party-hud-sprite" src="'+esc(anim.url)+'" alt="" style="'+commonStyle+'" />';
+  };
+  if(animation?.url&&secondaryAnimation?.url){
+    return '<div class="party-sprite-stage party-sprite-pair" aria-hidden="true">'+
+      '<div class="party-sprite-member">'+spriteImage(animation)+'</div>'+
+      '<div class="party-sprite-member">'+spriteImage(secondaryAnimation)+'</div>'+
+    '</div>';
   }
-  return '<div class="party-sprite-stage" aria-hidden="true"><img class="party-hud-sprite" src="'+esc(animation.url)+'" alt="" style="'+commonStyle+'" /></div>';
+  return '<div class="party-sprite-stage" aria-hidden="true">'+spriteImage(animation?.url?animation:secondaryAnimation)+'</div>';
 }
 
 function renderPartyAnimationControls(){
@@ -836,9 +847,10 @@ function renderParty(){
       : '<div class="party-portrait">'+esc((c.name||'?')[0].toUpperCase())+'</div>';
     const cfg=partySpriteCharacter(c.character_id);
     const animation=partyAnimationForCharacter(c.character_id);
-    const sprite=partySpriteMarkup(animation,cfg);
+    const secondaryAnimation=cfg.secondary_enabled?partyAnimationForCharacter(c.character_id,'secondary'):null;
+    const sprite=partySpriteMarkup(animation,cfg,secondaryAnimation);
     const statuses=(c.statuses||[]).map(s=>'<span class="status-pill">'+esc(s)+'</span>').join('');
-    return '<article class="party-card-shell'+(animation?' has-party-sprite':' no-party-sprite')+'" data-character-id="'+esc(c.character_id)+'">'+
+    return '<article class="party-card-shell'+(sprite?' has-party-sprite'+(animation&&secondaryAnimation?' has-sprite-pair':''):' no-party-sprite')+'" data-character-id="'+esc(c.character_id)+'">'+
       '<div class="party-card">'+
         '<div class="party-token-wrap">'+portrait+'</div>'+
         '<div class="party-card-info"><div class="party-name">'+esc(c.name||'Unnamed')+'</div>'+
@@ -865,9 +877,8 @@ function partySpriteSettings(){
   return raw&&typeof raw==='object'&&!Array.isArray(raw)?raw:{};
 }
 
-function normalizePartySpriteCharacter(raw){
-  const source=raw&&typeof raw==='object'&&!Array.isArray(raw)?raw:{};
-  const animations=source.animations&&typeof source.animations==='object'&&!Array.isArray(source.animations)?source.animations:{};
+function normalizePartySpriteAnimations(raw){
+  const animations=raw&&typeof raw==='object'&&!Array.isArray(raw)?raw:{};
   const normalizedAnimations={};
   for(const key of PARTY_SPRITE_STATES){
     const item=animations[key];
@@ -883,8 +894,15 @@ function normalizePartySpriteCharacter(raw){
       fps:Math.max(1,Math.min(30,Number(item.fps)||10))
     }:{url:'',storage_path:'',name:'',mime:'',type:'animated',columns:1,rows:1,frame_count:1,fps:10};
   }
+  return normalizedAnimations;
+}
+
+function normalizePartySpriteCharacter(raw){
+  const source=raw&&typeof raw==='object'&&!Array.isArray(raw)?raw:{};
   return {
-    animations:normalizedAnimations,
+    animations:normalizePartySpriteAnimations(source.animations),
+    secondary_enabled:Boolean(source.secondary_enabled),
+    secondary_animations:normalizePartySpriteAnimations(source.secondary_animations),
     scale:Math.max(50,Math.min(150,Number(source.scale)||100)),
     x:Math.max(-80,Math.min(80,Number(source.x)||0)),
     y:Math.max(-80,Math.min(80,Number(source.y)||0))
@@ -907,8 +925,9 @@ function renderPartySpriteEditor(){
     const portrait=character.portrait_url
       ? '<img src="'+esc(character.portrait_url)+'" alt="" />'
       : '<span>'+esc((character.name||'?')[0].toUpperCase())+'</span>';
-    const slots=PARTY_SPRITE_STATES.map(animationState=>{
-      const anim=cfg.animations[animationState];
+    const slotsFor=(slot)=>PARTY_SPRITE_STATES.map(animationState=>{
+      const animations=slot==='secondary'?cfg.secondary_animations:cfg.animations;
+      const anim=animations[animationState];
       const preview=anim.url
         ? '<img src="'+esc(anim.url)+'" alt="'+esc(character.name||'Character')+' '+PARTY_SPRITE_STATE_LABELS[animationState]+' animation" />'
         : '<span class="party-sprite-placeholder">No animation</span>';
@@ -916,31 +935,35 @@ function renderPartySpriteEditor(){
       const sheetControls=anim.url?'<div class="party-sprite-format">'+
         (isGif
           ? '<div class="party-sprite-format-badge">Animated GIF · detected automatically</div>'
-          : '<label>Format<select data-party-sprite-format="'+esc(character.character_id)+'" data-party-sprite-state="'+animationState+'">'+
+          : '<label>Format<select data-party-sprite-format="'+esc(character.character_id)+'" data-party-sprite-state="'+animationState+'" data-party-sprite-slot="'+slot+'">'+
               '<option value="animated"'+(anim.type!=='sheet'?' selected':'')+'>Animated file</option>'+
               '<option value="sheet"'+(anim.type==='sheet'?' selected':'')+'>Sprite sheet</option>'+
             '</select></label>')+
         (!isGif&&anim.type==='sheet'?'<div class="party-sprite-sheet-fields">'+
-          '<label>Columns<input type="number" min="1" max="16" value="'+anim.columns+'" data-party-sprite-sheet-field="columns" data-character-id="'+esc(character.character_id)+'" data-party-sprite-state="'+animationState+'" /></label>'+
-          '<label>Rows<input type="number" min="1" max="16" value="'+anim.rows+'" data-party-sprite-sheet-field="rows" data-character-id="'+esc(character.character_id)+'" data-party-sprite-state="'+animationState+'" /></label>'+
-          '<label>Frames<input type="number" min="1" max="256" value="'+anim.frame_count+'" data-party-sprite-sheet-field="frame_count" data-character-id="'+esc(character.character_id)+'" data-party-sprite-state="'+animationState+'" /></label>'+
-          '<label>FPS<input type="number" min="1" max="30" value="'+anim.fps+'" data-party-sprite-sheet-field="fps" data-character-id="'+esc(character.character_id)+'" data-party-sprite-state="'+animationState+'" /></label>'+
+          '<label>Columns<input type="number" min="1" max="16" value="'+anim.columns+'" data-party-sprite-sheet-field="columns" data-character-id="'+esc(character.character_id)+'" data-party-sprite-state="'+animationState+'" data-party-sprite-slot="'+slot+'" /></label>'+
+          '<label>Rows<input type="number" min="1" max="16" value="'+anim.rows+'" data-party-sprite-sheet-field="rows" data-character-id="'+esc(character.character_id)+'" data-party-sprite-state="'+animationState+'" data-party-sprite-slot="'+slot+'" /></label>'+
+          '<label>Frames<input type="number" min="1" max="256" value="'+anim.frame_count+'" data-party-sprite-sheet-field="frame_count" data-character-id="'+esc(character.character_id)+'" data-party-sprite-state="'+animationState+'" data-party-sprite-slot="'+slot+'" /></label>'+
+          '<label>FPS<input type="number" min="1" max="30" value="'+anim.fps+'" data-party-sprite-sheet-field="fps" data-character-id="'+esc(character.character_id)+'" data-party-sprite-state="'+animationState+'" data-party-sprite-slot="'+slot+'" /></label>'+
         '</div>':'')+
       '</div>':'';
       return '<div class="party-sprite-slot'+(anim.url?' has-file':'')+'">'+
         '<div class="party-sprite-slot-head"><strong>'+PARTY_SPRITE_STATE_LABELS[animationState]+'</strong>'+
-        (anim.url?'<button type="button" data-party-sprite-remove="'+esc(character.character_id)+'" data-party-sprite-state="'+animationState+'" title="Remove '+PARTY_SPRITE_STATE_LABELS[animationState]+' animation">×</button>':'')+
+        (anim.url?'<button type="button" data-party-sprite-remove="'+esc(character.character_id)+'" data-party-sprite-state="'+animationState+'" data-party-sprite-slot="'+slot+'" title="Remove '+PARTY_SPRITE_STATE_LABELS[animationState]+' animation">×</button>':'')+
         '</div>'+
         '<div class="party-sprite-preview">'+preview+'</div>'+
         '<label class="party-sprite-upload">'+(anim.url?'Replace':'Upload')+
-          '<input type="file" accept="image/png,image/gif,image/webp" data-party-sprite-file="'+esc(character.character_id)+'" data-party-sprite-state="'+animationState+'" />'+
+          '<input type="file" accept="image/png,image/gif,image/webp" data-party-sprite-file="'+esc(character.character_id)+'" data-party-sprite-state="'+animationState+'" data-party-sprite-slot="'+slot+'" />'+
         '</label>'+
         '<small>'+esc(anim.name||'PNG, GIF or WebP · up to 20 MB')+'</small>'+sheetControls+
       '</div>';
     }).join('');
     return '<article class="party-sprite-character" data-party-sprite-character="'+esc(character.character_id)+'">'+
       '<header><div class="party-sprite-character-id">'+portrait+'</div><div><strong>'+esc(character.name||'Unnamed')+'</strong><small>'+esc(character.player_name||'Party character')+'</small></div></header>'+
-      '<div class="party-sprite-slots">'+slots+'</div>'+
+      '<div class="party-sprite-slots">'+slotsFor('primary')+'</div>'+
+      (cfg.secondary_enabled
+        ? '<div class="party-sprite-secondary-head"><strong>Secondary sprite</strong><button type="button" data-party-sprite-secondary-remove="'+esc(character.character_id)+'">Remove secondary sprite</button></div>'+
+          '<div class="party-sprite-slots">'+slotsFor('secondary')+'</div>'
+        : '<button type="button" class="party-sprite-secondary-add" data-party-sprite-secondary-add="'+esc(character.character_id)+'">+ Add secondary sprite</button>')+
       '<div class="party-sprite-tuning">'+
         '<label>Scale <output data-party-sprite-scale-output="'+esc(character.character_id)+'">'+Math.round(cfg.scale)+'%</output>'+
           '<input type="range" min="50" max="150" step="1" value="'+cfg.scale+'" data-party-sprite-scale="'+esc(character.character_id)+'" /></label>'+
@@ -964,8 +987,8 @@ function partySpriteExt(file){
   return ({'image/png':'png','image/gif':'gif','image/webp':'webp'})[file?.type]||'webp';
 }
 
-async function uploadPartySprite(characterId,animationState,input){
-  if(!canGMControl()||!PARTY_SPRITE_STATES.includes(animationState))return;
+async function uploadPartySprite(characterId,animationState,input,slot='primary'){
+  if(!canGMControl()||!PARTY_SPRITE_STATES.includes(animationState)||!['primary','secondary'].includes(slot))return;
   const file=input?.files?.[0];
   if(input)input.value='';
   if(!file)return;
@@ -977,9 +1000,9 @@ async function uploadPartySprite(characterId,animationState,input){
   const card=document.querySelector('[data-party-sprite-character="'+CSS.escape(characterId)+'"]');
   card?.classList.add('is-saving');
   const current=partySpriteCharacter(characterId);
-  const old=current.animations[animationState];
+  const old=(slot==='secondary'?current.secondary_animations:current.animations)[animationState];
   const ext=partySpriteExt(file);
-  const storagePath=CAMPAIGN_ID+'/party-sprites/'+characterId+'/'+animationState+'-'+crypto.randomUUID()+'.'+ext;
+  const storagePath=CAMPAIGN_ID+'/party-sprites/'+characterId+'/'+(slot==='secondary'?'secondary-':'')+animationState+'-'+crypto.randomUUID()+'.'+ext;
   try{
     const up=await supabase.storage.from('live-table').upload(storagePath,file,{
       cacheControl:'31536000',
@@ -989,7 +1012,7 @@ async function uploadPartySprite(characterId,animationState,input){
     if(up.error)throw up.error;
     const url=supabase.storage.from('live-table').getPublicUrl(storagePath).data.publicUrl;
     const next=normalizePartySpriteCharacter(current);
-    next.animations[animationState]={
+    next[slot==='secondary'?'secondary_animations':'animations'][animationState]={
       url,
       storage_path:storagePath,
       name:String(file.name||PARTY_SPRITE_STATE_LABELS[animationState]).slice(0,120),
@@ -1018,17 +1041,32 @@ async function uploadPartySprite(characterId,animationState,input){
   }
 }
 
-async function removePartySprite(characterId,animationState){
-  if(!canGMControl()||!PARTY_SPRITE_STATES.includes(animationState))return;
+async function removePartySprite(characterId,animationState,slot='primary'){
+  if(!canGMControl()||!PARTY_SPRITE_STATES.includes(animationState)||!['primary','secondary'].includes(slot))return;
   const current=partySpriteCharacter(characterId);
-  const old=current.animations[animationState];
+  const old=(slot==='secondary'?current.secondary_animations:current.animations)[animationState];
   if(!old.url)return;
   const next=normalizePartySpriteCharacter(current);
-  next.animations[animationState]={url:'',storage_path:'',name:'',mime:'',type:'animated',columns:1,rows:1,frame_count:1,fps:10};
+  next[slot==='secondary'?'secondary_animations':'animations'][animationState]={url:'',storage_path:'',name:'',mime:'',type:'animated',columns:1,rows:1,frame_count:1,fps:10};
   const saved=await savePartySpriteCharacter(characterId,next);
   if(saved&&old.storage_path){
     const removed=await supabase.storage.from('live-table').remove([old.storage_path]);
     if(removed.error)console.warn('Could not remove party sprite storage object',removed.error);
+  }
+}
+
+async function setSecondaryPartySprite(characterId,enabled){
+  if(!canGMControl()||!characterId)return;
+  const current=partySpriteCharacter(characterId);
+  if(current.secondary_enabled===enabled)return;
+  if(!enabled&&!confirm('Remove the secondary sprite and its uploaded animations?'))return;
+  const paths=enabled?[]:Object.values(current.secondary_animations).map(anim=>anim.storage_path).filter(Boolean);
+  const next={...current,secondary_enabled:enabled};
+  if(!enabled)next.secondary_animations=normalizePartySpriteAnimations(null);
+  const saved=await savePartySpriteCharacter(characterId,next);
+  if(saved&&paths.length){
+    const removed=await supabase.storage.from('live-table').remove(paths);
+    if(removed.error)console.warn('Could not remove secondary party sprite files',removed.error);
   }
 }
 
@@ -1050,7 +1088,7 @@ function setupPartySpriteEditor(){
     const target=event.target;
     const characterId=target?.dataset?.partySpriteFile;
     if(characterId){
-      uploadPartySprite(characterId,target.dataset.partySpriteState,target);
+      uploadPartySprite(characterId,target.dataset.partySpriteState,target,target.dataset.partySpriteSlot);
       return;
     }
     if(target?.dataset?.partySpriteFormat){
@@ -1058,7 +1096,8 @@ function setupPartySpriteEditor(){
       const animationState=target.dataset.partySpriteState;
       const current=partySpriteCharacter(characterId);
       const next=normalizePartySpriteCharacter(current);
-      next.animations[animationState]={...next.animations[animationState],type:target.value==='sheet'?'sheet':'animated'};
+      const key=target.dataset.partySpriteSlot==='secondary'?'secondary_animations':'animations';
+       next[key][animationState]={...next[key][animationState],type:target.value==='sheet'?'sheet':'animated'};
       savePartySpriteCharacter(characterId,next);
       return;
     }
@@ -1068,7 +1107,8 @@ function setupPartySpriteEditor(){
       const field=target.dataset.partySpriteSheetField;
       const current=partySpriteCharacter(characterId);
       const next=normalizePartySpriteCharacter(current);
-      next.animations[animationState]={...next.animations[animationState],[field]:Number(target.value)};
+      const key=target.dataset.partySpriteSlot==='secondary'?'secondary_animations':'animations';
+       next[key][animationState]={...next[key][animationState],[field]:Number(target.value)};
       savePartySpriteCharacter(characterId,next);
       return;
     }
@@ -1085,7 +1125,11 @@ function setupPartySpriteEditor(){
   });
   panel.addEventListener('click',event=>{
     const remove=event.target.closest('[data-party-sprite-remove]');
-    if(remove){removePartySprite(remove.dataset.partySpriteRemove,remove.dataset.partySpriteState);return}
+    if(remove){removePartySprite(remove.dataset.partySpriteRemove,remove.dataset.partySpriteState,remove.dataset.partySpriteSlot);return}
+    const addSecondary=event.target.closest('[data-party-sprite-secondary-add]');
+    if(addSecondary){setSecondaryPartySprite(addSecondary.dataset.partySpriteSecondaryAdd,true);return}
+    const removeSecondary=event.target.closest('[data-party-sprite-secondary-remove]');
+    if(removeSecondary){setSecondaryPartySprite(removeSecondary.dataset.partySpriteSecondaryRemove,false);return}
     const reset=event.target.closest('[data-party-sprite-reset]');
     if(reset)savePartySpriteTuning(reset.dataset.partySpriteReset,{scale:100,x:0,y:0});
   });
