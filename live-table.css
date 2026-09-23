@@ -2917,3 +2917,30 @@ body.gm-preview-compact .party-card-shell .resource{
     font-size:10px;
   }
 }
+
+/* Shorter HUD resources keep the scene in view without hiding values. */
+.party-hud,.display-only .party-hud{
+  width:min(370px,calc(100% - 28px));
+}
+body.gm-preview-compact .party-hud{
+  width:min(370px,calc(100% - 24px));
+  inline-size:min(370px,calc(100% - 24px));
+}
+.party-card-shell .resource,
+body.gm-preview-compact .party-card-shell .resource{
+  grid-template-columns:17px minmax(0,104px) 40px;
+  justify-content:start;
+  gap:5px;
+}
+.party-card-shell .resource>b{min-width:40px}
+@media(max-width:640px){
+  .party-hud,.display-only .party-hud{
+    width:min(328px,calc(100% - 16px));
+  }
+  .party-card-shell .resource,
+  body.gm-preview-compact .party-card-shell .resource{
+    grid-template-columns:16px minmax(0,82px) 37px;
+    gap:4px;
+  }
+  .party-card-shell .resource>b{min-width:37px}
+}
