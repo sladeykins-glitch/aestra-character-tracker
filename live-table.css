@@ -2759,3 +2759,85 @@ body.gm-preview-compact .party-hud{
   .party-card-shell .party-hud-sprite{width:58px;height:66px}
   .party-card-shell .party-sprite-pair .party-hud-sprite{width:48px;height:66px}
 }
+
+/* Compact party panel: visual treatment from the approved Aestra mockup. */
+.party-hud,.display-only .party-hud{
+  display:flex;
+  flex-direction:column;
+  left:14px;
+  right:auto;
+  top:20px;
+  bottom:auto;
+  width:min(410px,calc(100% - 28px));
+  max-height:calc(100% - 40px);
+  gap:0;
+  padding:7px 9px;
+  overflow-y:auto;
+  overflow-x:hidden;
+  border:1px solid rgba(213,183,113,.54);
+  border-radius:10px;
+  background:linear-gradient(135deg,rgba(9,13,17,.94),rgba(13,16,20,.85));
+  box-shadow:0 12px 30px rgba(0,0,0,.32),inset 0 0 0 1px rgba(255,240,197,.07);
+  backdrop-filter:blur(8px);
+}
+.party-card-shell,
+.party-card-shell.no-party-sprite,
+body.gm-preview-compact .party-card-shell{
+  flex:none;
+  min-height:67px;
+  border-bottom:1px solid rgba(218,185,111,.30);
+}
+.party-card-shell:last-child{border-bottom:0}
+.party-card-shell>.party-card,
+body.gm-preview-compact .party-card-shell>.party-card{
+  min-height:67px;
+  height:67px;
+  grid-template-columns:34px minmax(0,1fr);
+  gap:7px;
+  padding:5px 3px;
+  background:transparent;
+}
+.party-card-shell:has(.status-row)>.party-card{min-height:86px;height:auto}
+.party-card-shell .party-card .party-portrait,
+body.gm-preview-compact .party-card-shell .party-card .party-portrait{
+  width:33px;
+  height:33px;
+  border:1px solid rgba(227,191,112,.72);
+  border-radius:50%;
+}
+.party-card-shell .party-name{
+  color:#f7f0dd;
+  font-size:13px;
+  line-height:1.12;
+  letter-spacing:0;
+}
+.party-card-shell .resource,
+body.gm-preview-compact .party-card-shell .resource{
+  margin-top:3px;
+  grid-template-columns:17px minmax(0,1fr) 34px;
+  gap:5px;
+  font-size:10px;
+  line-height:1;
+}
+.party-card-shell .resource>b{min-width:34px;font-size:10px}
+.party-card-shell .resource-bar{height:5px}
+.party-card-shell .party-sprite-stage,
+body.gm-preview-compact .party-card-shell .party-sprite-stage{height:67px}
+body.gm-preview-compact .party-hud{
+  width:min(410px,calc(100% - 24px));
+  inline-size:min(410px,calc(100% - 24px));
+  transform:scale(.76);
+  overflow-y:auto;
+  overflow-x:hidden;
+}
+@media(max-width:640px){
+  .party-hud,.display-only .party-hud{
+    left:8px;
+    top:8px;
+    width:min(360px,calc(100% - 16px));
+    max-height:46%;
+    padding:6px 8px;
+  }
+  .party-card-shell .party-card .party-portrait{width:30px;height:30px}
+  .party-card-shell>.party-card{grid-template-columns:31px minmax(0,1fr)}
+}
