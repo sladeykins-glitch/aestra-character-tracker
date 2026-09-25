@@ -15,4 +15,4 @@ await load('./unified-build-library-v3.js?v=3');
 await load('./class-skill-level-sync.js?v=1');
 await load('./core-skill-choice-tools.js?v=1');
 await load('./inventory-navigation-v2.js?v=2');
-await load('./pwa-register.js?v=27');
+await load('./pwa-register.js?v=28');

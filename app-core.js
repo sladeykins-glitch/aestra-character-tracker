@@ -1,3 +1,5 @@
+import {equipmentDefences} from './equipment-defences.js?v=1';
+
 const CONFIG=window.AESTRA_CONFIG||{};
 const STATUS_OPTIONS=['Slow','Dazed','Weak','Shaken','Enraged','Poisoned'];
 const DEMO_KEY='aestra-character-demo-v2';
@@ -16,7 +18,19 @@ const txt=id=>els[id]?.value?.trim?.()||'';
 function markDirty(){if(els.saveStatus)els.saveStatus.textContent='Unsaved changes'}
 function setAuth(t){if(els.authMessage)els.authMessage.textContent=t||''}
 function ensureArrays(){for(const k of ['traits','classes_struct','skills_struct','equipment_struct','spells_struct','bonds_struct','inventory_struct','statuses'])if(!Array.isArray(state[k]))state[k]=[];while(state.traits.length<3)state.traits.push('')}
-function calcDerived(){state.hp_max=Math.max(1,die(state.mig_base)*5+Number(state.level||0)+Number(state.hp_other||0));state.mp_max=Math.max(0,die(state.wlp_base)*5+Number(state.level||0)+Number(state.mp_other||0));state.ip_max=Math.max(0,6+Number(state.ip_other||0));state.crisis=Math.floor(state.hp_max/2);const eq=(state.equipment_struct||[]).reduce((a,x)=>{const slot=String(x.slot||'').trim().toLowerCase(),notes=String(x.notes||''),def=Number(x.defence)||0,mdef=Number(x.magic_defence)||0,init=Number(x.initiative)||0,isArmor=/armor|armour/.test(slot),defNote=notes.match(/(?:^|[·\\n])\\s*DEF\\s*([+-]?\\d+)/i),explicitBonus=defNote&&/^\\+/.test(String(defNote[1]).trim()),fixedArmorDef=isArmor&&def>0&&!explicitBonus&&((defNote&&def>=6)||(!defNote&&def>=6));a.init+=init;a.mdef+=mdef;if(fixedArmorDef)a.defBase=a.defBase==null?def:Math.max(a.defBase,def);else a.defBonus+=def;return a},{init:0,defBonus:0,defBase:null,mdef:0});state.initiative=Number(state.initiative_other||0)+eq.init;state.defence=(eq.defBase==null?die(state.dex):eq.defBase)+Number(state.defence_other||0)+eq.defBonus;state.magic_defence=die(state.ins)+Number(state.magic_defence_other||0)+eq.mdef;state.hp_current=clamp(state.hp_current,0,state.hp_max);state.mp_current=clamp(state.mp_current,0,state.mp_max);state.ip_current=clamp(state.ip_current,0,state.ip_max)}
+function calcDerived(){
+  state.hp_max=Math.max(1,die(state.mig_base)*5+Number(state.level||0)+Number(state.hp_other||0));
+  state.mp_max=Math.max(0,die(state.wlp_base)*5+Number(state.level||0)+Number(state.mp_other||0));
+  state.ip_max=Math.max(0,6+Number(state.ip_other||0));
+  state.crisis=Math.floor(state.hp_max/2);
+  const eq=equipmentDefences(state.equipment_struct,die(state.dex),die(state.ins));
+  state.initiative=Number(state.initiative_other||0)+eq.initiative;
+  state.defence=eq.defence+Number(state.defence_other||0);
+  state.magic_defence=eq.magicDefence+Number(state.magic_defence_other||0);
+  state.hp_current=clamp(state.hp_current,0,state.hp_max);
+  state.mp_current=clamp(state.mp_current,0,state.mp_max);
+  state.ip_current=clamp(state.ip_current,0,state.ip_max);
+}
 function renderDerived(){calcDerived();for(const r of ['hp','mp','ip']){if(els[`${r}Now`])els[`${r}Now`].textContent=state[`${r}_current`];if(els[`${r}MaxText`])els[`${r}MaxText`].textContent=state[`${r}_max`];if(els[`${r}Bar`])els[`${r}Bar`].style.width=`${state[`${r}_max`]?state[`${r}_current`]/state[`${r}_max`]*100:0}%`}if(els.hpFormula)els.hpFormula.textContent=`d${die(state.mig_base)} × 5 + ${state.level} + ${state.hp_other} Other`;if(els.mpFormula)els.mpFormula.textContent=`d${die(state.wlp_base)} × 5 + ${state.level} + ${state.mp_other} Other`;if(els.ipFormula)els.ipFormula.textContent=`6 + ${state.ip_other} Other`;if(els.fpText)els.fpText.textContent=state.fabula_points;if(els.initiativeText)els.initiativeText.textContent=state.initiative;if(els.defenceText)els.defenceText.textContent=state.defence;if(els.magicDefenceText)els.magicDefenceText.textContent=state.magic_defence;if(els.crisisText)els.crisisText.textContent=state.crisis}
 function renderPortrait(){const u=state.portrait_url||'';if(!els.portraitUrl)return;els.portraitUrl.value=u;if(u){els.portraitImg.src=u;els.portraitImg.classList.remove('hidden');els.portraitFallback.classList.add('hidden')}else{els.portraitImg.classList.add('hidden');els.portraitFallback.classList.remove('hidden');els.portraitFallback.textContent=(state.name||'?')[0]?.toUpperCase()||'?'}}
 function renderStatuses(){if(!els.statuses)return;els.statuses.innerHTML='';STATUS_OPTIONS.forEach(s=>{const b=document.createElement('button');b.type='button';b.className='status-chip';b.textContent=s;b.classList.toggle('active',state.statuses.includes(s));b.onclick=()=>{state.statuses.includes(s)?state.statuses=state.statuses.filter(x=>x!==s):state.statuses.push(s);renderStatuses();markDirty()};els.statuses.appendChild(b)})}

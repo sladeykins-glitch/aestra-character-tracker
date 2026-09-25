@@ -1,3 +1,5 @@
+import {equipmentDefences} from './equipment-defences.js?v=1';
+
 const CONFIG = window.AESTRA_CONFIG || {};
 const STATUS_OPTIONS = ['Slow','Dazed','Weak','Shaken','Enraged','Poisoned'];
 const $ = id => document.getElementById(id);
@@ -90,10 +92,10 @@ function renderDerived(){
   const hpMax=Math.max(1,die(migBase)*5+level+n('gmHpOther'));
   const mpMax=Math.max(0,die(wlpBase)*5+level+n('gmMpOther'));
   const ipMax=Math.max(0,6+n('gmIpOther'));
-  const eq=(editing.equipment_struct||[]).reduce((a,x)=>({init:a.init+(Number(x.initiative)||0),def:a.def+(Number(x.defence)||0),mdef:a.mdef+(Number(x.magic_defence)||0)}),{init:0,def:0,mdef:0});
-  const initiative=n('gmInitiativeOther')+eq.init;
-  const defence=die(dex)+n('gmDefenceOther')+eq.def;
-  const magicDefence=die(ins)+n('gmMagicDefenceOther')+eq.mdef;
+  const eq=equipmentDefences(editing.equipment_struct,die(dex),die(ins));
+  const initiative=n('gmInitiativeOther')+eq.initiative;
+  const defence=eq.defence+n('gmDefenceOther');
+  const magicDefence=eq.magicDefence+n('gmMagicDefenceOther');
   if($('gmHpMax')) $('gmHpMax').value=hpMax;
   if($('gmMpMax')) $('gmMpMax').value=mpMax;
   if($('gmIpMax')) $('gmIpMax').value=ipMax;
@@ -118,10 +120,10 @@ function pullPatch(){
     fabula_points:n('gmFabulaPoints'),statuses:[...statuses],traits:editing.traits,classes_struct:editing.classes_struct,skills_struct:editing.skills_struct,equipment_struct:editing.equipment_struct,spells_struct:editing.spells_struct,bonds_struct:editing.bonds_struct,inventory_struct:editing.inventory_struct,
     classes:t('gmClasses'),skills:t('gmSkills'),equipment:t('gmEquipment'),spells:t('gmSpells'),bonds:t('gmBonds'),notes:t('gmNotes'),updated_at:new Date().toISOString()
   };
-  const eq=(patch.equipment_struct||[]).reduce((a,x)=>({init:a.init+(Number(x.initiative)||0),def:a.def+(Number(x.defence)||0),mdef:a.mdef+(Number(x.magic_defence)||0)}),{init:0,def:0,mdef:0});
+  const eq=equipmentDefences(patch.equipment_struct,die(patch.dex),die(patch.ins));
   patch.hp_max=Math.max(1,die(patch.mig_base)*5+patch.level+patch.hp_other); patch.mp_max=Math.max(0,die(patch.wlp_base)*5+patch.level+patch.mp_other); patch.ip_max=Math.max(0,6+patch.ip_other);
   patch.hp_current=clamp(n('gmHpCurrent'),0,patch.hp_max); patch.mp_current=clamp(n('gmMpCurrent'),0,patch.mp_max); patch.ip_current=clamp(n('gmIpCurrent'),0,patch.ip_max);
-  patch.initiative=patch.initiative_other+eq.init; patch.defence=die(patch.dex)+patch.defence_other+eq.def; patch.magic_defence=die(patch.ins)+patch.magic_defence_other+eq.mdef; patch.crisis=Math.floor(patch.hp_max/2);
+  patch.initiative=patch.initiative_other+eq.initiative; patch.defence=eq.defence+patch.defence_other; patch.magic_defence=eq.magicDefence+patch.magic_defence_other; patch.crisis=Math.floor(patch.hp_max/2);
   return patch;
 }
 
