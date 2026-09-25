@@ -139,7 +139,7 @@ jobs:
       - name: Check autoplay music contract
         shell: bash
         run: |
-          grep -q "'./ambient-music.js?v=5','./app-core.js?v=1'" app.js
+          grep -Eq "'./ambient-music\\.js\\?v=5','./app-core\\.js\\?v=[0-9]+'" app.js
           ! grep -q 'ambient-music' techno-bootstrap.js
           ! grep -q 'ambient-music' completion-sweep.js
           grep -q 'function actuallyPlaying' ambient-music.js
