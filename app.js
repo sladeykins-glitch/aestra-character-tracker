@@ -8,7 +8,7 @@ const AESTRA_MAIN_LAYERS=[
   './core-library.js?v=6','./high-fantasy-library.js?v=2','./rules-aware.js?v=6','./aestra-visuals.js?v=2',
   './aestra-theme.js?v=1','./aestra-title-v2.js?v=2','./resource-glow.js?v=1','./compact-attributes.js?v=2',
   './compact-ip.js?v=1','./build-menu.js?v=3','./build-remove-force.js?v=2','./ui-icons.js?v=2',
-  './remove-controls.js?v=3','./skill-levels.js?v=2','./class-mastery.js?v=1','./picker-icons.js?v=2',
+  './remove-controls.js?v=3','./skill-levels.js?v=4','./class-mastery.js?v=1','./picker-icons.js?v=2',
   './build-entry-icons.js?v=2','./point-orbs.js?v=3','./sheet-polish.js?v=1','./conditions-collapse.js?v=3',
   './combat-ui-polish.js?v=1','./save-orb.js?v=1','./rules-orb.js?v=3','./grand-ui.js?v=1',
   './mobile-pages.js?v=1','./status-label-polish.js?v=1','./portrait-upload.js?v=1','./mobile-character-polish.js?v=1',
@@ -30,9 +30,9 @@ const AESTRA_MAIN_LAYERS=[
 const AESTRA_FOLLOWUP_LAYERS=[
   './rules-aware.js?v=6','./automatic-resources.js?v=5','./techno-custom-weapons.js?v=1','./esper-tools.js?v=1',
   './mutant-tools.js?v=1','./pilot-tools.js?v=1','./techno-fantasy-picker.js?v=2','./techno-heroic-picker.js?v=1',
-  './completion-sweep.js?v=5','./campaign-settings.js?v=2','./rules-compendium-v2.js?v=1','./character-creation-v2.js?v=1',
+  './completion-sweep.js?v=27','./campaign-settings.js?v=2','./rules-compendium-v2.js?v=1','./character-creation-v2.js?v=1',
   './aestra-session-suite.js?v=1','./build122-stabilization.js?v=1','./hero-console-v2.js?v=1','./compact-header.js?v=2',
-  './pwa-register.js?v=26'
+  './core-skill-choice-tools.js?v=1','./pwa-register.js?v=27'
 ];
 
 (function preloadAestraModules(){
