@@ -19,7 +19,7 @@
    return rows('equipmentEditor').map((r,i)=>{
      const v=vals(r),notes=v[5]||'',slot=norm(v[0]),stored=/§AESTRAEQ:/.test(notes)||slot.startsWith('loadout');
      if(stored)return null;
-     const custom=/\[custom weapon\]/i.test(notes),shield=slot==='shield'||/\bshield\b/i.test(v[1])||(/\bshield\b/i.test(notes)&&!custom);
+     const custom=/\[custom weapon\]/i.test(notes),shield=slot.includes('shield')||/\bshield\b/i.test(v[1])||(/\bshield\b/i.test(notes)&&!custom);
      const armor=/armor|armour|accessor/.test(slot);
      const category=wordCategory(notes);
      const isWeapon=!shield&&!armor&&(custom||/two hands?|main hand|off hand/.test(slot)||!!category||/weapon|sword|dagger|spear|axe|bow|crossbow|gun|pistol|staff|tome|hammer|whip|knuckle|shuriken|rapier|katana/i.test(`${v[1]} ${notes}`));
