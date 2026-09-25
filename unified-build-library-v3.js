@@ -56,6 +56,12 @@
   function characterLevel(){return Number(document.getElementById('level')?.value)||0}
   function allClassNames(){return data.classes.map(x=>x.name).filter(Boolean)}
   function allSkillNames(){return data.skills.map(x=>x.name).filter(Boolean)}
+  function gadgetTier(label){
+    const row=rows('skillsEditor').find(r=>norm(inputs(r)[0]?.value)==='gadgets');if(!row)return 0;
+    const effect=String(inputs(row)[3]?.value||'');
+    const m=effect.match(new RegExp(label+'\\s+(None|Basic|Advanced|Superior)','i'));
+    return m?({none:0,basic:1,advanced:2,superior:3}[norm(m[1])]||0):0;
+  }
 
   function setRow(row,vals){
     const ins=inputs(row);
@@ -69,8 +75,10 @@
   function addClassSkill(x){
     document.getElementById('addSkillBtn')?.click();
     requestAnimationFrame(()=>{
-      const r=latest('skillsEditor');setRow(r,[x.name,1,x.rule_classes?.name||'Class Skill',x.effect||'']);
+      const source=x.rule_classes?.name||'Class Skill';
+      const r=latest('skillsEditor');setRow(r,[x.name,1,source,x.effect||'']);
       const rank=inputs(r)[1];if(rank)rank.max=String(x.max_rank||1);
+      document.dispatchEvent(new CustomEvent('aestra:skill-added',{detail:{name:x.name,source,row:r}}));
     });
     close();
   }
@@ -111,10 +119,13 @@
       if(!okay)return{met:false,manual:false,reason:raw};
     }
 
-    // A few Heroics depend on choices that are not represented as ordinary skill rows.
-    if(/offensive spells|advanced\s+alchemy\s+from\s+gadget|advanced\s+magitech\s+from\s+gadget/i.test(raw)){
-      return{met:false,manual:true,reason:raw};
-    }
+    const needAlchemy=/advanced\s+alchemy\s+from\s+gadget/i.test(raw);
+    const needMagitech=/advanced\s+magitech\s+from\s+gadget/i.test(raw);
+    if(needAlchemy&&gadgetTier('Alchemy')<2)return{met:false,manual:false,reason:raw};
+    if(needMagitech&&gadgetTier('Magitech')<2)return{met:false,manual:false,reason:raw};
+
+    // Some requirements still depend on table context that is not represented as a structured choice.
+    if(/offensive spells/i.test(raw))return{met:false,manual:true,reason:raw};
     return{met:true,manual:false,reason:raw};
   }
 
