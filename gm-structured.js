@@ -67,7 +67,7 @@ function renderStructured(){
   gmEditor('gmClassesEditor','classes_struct',[{k:'name',label:'Class',placeholder:'Class name'},{k:'level',label:'Level',type:'number'},{k:'benefits',label:'Free Benefits / Notes',long:true}]);
   gmEditor('gmSkillsEditor','skills_struct',[{k:'name',label:'Skill',placeholder:'Skill name'},{k:'rank',label:'SL',type:'number'},{k:'source',label:'Class / Source'},{k:'effect',label:'Effect',long:true}]);
   gmEditor('gmEquipmentEditor','equipment_struct',[{k:'slot',label:'Slot',placeholder:'Main hand / Armor / Accessory'},{k:'name',label:'Item'},{k:'defence',label:'DEF +',type:'number'},{k:'magic_defence',label:'MDEF +',type:'number'},{k:'initiative',label:'INIT +',type:'number'},{k:'notes',label:'Rules / Description',long:true}]);
-  gmEditor('gmSpellsEditor','spells_struct',[{k:'name',label:'Spell / Arcana'},{k:'mp',label:'MP',type:'number'},{k:'targets',label:'Targets'},{k:'duration',label:'Duration'},{k:'effect',label:'Effect',long:true}]);
+  gmEditor('gmSpellsEditor','spells_struct',[{k:'name',label:'Spell / Arcana'},{k:'mp',label:'MP',placeholder:'10 or 10 × T'},{k:'targets',label:'Targets'},{k:'duration',label:'Duration'},{k:'effect',label:'Effect',long:true}]);
   gmEditor('gmBondsEditor','bonds_struct',[{k:'subject',label:'Person / Faction / Ideal'},{k:'strength',label:'Strength',type:'number'},{k:'feelings',label:'Feelings'},{k:'notes',label:'Notes',long:true}]);
   gmEditor('gmInventoryEditor','inventory_struct',[{k:'name',label:'Item'},{k:'qty',label:'Qty',type:'number'},{k:'notes',label:'Notes',long:true}]);
   renderClassSummary();
