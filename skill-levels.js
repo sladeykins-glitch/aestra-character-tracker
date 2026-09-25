@@ -154,6 +154,7 @@ function drawControl(row,maxRank,source){
     rankInput.dispatchEvent(new Event('input',{bubbles:true}));
     rankInput.dispatchEvent(new Event('change',{bubbles:true}));
     sync(direction);
+    document.dispatchEvent(new CustomEvent('aestra:skill-rank-changed',{detail:{name:inputs[0]?.value||'',source,oldRank:old,rank}}));
   }
 
   minus.onclick=e=>{e.stopPropagation();setRank(rank-1,-1)};
