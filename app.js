@@ -4,8 +4,8 @@ const __aestraBootStarted=performance.now();
 // parallel up-front. This removes the long network waterfall without changing
 // which enhancement layer wins when several layers touch the same UI.
 const AESTRA_MAIN_LAYERS=[
-  './ambient-music.js?v=5','./app-core.js?v=3','./live-table-link.js?v=1','./gm-structured.js?v=1','./enhancements.js?v=2','./status-fix.js?v=2',
-  './core-library.js?v=6','./high-fantasy-library.js?v=2','./rules-aware.js?v=4','./aestra-visuals.js?v=2',
+  './ambient-music.js?v=5','./app-core.js?v=4','./live-table-link.js?v=1','./gm-structured.js?v=1','./enhancements.js?v=2','./status-fix.js?v=2',
+  './core-library.js?v=6','./high-fantasy-library.js?v=2','./rules-aware.js?v=6','./aestra-visuals.js?v=2',
   './aestra-theme.js?v=1','./aestra-title-v2.js?v=2','./resource-glow.js?v=1','./compact-attributes.js?v=2',
   './compact-ip.js?v=1','./build-menu.js?v=3','./build-remove-force.js?v=2','./ui-icons.js?v=2',
   './remove-controls.js?v=3','./skill-levels.js?v=2','./class-mastery.js?v=1','./picker-icons.js?v=2',
@@ -13,13 +13,13 @@ const AESTRA_MAIN_LAYERS=[
   './combat-ui-polish.js?v=1','./save-orb.js?v=1','./rules-orb.js?v=3','./grand-ui.js?v=1',
   './mobile-pages.js?v=1','./status-label-polish.js?v=1','./portrait-upload.js?v=1','./mobile-character-polish.js?v=1',
   './final-experience.js?v=1','./final-fixes.js?v=2','./final-refinement.js?v=2','./performance-lite.js?v=2',
-  './equipment-workbench.js?v=2','./equipment-purchase.js?v=1','./custom-weapons-v2.js?v=1','./trait-source-of-truth.js?v=1',
-  './session-tools.js?v=1','./character-ux-suite.js?v=1','./automatic-resources.js?v=4','./actions-v2.js?v=3',
+  './equipment-workbench.js?v=3','./equipment-purchase.js?v=1','./custom-weapons-v2.js?v=1','./trait-source-of-truth.js?v=1',
+  './session-tools.js?v=1','./character-ux-suite.js?v=1','./automatic-resources.js?v=4','./actions-v2.js?v=4',
   './chanter-tools-v2.js?v=1','./commander-tools.js?v=1','./dancer-tools.js?v=1','./symbolist-tools-v2.js?v=1',
   './floralist-tools-v2.js?v=1','./floralist-petal-spacing-fix.js?v=1','./gourmet-tools.js?v=1','./invoker-tools.js?v=1',
   './invoker-benefit-choice.js?v=1','./merchant-tools.js?v=1','./gm-magiseed-library.js?v=1','./build-hierarchy.js?v=1',
   './unified-build-picker.js?v=2','./natural-fantasy-picker.js?v=1','./natural-heroic-picker-v2.js?v=1','./natural-heroic-tools-v2.js?v=1',
-  './build-picker-normalize.js?v=2','./level-up-v2.js?v=1','./core-library-readability.js?v=2','./smart-rules.js?v=1',
+  './build-picker-normalize.js?v=2','./level-up-v2.js?v=1','./core-library-readability.js?v=2','./smart-rules.js?v=2',
   './gm-session-dashboard.js?v=1','./equipment-selling-v2.js?v=1','./system-defaults.js?v=1','./gm-session-v2.js?v=1',
   './bonds-v2.js?v=3','./character-creation.js?v=1','./character-creation-fix.js?v=1','./character-creation-polish.js?v=1',
   './character-creation-progress-fix.js?v=1'
@@ -28,7 +28,7 @@ const AESTRA_MAIN_LAYERS=[
 // These are loaded by techno-bootstrap/completion-sweep after the legacy chain.
 // Preloading them now means those follow-up loaders normally find warm modules.
 const AESTRA_FOLLOWUP_LAYERS=[
-  './rules-aware.js?v=5','./automatic-resources.js?v=5','./techno-custom-weapons.js?v=1','./esper-tools.js?v=1',
+  './rules-aware.js?v=6','./automatic-resources.js?v=5','./techno-custom-weapons.js?v=1','./esper-tools.js?v=1',
   './mutant-tools.js?v=1','./pilot-tools.js?v=1','./techno-fantasy-picker.js?v=2','./techno-heroic-picker.js?v=1',
   './completion-sweep.js?v=5','./campaign-settings.js?v=2','./rules-compendium-v2.js?v=1','./character-creation-v2.js?v=1',
   './aestra-session-suite.js?v=1','./build122-stabilization.js?v=1','./hero-console-v2.js?v=1','./compact-header.js?v=2',
