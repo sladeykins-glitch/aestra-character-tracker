@@ -37,7 +37,7 @@
     const slot=norm(data.slot),name=norm(data.name),notes=norm(data.notes),text=`${slot} ${name} ${notes}`,noteTokens=tokens(notes);
     if(/armor|armour/.test(slot)||/\b(armor|armour|robe|garb|mail|plate)\b/.test(name))return 'armor';
     if(/accessor/.test(slot)||/\b(accessory|amulet|ring|charm|talisman)\b/.test(name))return 'accessory';
-    if(slot==='shield'||/\bshield\b/.test(name)||(/\bshield\b/.test(notes)&&!/\[custom weapon\]/.test(notes)))return 'shield';
+    if(slot.includes('shield')||/\bshield\b/.test(name)||(/\bshield\b/.test(notes)&&!/\[custom weapon\]/.test(notes)))return 'shield';
     if(/two hands?|main hand|off hand/.test(slot)||/\[custom weapon\]/.test(notes))return 'weapon';
     if(WEAPON_CATEGORIES.some(cat=>noteTokens.includes(cat)))return 'weapon';
     if(/weapon|sword|dagger|spear|axe|bow|crossbow|gun|pistol|staff|tome|hammer|whip|knuckle|shuriken|rapier|katana/.test(text))return 'weapon';
@@ -50,7 +50,7 @@
   }
   function actualSlot(slot,data){
     if(slot==='mainhand')return twoHanded(data)?'Two hands':'Main hand';
-    if(slot==='offhand')return 'Off hand';
+    if(slot==='offhand')return classify(data)==='shield'?'Off hand · Shield':'Off hand';
     if(slot==='armor')return 'Armor';
     if(slot==='accessory')return 'Accessory';
     return data.slot||'Equipment';
