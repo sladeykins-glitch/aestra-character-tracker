@@ -32,7 +32,7 @@ const AESTRA_FOLLOWUP_LAYERS=[
   './mutant-tools.js?v=1','./pilot-tools.js?v=1','./techno-fantasy-picker.js?v=2','./techno-heroic-picker.js?v=1',
   './completion-sweep.js?v=5','./campaign-settings.js?v=2','./rules-compendium-v2.js?v=1','./character-creation-v2.js?v=1',
   './aestra-session-suite.js?v=1','./build122-stabilization.js?v=1','./hero-console-v2.js?v=1','./compact-header.js?v=2',
-  './pwa-register.js?v=25'
+  './pwa-register.js?v=26'
 ];
 
 (function preloadAestraModules(){
