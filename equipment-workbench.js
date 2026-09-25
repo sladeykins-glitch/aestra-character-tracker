@@ -2,7 +2,8 @@
 // No schema change is required: stowed items keep their original equipment data in a compact marker.
 (function(){
   const MARK='§AESTRAEQ:';
-  const SLOT_NAMES={weapon:'Weapon',armor:'Armor',shield:'Shield',accessory:'Accessory'};
+  const SLOT_NAMES={mainhand:'Main Hand',offhand:'Off Hand',armor:'Armor',accessory:'Accessory',weapon:'Weapon',shield:'Shield',any:'Any slot'};
+  const WEAPON_CATEGORIES=['arcane','bow','brawling','dagger','firearm','flail','heavy','spear','sword','thrown'];
   let selectedIndex=null;
   let dragIndex=null;
   let detailIndex=null;
@@ -31,21 +32,39 @@
     if(meta)return {slot:meta.slot||'',name:c.name,def:num(meta.def),mdef:num(meta.mdef),init:num(meta.init),notes:meta.notes||'',stowed:true};
     return {...c,stowed:false};
   }
+  function tokens(v){return norm(v).split(/[^a-z]+/).filter(Boolean)}
   function classify(data){
-    const text=norm(`${data.slot} ${data.notes} ${data.name}`);
-    if(/shield/.test(text))return 'shield';
-    if(/armor|armour|robe|garb|mail|plate/.test(text))return 'armor';
-    if(/accessor|amulet|ring|charm|talisman/.test(text))return 'accessory';
-    if(/main hand|two hand|weapon|sword|dagger|spear|axe|bow|crossbow|gun|pistol|staff|tome|hammer|whip|knuckle|shuriken|rapier|katana/.test(text))return 'weapon';
+    const slot=norm(data.slot),name=norm(data.name),notes=norm(data.notes),text=`${slot} ${name} ${notes}`,noteTokens=tokens(notes);
+    if(/armor|armour/.test(slot)||/\b(armor|armour|robe|garb|mail|plate)\b/.test(name))return 'armor';
+    if(/accessor/.test(slot)||/\b(accessory|amulet|ring|charm|talisman)\b/.test(name))return 'accessory';
+    if(slot==='shield'||/\bshield\b/.test(name)||(/\bshield\b/.test(notes)&&!/\[custom weapon\]/.test(notes)))return 'shield';
+    if(/two hands?|main hand|off hand/.test(slot)||/\[custom weapon\]/.test(notes))return 'weapon';
+    if(WEAPON_CATEGORIES.some(cat=>noteTokens.includes(cat)))return 'weapon';
+    if(/weapon|sword|dagger|spear|axe|bow|crossbow|gun|pistol|staff|tome|hammer|whip|knuckle|shuriken|rapier|katana/.test(text))return 'weapon';
     return 'any';
   }
-  function twoHanded(data){return /two[- ]?hand/i.test(`${data.slot} ${data.notes}`)}
-  function actualSlot(kind,data){
-    if(kind==='weapon')return twoHanded(data)?'Two hands':'Main hand';
-    if(kind==='armor')return 'Armor';
-    if(kind==='shield')return 'Shield';
-    if(kind==='accessory')return 'Accessory';
+  function twoHanded(data){return /two[- ]?hands?/i.test(`${data.slot} ${data.notes}`)}
+  function weaponCategory(data){
+    const words=tokens(`${data.notes} ${data.name}`);
+    return WEAPON_CATEGORIES.find(cat=>words.includes(cat))||'';
+  }
+  function actualSlot(slot,data){
+    if(slot==='mainhand')return twoHanded(data)?'Two hands':'Main hand';
+    if(slot==='offhand')return 'Off hand';
+    if(slot==='armor')return 'Armor';
+    if(slot==='accessory')return 'Accessory';
     return data.slot||'Equipment';
+  }
+  function rowHandSlot(row){
+    if(!row||isStowed(row))return '';
+    const d=effective(row),slot=norm(current(row).slot);
+    if(twoHanded(d)||/two hands?/.test(slot))return 'twohanded';
+    if(/off hand|^shield$/.test(slot))return 'offhand';
+    if(/main hand/.test(slot))return 'mainhand';
+    const kind=classify(d);
+    if(kind==='shield')return 'offhand';
+    if(kind==='weapon')return 'mainhand';
+    return '';
   }
   function setField(el,value){if(!el)return;el.value=String(value??'');if(typeof el.oninput==='function')el.oninput({target:el,type:'input'});}
   function commitRow(row,vals){
@@ -61,26 +80,68 @@
     const packed=encode(meta);if(!packed)return;
     commitRow(row,{slot:'Loadout',def:0,mdef:0,init:0,notes:`Stored in loadout\n${MARK}${packed}`});
   }
-  function equippedRowFor(kind,except=null){return rows().find(r=>r!==except&&!isStowed(r)&&classify(effective(r))===kind)||null}
-  function equipRow(row,kind){
+  function equippedRowFor(slot,except=null){
+    return rows().find(r=>{
+      if(r===except||isStowed(r))return false;
+      if(slot==='mainhand')return ['mainhand','twohanded'].includes(rowHandSlot(r));
+      if(slot==='offhand')return rowHandSlot(r)==='offhand';
+      return classify(effective(r))===slot;
+    })||null;
+  }
+  function twoHandedRow(except=null){return rows().find(r=>r!==except&&!isStowed(r)&&rowHandSlot(r)==='twohanded')||null}
+  function equipRow(row,slot){
     if(!row)return;
     const data=effective(row),itemKind=classify(data);
-    if(itemKind!=='any'&&itemKind!==kind){toast(`${data.name||'That item'} belongs in ${SLOT_NAMES[itemKind]||itemKind}.`);return}
-    const occupied=equippedRowFor(kind,row);if(occupied)stowRow(occupied);
-    if(kind==='weapon'&&twoHanded(data)){const shield=equippedRowFor('shield',row);if(shield)stowRow(shield)}
-    if(kind==='shield'){const weapon=equippedRowFor('weapon',row);if(weapon&&twoHanded(effective(weapon)))stowRow(weapon)}
-    commitRow(row,{slot:actualSlot(kind,data),def:data.def,mdef:data.mdef,init:data.init,notes:data.notes});
+    let target=slot;
+    if(itemKind==='weapon'&&twoHanded(data))target='mainhand';
+    const allowed=itemKind==='any'
+      ||(target==='mainhand'&&itemKind==='weapon')
+      ||(target==='offhand'&&(itemKind==='shield'||(itemKind==='weapon'&&!twoHanded(data))))
+      ||(target==='armor'&&itemKind==='armor')
+      ||(target==='accessory'&&itemKind==='accessory');
+    if(!allowed){
+      const where=itemKind==='shield'?'Off Hand':itemKind==='weapon'?'Main Hand or Off Hand':SLOT_NAMES[itemKind]||itemKind;
+      toast(`${data.name||'That item'} belongs in ${where}.`);return;
+    }
+    if(itemKind==='weapon'&&twoHanded(data)){
+      rows().forEach(r=>{if(r!==row&&!isStowed(r)&&['mainhand','offhand','twohanded'].includes(rowHandSlot(r)))stowRow(r)});
+    }else if(target==='mainhand'){
+      const occupied=equippedRowFor('mainhand',row);if(occupied)stowRow(occupied);
+    }else if(target==='offhand'){
+      const two=twoHandedRow(row);if(two)stowRow(two);
+      const occupied=equippedRowFor('offhand',row);if(occupied)stowRow(occupied);
+    }else{
+      const occupied=equippedRowFor(target,row);if(occupied)stowRow(occupied);
+    }
+    commitRow(row,{slot:actualSlot(target,data),def:data.def,mdef:data.mdef,init:data.init,notes:data.notes});
     selectedIndex=null;queueRender();toast(`${data.name||'Item'} equipped. Stats updated.`);
   }
   function unequipIndex(index){const row=rows()[index];if(row){const name=effective(row).name;stowRow(row);selectedIndex=null;queueRender();toast(`${name||'Item'} moved to loadout.`)}}
 
   function statLine(d){const bits=[];if(d.def)bits.push(`DEF ${d.def>0?'+':''}${d.def}`);if(d.mdef)bits.push(`MDEF ${d.mdef>0?'+':''}${d.mdef}`);if(d.init)bits.push(`INIT ${d.init>0?'+':''}${d.init}`);return bits.length?bits.join(' · '):'No sheet stat modifiers'}
   function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-  function icon(kind){return ({weapon:'⚔',armor:'⬟',shield:'◈',accessory:'✦',any:'◇'})[kind]||'◇'}
+  function icon(kind){return ({weapon:'⚔',mainhand:'⚔',offhand:'⚔',armor:'⬟',shield:'◈',accessory:'✦',any:'◇'})[kind]||'◇'}
+  function slotIcon(slot,data){return slot==='offhand'&&data&&classify(data)==='shield'?icon('shield'):icon(slot)}
+  function dualWieldState(){
+    const main=equippedRowFor('mainhand'),off=equippedRowFor('offhand');
+    if(!main||!off||rowHandSlot(main)==='twohanded')return null;
+    const a=effective(main),b=effective(off);
+    if(classify(a)!=='weapon'||classify(b)!=='weapon'||twoHanded(a)||twoHanded(b))return null;
+    const ca=weaponCategory(a),cb=weaponCategory(b);
+    return ca&&ca===cb?{category:ca,main:a,off:b}:null;
+  }
 
-  function makeSlot(kind){
-    const row=equippedRowFor(kind),all=rows(),idx=row?all.indexOf(row):-1,data=row?effective(row):null;
-    return `<div class="equip-drop-slot ${row?'occupied':''}" data-equip-slot="${kind}"><div class="equip-slot-icon">${icon(kind)}</div><small>${SLOT_NAMES[kind]}</small>${data?`<strong>${esc(data.name||'Unnamed item')}</strong><span>${esc(statLine(data))}</span><button type="button" class="equip-unequip" data-unequip-index="${idx}">Unequip</button>`:`<strong>Empty</strong><span>Drop an item here</span>`}</div>`;
+  function makeSlot(slot){
+    const all=rows();
+    if(slot==='offhand'){
+      const two=twoHandedRow();
+      if(two){
+        const d=effective(two);
+        return `<div class="equip-drop-slot occupied hand-locked" data-equip-slot="offhand"><div class="equip-slot-icon">${icon('offhand')}</div><small>${SLOT_NAMES.offhand}</small><strong>${esc(d.name||'Two-handed weapon')}</strong><span>Occupied · Two-handed weapon</span></div>`;
+      }
+    }
+    const row=equippedRowFor(slot),idx=row?all.indexOf(row):-1,data=row?effective(row):null;
+    return `<div class="equip-drop-slot ${row?'occupied':''}" data-equip-slot="${slot}"><div class="equip-slot-icon">${slotIcon(slot,data)}</div><small>${SLOT_NAMES[slot]}</small>${data?`<strong>${esc(data.name||'Unnamed item')}</strong><span>${esc(statLine(data))}</span><button type="button" class="equip-unequip" data-unequip-index="${idx}">Unequip</button>`:`<strong>Empty</strong><span>Drop an item here</span>`}</div>`;
   }
 
   function cleanBuildEquipmentCards(){
@@ -96,7 +157,12 @@
 
   function render(){
     renderQueued=false;const host=document.getElementById('equipmentWorkbench');if(!host)return;const all=rows();
-    host.querySelector('.equip-slots').innerHTML=['weapon','armor','shield','accessory'].map(makeSlot).join('');
+    host.querySelector('.equip-slots').innerHTML=['mainhand','offhand','armor','accessory'].map(makeSlot).join('');
+    const dual=host.querySelector('.equip-dual-status'),pair=dualWieldState();
+    if(dual){
+      dual.classList.toggle('hidden',!pair);
+      dual.innerHTML=pair?`<span>⚔</span><div><strong>Two-Weapon Fighting ready · ${esc(pair.category.replace(/^./,x=>x.toUpperCase()))}</strong><small>${esc(pair.main.name)} + ${esc(pair.off.name)} · choose Two-Weapon Fighting in Actions: both damage calculations treat HR as 0 and both attacks lose multi.</small></div>`:'';
+    }
     const list=host.querySelector('.equip-loadout-list');
     if(!all.length)list.innerHTML='<div class="equip-empty">Choose equipment from the Build page and it will appear here.</div>';
     else list.innerHTML=all.map((row,i)=>{const d=effective(row),kind=classify(d),equipped=!isStowed(row);return `<button type="button" class="equip-pool-card ${equipped?'is-equipped':''} ${selectedIndex===i?'selected':''}" data-equip-index="${i}" draggable="${matchMedia('(pointer:fine)').matches?'true':'false'}"><span class="equip-pool-icon">${icon(kind)}</span><span class="equip-pool-copy"><strong>${esc(d.name||'Unnamed item')}</strong><small>${equipped?`Equipped · ${esc(current(row).slot)}`:`Loadout · ${SLOT_NAMES[kind]||'Any slot'}`}</small><em>${esc(statLine(d))}</em></span><span class="equip-pool-grip">${equipped?'✓':'⋮⋮'}</span></button>`}).join('');
@@ -110,7 +176,7 @@
   function installUI(){
     if(document.getElementById('equipmentWorkbench'))return;const target=page();if(!target)return;
     document.getElementById('inventoryLoadout')?.remove();
-    const host=document.createElement('section');host.id='equipmentWorkbench';host.className='equipment-workbench';host.innerHTML=`<div class="equipment-workbench-head"><div><p class="eyebrow">EQUIPMENT</p><h2>Equipped Loadout</h2></div><small>Drag items into a slot · on touch, tap an item then a slot</small></div><div class="equip-slots"></div><div class="equip-pool-head"><div><strong>Build Loadout</strong><span>Items chosen on the Build → Equipment tab</span></div></div><div class="equip-loadout-list"></div>`;
+    const host=document.createElement('section');host.id='equipmentWorkbench';host.className='equipment-workbench';host.innerHTML=`<div class="equipment-workbench-head"><div><p class="eyebrow">EQUIPMENT</p><h2>Equipped Loadout</h2></div><small>Drag items into a slot · on touch, tap an item then a slot</small></div><div class="equip-slots"></div><div class="equip-dual-status hidden"></div><div class="equip-pool-head"><div><strong>Build Loadout</strong><span>Items chosen on the Build → Equipment tab</span></div></div><div class="equip-loadout-list"></div>`;
     target.prepend(host);
     host.addEventListener('dragstart',e=>{const card=e.target.closest('[data-equip-index]');if(!card)return;dragIndex=Number(card.dataset.equipIndex);card.classList.add('dragging');e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',String(dragIndex))});
     host.addEventListener('dragend',e=>{e.target.closest('[data-equip-index]')?.classList.remove('dragging');dragIndex=null;host.querySelectorAll('.drag-over').forEach(x=>x.classList.remove('drag-over'))});
@@ -131,6 +197,7 @@
       .equipment-workbench{padding:15px;margin:0 0 12px;border:1px solid rgba(211,171,91,.26);border-radius:20px;background:linear-gradient(145deg,rgba(15,14,19,.82),rgba(8,10,14,.78));box-shadow:0 12px 30px rgba(0,0,0,.15)}
       .equipment-workbench-head{display:flex;justify-content:space-between;align-items:end;gap:12px;margin-bottom:12px}.equipment-workbench-head h2{margin:2px 0 0;font:700 1.35rem/1.1 Georgia,serif;color:#ead8ae}.equipment-workbench-head small{font-size:.64rem;color:#8c8476}
       .equip-slots{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.equip-drop-slot{position:relative;min-width:0;min-height:124px;padding:11px 9px;border:1px dashed rgba(211,171,91,.18);border-radius:15px;background:rgba(3,5,9,.3);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:4px;transition:border-color .12s ease,background .12s ease}.equip-drop-slot.occupied{border-style:solid;border-color:rgba(211,171,91,.3);background:radial-gradient(circle at 50% 12%,rgba(211,171,91,.07),rgba(3,5,9,.3) 62%)}.equip-drop-slot.drag-over{border-color:#e0bd72;background:rgba(126,92,43,.2)}.equip-slot-icon{font-size:1.35rem;color:#d3af63}.equip-drop-slot small{font-size:.5rem;letter-spacing:.13em;color:#8f8778}.equip-drop-slot strong{max-width:100%;font:700 .86rem/1.15 Georgia,serif;color:#ddd0b0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.equip-drop-slot>span{max-width:100%;font-size:.55rem;color:#878073;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.equip-unequip{min-height:25px!important;margin-top:3px;padding:3px 7px!important;border-radius:999px!important;font-size:.52rem!important;background:rgba(100,53,42,.16)!important;border-color:rgba(192,103,85,.2)!important;color:#cba39a!important}
+      .equip-drop-slot.hand-locked{border-style:solid;border-color:rgba(125,151,175,.25);background:rgba(73,99,122,.055)}.equip-drop-slot.hand-locked>span{color:#8195a3}.equip-dual-status{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:8px;margin:9px 0 2px;padding:8px 10px;border:1px solid rgba(102,169,204,.22);border-radius:11px;background:rgba(65,125,158,.045)}.equip-dual-status.hidden{display:none}.equip-dual-status>span{color:#96c8dd}.equip-dual-status>div{display:grid;gap:1px}.equip-dual-status strong{font:700 .68rem Georgia,serif;color:#cbd8da}.equip-dual-status small{font-size:.56rem;color:#858c89;line-height:1.35}
       .equip-pool-head{display:flex;justify-content:space-between;align-items:end;margin:15px 2px 7px;padding-top:12px;border-top:1px solid rgba(211,171,91,.1)}.equip-pool-head>div{display:grid;gap:2px}.equip-pool-head strong{font:700 1rem Georgia,serif;color:#dec99a}.equip-pool-head span{font-size:.58rem;color:#817a6e}.equip-loadout-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.equip-pool-card{min-width:0;display:grid!important;grid-template-columns:34px minmax(0,1fr) 24px;align-items:center;gap:8px;padding:10px!important;text-align:left!important;border:1px solid rgba(211,171,91,.13)!important;border-radius:13px!important;background:rgba(5,8,12,.38)!important;color:inherit!important;cursor:grab}.equip-pool-card:active{cursor:grabbing}.equip-pool-card.is-equipped{border-color:rgba(89,169,126,.22)!important;background:rgba(32,87,58,.09)!important}.equip-pool-card.selected{border-color:rgba(111,184,230,.52)!important;box-shadow:0 0 0 2px rgba(91,163,210,.08)!important}.equip-pool-card.dragging{opacity:.45}.equip-pool-icon{font-size:1.2rem;color:#d1ad60;text-align:center}.equip-pool-copy{display:grid;gap:2px;min-width:0}.equip-pool-copy strong{font-size:.84rem;color:#ddd0b5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.equip-pool-copy small{font-size:.56rem;color:#a9956b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.equip-pool-copy em{font-style:normal;font-size:.57rem;color:#7f8d91;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.equip-pool-grip{text-align:center;color:#857b69;font-size:.8rem}.equip-empty{grid-column:1/-1;padding:22px 10px;text-align:center;border:1px dashed rgba(211,171,91,.14);border-radius:13px;color:#817b70;font-size:.72rem}
       .equipment-toast{position:fixed;left:50%;bottom:88px;z-index:16000;transform:translate(-50%,10px);opacity:0;pointer-events:none;padding:8px 12px;border:1px solid rgba(211,171,91,.28);border-radius:999px;background:#101116;color:#e3d2aa;font-size:.7rem;transition:opacity .14s ease,transform .14s ease}.equipment-toast.show{opacity:1;transform:translate(-50%,0)}
       @media(max-width:700px){.equipment-workbench{padding:10px;border-radius:17px}.equipment-workbench-head small{display:none}.equip-slots{grid-template-columns:repeat(2,minmax(0,1fr))}.equip-drop-slot{min-height:96px;padding:8px}.equip-loadout-list{grid-template-columns:1fr}.equip-pool-card{min-height:60px;cursor:pointer}.equipment-toast{bottom:78px;max-width:calc(100vw - 28px);text-align:center}}
