@@ -81,12 +81,27 @@ function assetMetadata(asset){
   return asset?.metadata&&typeof asset.metadata==='object'&&!Array.isArray(asset.metadata)?asset.metadata:{};
 }
 
+const ARTWORK_MIME_BY_EXTENSION={jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',webp:'image/webp',gif:'image/gif',mp4:'video/mp4',webm:'video/webm'};
+const IMAGE_ACCEPT='image/jpeg,image/png,image/webp,image/gif';
+const SCENE_ACCEPT=IMAGE_ACCEPT+',video/mp4,video/webm';
+const fileExtension=name=>String(name||'').split(/[?#]/)[0].split('.').pop().toLowerCase();
+const isVideoBackdrop=asset=>asset?.kind==='scene'&&(
+  /^video\/(mp4|webm)$/i.test(assetMetadata(asset).mime_type||'')||
+  ['mp4','webm'].includes(fileExtension(asset?.storage_path||asset?.image_url))
+);
+const isAnimatedBackdrop=asset=>isVideoBackdrop(asset)||(
+  asset?.kind==='scene'&&(
+    assetMetadata(asset).mime_type==='image/gif'||
+    fileExtension(asset?.storage_path||asset?.image_url)==='gif'
+  )
+);
+
 function assetThumbnailUrl(asset){
   return assetMetadata(asset).thumbnail_url||asset?.image_url||'';
 }
 
 function thumbnailEligibleAsset(asset){
-  if(!asset?.id||!asset?.image_url||isInteractiveMap(asset))return false;
+  if(!asset?.id||!asset?.image_url||isInteractiveMap(asset)||isVideoBackdrop(asset))return false;
   return asset.kind!=='map'||/.(?:png|jpe?g|webp|gif)(?:$|[?#])/i.test(asset.image_url);
 }
 
@@ -134,6 +149,36 @@ async function imageBlobToThumbnail(blob,maxSide=512){
   }finally{
     try{source?.close?.()}catch(_){}
     if(revoke)URL.revokeObjectURL(revoke);
+  }
+}
+
+async function videoFileToThumbnail(file){
+  const url=URL.createObjectURL(file);
+  const video=document.createElement('video');
+  video.muted=true;
+  video.playsInline=true;
+  video.preload='auto';
+  try{
+    await new Promise((resolve,reject)=>{
+      const timer=setTimeout(()=>reject(new Error('The video could not be decoded for a scene preview.')),15000);
+      video.addEventListener('loadeddata',()=>{clearTimeout(timer);resolve()},{once:true});
+      video.addEventListener('error',()=>{clearTimeout(timer);reject(new Error('This video cannot be played in your browser. Try an H.264 MP4 or WebM file.'))},{once:true});
+      video.src=url;
+    });
+    const scale=Math.min(1,512/Math.max(video.videoWidth,video.videoHeight));
+    const canvas=document.createElement('canvas');
+    canvas.width=Math.max(1,Math.round(video.videoWidth*scale));
+    canvas.height=Math.max(1,Math.round(video.videoHeight*scale));
+    const ctx=canvas.getContext('2d',{alpha:false});
+    if(!ctx)throw new Error('Video preview canvas unavailable.');
+    ctx.drawImage(video,0,0,canvas.width,canvas.height);
+    const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));
+    if(!blob)throw new Error('Could not make a scene preview from this video.');
+    return blob;
+  }finally{
+    video.removeAttribute('src');
+    video.load();
+    URL.revokeObjectURL(url);
   }
 }
 
@@ -1136,8 +1181,27 @@ function setupPartySpriteEditor(){
   renderPartySpriteEditor();
 }
 
-function setBackdrop(asset){
-  els.backdrop.style.backgroundImage=asset?.image_url?'url("'+asset.image_url.replace(/"/g,'%22')+'")':'';
+function setBackdrop(asset,mode){
+  const video=els.backdropVideo;
+  if(isVideoBackdrop(asset)){
+    els.backdrop.style.backgroundImage='';
+    video.poster=assetThumbnailUrl(asset);
+    if(video.getAttribute('src')!==asset.image_url){
+      video.src=asset.image_url;
+      video.load();
+    }
+    video.classList.remove('hidden');
+    if(mode==='scene'||mode==='reveal')video.play().catch(()=>{});
+    else video.pause();
+  }else{
+    if(video.hasAttribute('src')){
+      video.pause();
+      video.removeAttribute('src');
+      video.load();
+    }
+    video.classList.add('hidden');
+    els.backdrop.style.backgroundImage=asset?.image_url?'url("'+asset.image_url.replace(/"/g,'%22')+'")':'';
+  }
 }
 
 const TRANSITION_STYLE_KEYS=['soft-fade','dream','crystal-flash','relic-glitch','darkness','memory','impact','mist-veil','ink-bleed','eclipse','water-ripple','relic-aperture','depth-blur','leyline-pulse'];
@@ -1207,6 +1271,7 @@ class TransitionCanvasRenderer{
     this.running=false;
     this.backdropSrc='';
     this.backdropReady=false;
+    this.backdropMedia=null;
     this.backdropImg=new Image();
     this.backdropImg.crossOrigin='anonymous';
     this.backdropImg.onload=()=>{this.backdropReady=true};
@@ -1250,11 +1315,16 @@ class TransitionCanvasRenderer{
     }
   }
 
-  setBackdropSource(src){
+  setBackdropSource(src,media=null){
     const next=src||'';
-    if(next===this.backdropSrc)return;
+    if(next===this.backdropSrc&&media===this.backdropMedia)return;
     this.backdropSrc=next;
+    this.backdropMedia=media;
     this.backdropReady=false;
+    if(media){
+      this.backdropImg.removeAttribute('src');
+      return;
+    }
     if(!next){
       this.backdropImg.removeAttribute('src');
       return;
@@ -1271,8 +1341,9 @@ class TransitionCanvasRenderer{
 
   captureBackdrop(){
     this.clearSnapshot();
-    if(!this.snapshotCtx||!this.backdropReady||!this.backdropImg?.naturalWidth)return;
-    drawImageCover(this.snapshotCtx,this.backdropImg,0,0,this.snapshot.width,this.snapshot.height);
+    const source=this.backdropMedia||this.backdropImg;
+    if(!this.snapshotCtx||!(this.backdropMedia?source?.readyState>=2:this.backdropReady)||!(source?.videoWidth||source?.naturalWidth))return;
+    drawImageCover(this.snapshotCtx,source,0,0,this.snapshot.width,this.snapshot.height);
     this.hasSnapshot=true;
   }
 
@@ -2658,7 +2729,7 @@ function renderDisplay(){
   const map=byId(state.map_asset_id);
   const reveal=byId(state.active_reveal_id);
   const mode=state.mode||'scene';
-  if(mode==='scene')warmArtwork(scene?.image_url);
+  if(mode==='scene'&&!isVideoBackdrop(scene))warmArtwork(scene?.image_url);
   if(mode==='reveal')warmArtwork(reveal?.image_url);
   warmArtwork(byId(state.pinned_left_id)?.image_url);
   warmArtwork(byId(state.pinned_right_id)?.image_url);
@@ -2682,8 +2753,8 @@ function renderDisplay(){
 
   const interactiveMapLive=mode==='map'&&isInteractiveMap(map);
   const backdropAsset=mode==='map'?(interactiveMapLive?scene:(map||scene)):scene;
-  setBackdrop(backdropAsset);
-  getTransitionCanvasRenderer()?.setBackdropSource(backdropAsset?.image_url||'');
+  setBackdrop(backdropAsset,mode);
+  getTransitionCanvasRenderer()?.setBackdropSource(backdropAsset?.image_url||'',isVideoBackdrop(backdropAsset)?els.backdropVideo:null);
   if(interactiveMapLive){
     const mapRole=shouldReceivePlayerMap()?'player':'gm';
     mountInteractiveMap(map,mapRole);
@@ -2718,7 +2789,7 @@ function renderDisplay(){
   renderPinned(els.pinRight,state.pinned_right_id);
   els.hudToggle.checked=state.hud_visible!==false;
   renderParty();
-  getSceneAtmosphereRenderer()?.setBackdropSource(mode==='scene'?(scene?.image_url||''):'');
+  getSceneAtmosphereRenderer()?.setBackdropSource(mode==='scene'?(scene?.image_url||''):'',mode==='scene'&&isVideoBackdrop(scene)?els.backdropVideo:null,mode==='scene'&&isAnimatedBackdrop(scene));
   renderSceneEffects(mode);
   // The world map already represents the party with the caravan marker.
   // Hide the character HUD there to keep the map presentation uncluttered.
@@ -4150,6 +4221,7 @@ function openSceneInspector(id){
 function closeSceneInspector(){
   sceneInspectorSceneId=null;
   if(!els.sceneInspector)return;
+  els.sceneInspectorVideo?.pause();
   els.sceneInspector.classList.add('hidden');
   els.sceneInspector.setAttribute('aria-hidden','true');
   document.body.classList.remove('scene-inspector-open');
@@ -4251,8 +4323,23 @@ function renderSceneInspector(){
 
   if(els.sceneInspectorTitle)els.sceneInspectorTitle.textContent=asset.name||'Scene';
   if(els.sceneInspectorImage){
-    els.sceneInspectorImage.src=asset.image_url||'';
+    const video=isVideoBackdrop(asset);
+    els.sceneInspectorImage.src=video?(assetThumbnailUrl(asset)||''):(asset.image_url||'');
     els.sceneInspectorImage.alt=asset.name||'Scene backdrop';
+    els.sceneInspectorImage.classList.toggle('hidden',video);
+    if(els.sceneInspectorVideo){
+      if(video){
+        els.sceneInspectorVideo.poster=assetThumbnailUrl(asset);
+        if(els.sceneInspectorVideo.getAttribute('src')!==asset.image_url)els.sceneInspectorVideo.src=asset.image_url;
+        els.sceneInspectorVideo.classList.remove('hidden');
+        els.sceneInspectorVideo.play().catch(()=>{});
+      }else{
+        els.sceneInspectorVideo.pause();
+        els.sceneInspectorVideo.removeAttribute('src');
+        els.sceneInspectorVideo.load();
+        els.sceneInspectorVideo.classList.add('hidden');
+      }
+    }
   }
   if(els.sceneInspectorLiveBadge){
     els.sceneInspectorLiveBadge.textContent=current?(sceneMode?'LIVE SCENE':'CURRENT SCENE · '+String(state?.mode||'scene').toUpperCase()):'NOT LIVE';
@@ -4656,46 +4743,84 @@ async function openMapEditor(){
 function openAssetDialog(kind='npc'){
   els.assetForm.reset();
   els.assetKind.value=kind;
-  els.assetPreview.classList.add('hidden');
-  els.assetPreview.removeAttribute('src');
+  clearAssetPreview();
+  updateAssetFileAccept();
   els.assetMessage.textContent='';
   els.dialogTitle.textContent=kind==='scene'?'Upload scene backdrop':'Upload artwork';
   els.assetDialog.showModal();
 }
 
+function updateAssetFileAccept(){
+  const scene=els.assetKind.value==='scene';
+  els.assetFile.accept=scene?SCENE_ACCEPT:IMAGE_ACCEPT;
+  els.assetFileHelp.textContent=scene
+    ? 'Choose PNG, JPG, WebP or GIF (up to 15 MB), or MP4 / WebM (up to 30 MB)'
+    : 'Choose PNG, JPG, WebP or GIF · up to 15 MB';
+  els.dialogTitle.textContent=scene?'Upload scene backdrop':'Upload artwork';
+}
+
+function clearAssetPreview(){
+  els.assetPreview.classList.add('hidden');
+  els.assetPreview.removeAttribute('src');
+  els.assetVideoPreview.pause();
+  els.assetVideoPreview.classList.add('hidden');
+  if(els.assetVideoPreview.hasAttribute('src')){
+    els.assetVideoPreview.removeAttribute('src');
+    els.assetVideoPreview.load();
+  }
+  if(previewUrl){URL.revokeObjectURL(previewUrl);previewUrl=''}
+}
+
 function previewSelectedFile(){
   const file=els.assetFile.files?.[0];
-  if(previewUrl){URL.revokeObjectURL(previewUrl);previewUrl=''}
-  if(!file){els.assetPreview.classList.add('hidden');return}
+  clearAssetPreview();
+  if(!file)return;
   previewUrl=URL.createObjectURL(file);
-  els.assetPreview.src=previewUrl;
-  els.assetPreview.classList.remove('hidden');
+  if(ARTWORK_MIME_BY_EXTENSION[fileExtension(file.name)]?.startsWith('video/')){
+    els.assetVideoPreview.src=previewUrl;
+    els.assetVideoPreview.classList.remove('hidden');
+    els.assetVideoPreview.play().catch(()=>{});
+  }else{
+    els.assetPreview.src=previewUrl;
+    els.assetPreview.classList.remove('hidden');
+  }
 }
 
 async function uploadAsset(e){
   e.preventDefault();
   if(!canGMControl())return;
   const file=els.assetFile.files?.[0];
-  if(!file){els.assetMessage.textContent='Choose an image first.';return}
-  if(file.size>15*1024*1024){els.assetMessage.textContent='That image is larger than 15 MB.';return}
+  if(!file){els.assetMessage.textContent='Choose a file first.';return}
+  const kind=els.assetKind.value;
+  const ext=fileExtension(file.name);
+  const mime=ARTWORK_MIME_BY_EXTENSION[ext];
+  const video=mime?.startsWith('video/');
+  if(!mime||(video&&kind!=='scene')||(file.type&&file.type!==mime)){
+    els.assetMessage.textContent=kind==='scene'?'Choose a PNG, JPG, WebP, GIF, MP4 or WebM file.':'Choose a PNG, JPG, WebP or GIF image.';
+    return;
+  }
+  const maxSize=(video?30:15)*1024*1024;
+  if(file.size>maxSize){els.assetMessage.textContent='That '+(video?'video':'image')+' is larger than '+(video?30:15)+' MB.';return}
   const name=els.assetName.value.trim();
   if(!name){els.assetMessage.textContent='Give the visual a name.';return}
-  const kind=els.assetKind.value;
   const subtitle=els.assetSubtitle.value.trim();
   els.saveAssetBtn.disabled=true;
   els.assetMessage.textContent='Uploading…';
+  let uploadedPath='';
+  let thumbMeta={mime_type:mime};
   try{
-    const ext=(file.name.split('.').pop()||'jpg').toLowerCase().replace(/[^a-z0-9]/g,'')||'jpg';
+    const thumbnailSource=video?await videoFileToThumbnail(file):file;
     const storagePath=CAMPAIGN_ID+'/'+crypto.randomUUID()+'.'+ext;
-    const up=await supabase.storage.from('live-table').upload(storagePath,file,{cacheControl:'3600',upsert:false,contentType:file.type});
+    const up=await supabase.storage.from('live-table').upload(storagePath,file,{cacheControl:'3600',upsert:false,contentType:mime});
     if(up.error)throw up.error;
+    uploadedPath=storagePath;
     const pub=supabase.storage.from('live-table').getPublicUrl(storagePath);
     const imageUrl=pub.data.publicUrl;
-    let thumbMeta={};
     try{
       els.assetMessage.textContent='Creating library thumbnail…';
-      thumbMeta=await uploadThumbnailBlob(file);
+      thumbMeta={...thumbMeta,...await uploadThumbnailBlob(thumbnailSource)};
     }catch(err){
+      if(video)throw new Error('Could not save the video preview. Please try the upload again.');
       console.warn('Thumbnail generation failed; original artwork will still be saved.',err);
     }
     const ins=await supabase.from('live_table_assets').insert({
@@ -4708,16 +4833,15 @@ async function uploadAsset(e){
       metadata:thumbMeta,
       created_by:user.id
     }).select().single();
-    if(ins.error){
-      await supabase.storage.from('live-table').remove([storagePath,thumbMeta.thumbnail_path].filter(Boolean));
-      throw ins.error;
-    }
+    if(ins.error)throw ins.error;
+    uploadedPath='';
     assets=[ins.data,...assets];
     els.assetDialog.close();
     if(kind==='scene')await activateScene(ins.data.id);
     else{renderAll();recent=[ins.data.id,...recent.filter(x=>x!==ins.data.id)];renderRecent()}
   }catch(err){
     console.error(err);
+    if(uploadedPath)await supabase.storage.from('live-table').remove([uploadedPath,thumbMeta.thumbnail_path].filter(Boolean));
     els.assetMessage.textContent=err?.message||'Upload failed.';
   }finally{
     els.saveAssetBtn.disabled=false;
@@ -5487,6 +5611,8 @@ function wire(){
   els.closeDialogBtn.addEventListener('click',()=>els.assetDialog.close());
   els.cancelAssetBtn.addEventListener('click',()=>els.assetDialog.close());
   els.assetFile.addEventListener('change',previewSelectedFile);
+  els.assetKind.addEventListener('change',updateAssetFileAccept);
+  els.assetDialog.addEventListener('close',clearAssetPreview);
   els.assetForm.addEventListener('submit',uploadAsset);
   els.returnSceneBtn.addEventListener('click',()=>patchState({mode:'scene',active_reveal_id:null}));
   els.clearPinsBtn.addEventListener('click',()=>patchState({pinned_left_id:null,pinned_right_id:null}));

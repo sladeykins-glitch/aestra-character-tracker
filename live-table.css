@@ -3062,3 +3062,16 @@ body.gm-preview-compact .party-card-shell .party-sprite-pair .party-hud-sprite{
   background:linear-gradient(180deg,rgba(255,255,255,.16),transparent 55%,rgba(0,0,0,.10));
   pointer-events:none;
 }
+
+/* Animated scene backdrops share the same cover crop and scene layers as stills. */
+.backdrop>video,
+.scene-inspector-hero>video{
+  display:block;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  pointer-events:none;
+}
+.backdrop>video{position:absolute;inset:0}
+.backdrop>video.hidden,
+.scene-inspector-hero>video.hidden{display:none!important}

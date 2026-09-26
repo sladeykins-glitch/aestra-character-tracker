@@ -2,8 +2,8 @@
 // Kept separate from GM/application state so animation work can evolve independently.
 
 export function drawImageCover(ctx,img,dx,dy,dw,dh){
-  const iw=img?.naturalWidth||img?.width||0;
-  const ih=img?.naturalHeight||img?.height||0;
+  const iw=img?.videoWidth||img?.naturalWidth||img?.width||0;
+  const ih=img?.videoHeight||img?.naturalHeight||img?.height||0;
   if(!iw||!ih||!dw||!dh)return;
   const scale=Math.max(dw/iw,dh/ih);
   const sw=dw/scale;
@@ -216,14 +216,16 @@ class SceneShaderRenderer{
   }
 
   setBackdropImage(img){
-    if(!this.available||!this.gl||!this.texture||!img?.naturalWidth)return;
+    const width=img?.videoWidth||img?.naturalWidth||0;
+    const height=img?.videoHeight||img?.naturalHeight||0;
+    if(!this.available||!this.gl||!this.texture||!width||!height)return;
     const gl=this.gl;
     try{
       gl.bindTexture(gl.TEXTURE_2D,this.texture);
       gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true);
       gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,img);
-      this.imageWidth=img.naturalWidth;
-      this.imageHeight=img.naturalHeight;
+      this.imageWidth=width;
+      this.imageHeight=height;
       this.textureReady=true;
     }catch(err){
       console.warn('Scene shader texture unavailable; using 2D fallback',err);
@@ -305,6 +307,9 @@ export class SceneAtmosphereRenderer{
     this.relicArcs=[];
     this.backdropSrc='';
     this.backdropReady=false;
+    this.backdropMedia=null;
+    this.backdropAnimated=false;
+    this.lastMediaTextureAt=0;
     this.backdropImg=new Image();
     this.backdropImg.crossOrigin='anonymous';
     this.backdropImg.onload=()=>{
@@ -353,13 +358,22 @@ export class SceneAtmosphereRenderer{
     }
   }
 
-  setBackdropSource(src){
+  setBackdropSource(src,media=null,animated=false){
     const next=src||'';
-    if(next===this.backdropSrc)return;
+    if(next===this.backdropSrc&&media===this.backdropMedia&&animated===this.backdropAnimated)return;
     this.backdropSrc=next;
+    this.backdropMedia=media;
+    this.backdropAnimated=animated;
+    this.lastMediaTextureAt=0;
     this.backdropReady=false;
     this.shader?.clear();
+    this.shader.textureReady=false;
     if(!next){
+      this.backdropImg.removeAttribute('src');
+      this.clearHeatBuffer();
+      return;
+    }
+    if(media){
       this.backdropImg.removeAttribute('src');
       this.clearHeatBuffer();
       return;
@@ -376,10 +390,11 @@ export class SceneAtmosphereRenderer{
   refreshHeatBuffer(){
     if(!this.heatCtx||!this.heatBuffer)return;
     this.clearHeatBuffer();
-    if(!this.backdropReady||!this.backdropImg?.naturalWidth)return;
+    const source=this.backdropMedia||this.backdropImg;
+    if(!this.backdropReady||!(source?.videoWidth||source?.naturalWidth))return;
     drawImageCover(
       this.heatCtx,
-      this.backdropImg,
+      source,
       0,
       0,
       this.heatBuffer.width,
@@ -595,7 +610,17 @@ export class SceneAtmosphereRenderer{
     const effects=new Set(this.cfg.effects);
     if(effects.has('storm'))effects.add('rain');
 
+    if(this.backdropAnimated&&now-this.lastMediaTextureAt>=33){
+      const source=this.backdropMedia||this.backdropImg;
+      this.backdropReady=Boolean(this.backdropMedia?source?.readyState>=2:source?.naturalWidth);
+      if(this.backdropReady){
+        this.shader?.setBackdropImage(source);
+        this.lastMediaTextureAt=now;
+      }
+    }
+
     const shaderRendered=this.shader?.render(now,effects,this.cfg.intensity)===true;
+    if(this.backdropAnimated&&!shaderRendered&&(effects.has('heat')||effects.has('dream')))this.refreshHeatBuffer();
     if(effects.has('heat')&&!shaderRendered)this.drawHeatHaze(ctx,w,h,now);
     if(effects.has('dream')&&!shaderRendered)this.drawDreamDistortion(ctx,w,h,now);
     if(effects.has('underwater')&&!shaderRendered)this.drawUnderwaterFallback(ctx,w,h,now);
@@ -1243,4 +1268,3 @@ export class SceneAtmosphereRenderer{
     this.host.style.setProperty('--scene-fx-flash',String(Math.max(0,Math.min(.75,value))));
   }
 }
-
